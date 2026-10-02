@@ -120,6 +120,13 @@ def check_bodies(root, row, evidence, source_root):
     review = evidence.get('source_check', {})
     if not isinstance(review, dict):
         review = {}
+    for scope, declaration in [('manifest', row.get('source_check', {})), ('body evidence', review)]:
+        if isinstance(declaration, dict) and 'root_admission_pending' in declaration:
+            pending = declaration['root_admission_pending']
+            if pending is True:
+                error(scope + ' source_check admission pending (root_admission_pending=true)')
+            elif pending is not False:
+                error(scope + ' source_check malformed root_admission_pending; expected boolean false')
     for key in ['complete_statement', 'complete_proof', 'required_context_preserved', 'above_ordinary_phd_quals']:
         if review.get(key) is not True:
             error('bounded source_check missing ' + key)

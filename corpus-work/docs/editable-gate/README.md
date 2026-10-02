@@ -40,6 +40,8 @@ The helper supports the observed exact Stacks reference adaptations, native exce
 
 Reason-bearing exclusions are pinned by `scripts/editable_exclusions.json` and `scripts/editable_gate_evidence/`. Optional additional exclusions cannot remove or override known holds. A cleared hold requires an explicit updated admission decision; short proof or corollary syntax alone is not a rejection rule.
 
+Current manifest and per-item body-evidence `source_check.root_admission_pending`, when present, must be boolean `false`. `true` fails as admission pending; every nonboolean value fails as malformed. Absence remains backward compatible, and nested historical staging declarations are preserved rather than treated as current admission status. Clear current flags only through a recorded admission decision in a new pinned immutable revision; do not rewrite historical snapshots.
+
 ## Verification scope
 
 The isolated frozen251-v2 package passed the whole gate and all251 individual CLI invocations using its exact archived build artifacts. The169-test suite passed with no skips, including stabilization at three passes and failure at four still-unstable passes. A fresh checkout-style compile and override-receipt gate also passed for item001. This does not claim fresh recompilation of all251 or a new remote publication count.

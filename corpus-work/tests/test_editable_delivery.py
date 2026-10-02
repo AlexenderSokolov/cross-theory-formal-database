@@ -127,6 +127,49 @@ class EditableDelivery(unittest.TestCase):
         self.assertEqual(report['editable_qualified_count'], 1)
         self.assertIn('does not certify', report['limitations'])
 
+    def test_manifest_source_check_pending_admission_fails_closed(self):
+        self.row['source_check']['root_admission_pending'] = True
+        self.save()
+        self.assert_fails('manifest source_check admission pending')
+        self.assert_fails('manifest source_check admission pending', '--item', '1001')
+
+    def test_body_evidence_source_check_pending_admission_fails_closed(self):
+        self.evidence_item['source_check']['root_admission_pending'] = True
+        self.save()
+        self.assert_fails('body evidence source_check admission pending')
+        self.assert_fails('body evidence source_check admission pending', '--item', '1001')
+
+    def test_current_source_check_cleared_admission_passes(self):
+        self.row['source_check']['root_admission_pending'] = False
+        self.evidence_item['source_check']['root_admission_pending'] = False
+        self.save()
+        result, report = self.run_gate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(report['editable_qualified_count'], 1)
+
+    def test_current_source_check_malformed_admission_flag_fails_closed(self):
+        for label, declaration in [('manifest', self.row['source_check']),
+                                   ('body evidence', self.evidence_item['source_check'])]:
+            for value in [None, 0, 1, 'false', 'true', [], {}]:
+                with self.subTest(scope=label, value=value):
+                    declaration['root_admission_pending'] = value
+                    self.save()
+                    self.assert_fails(label + ' source_check malformed root_admission_pending')
+            declaration.pop('root_admission_pending')
+
+    def test_historical_source_check_pending_admission_is_preserved(self):
+        for declaration in [self.row['source_check'], self.evidence_item['source_check']]:
+            declaration['original_stage_source_check'] = dict(root_admission_pending=True)
+        for current_cleared in [False, True]:
+            with self.subTest(current_flag_present=current_cleared):
+                if current_cleared:
+                    self.row['source_check']['root_admission_pending'] = False
+                    self.evidence_item['source_check']['root_admission_pending'] = False
+                self.save()
+                result, report = self.run_gate()
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(report['editable_qualified_count'], 1)
+
     def test_reads_without_writing_to_package(self):
         before = {str(p.relative_to(self.package)): digest(p.read_bytes()) for p in self.package.rglob('*') if p.is_file()}
         result, _ = self.run_gate()
