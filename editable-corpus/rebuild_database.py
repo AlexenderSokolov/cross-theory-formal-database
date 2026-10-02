@@ -11,6 +11,7 @@ def rebuild(root,output):
   for item in sorted(manifest['items'],key=lambda x:x['problem_id']):
    assert item['status']=='verified_editable_tex';content=(root/item['item_path']).read_text(encoding='utf-8');assert hashlib.sha256(content.encode()).hexdigest()==item['tex_sha256']
    receipt=json.loads((root/item['compile_receipt']).read_text());assert receipt['ok'] is True and receipt['passes']==2 and receipt['input_sha256']==item['tex_sha256']
+   for dependency in item.get('asset_dependencies',[]):assert hashlib.sha256((root/dependency['path']).read_bytes()).hexdigest()==dependency['sha256']
    sid=item['source_id'];source=tuple(item[k] for k in ('author','work','source_url','source_version','retrieved_at','license','license_path'))
    if sid not in sources:db.execute('INSERT INTO sources VALUES (?,?,?,?,?,?,?,?)',(sid,)+source);sources[sid]=source
    else:assert sources[sid]==source

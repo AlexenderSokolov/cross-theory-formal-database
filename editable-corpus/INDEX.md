@@ -1,12 +1,14 @@
 # 已验证的可编辑题证目录
 
-本目录实际交付 20 题。每题含完整作者原命题、完整人类证明、必要背景与可追溯来源。PDF 页面封装不列为完成条目。
+本目录实际交付 40 题。每题含完整作者原命题、完整人类证明、必要背景与可追溯来源。PDF 页面封装不列为完成条目。
 
 | 题号 | 题名 | 难度 | 可编辑 TeX | 来源及定位 |
 |---|---|---|---|---|
 | 001 | Serre criterion for affineness | H2 | [001_stacks_01XF.tex](items/001_stacks_01XF.tex) | [作者原文](https://stacks.math.columbia.edu/tag/01XF) · [原文定位](sources/001/provenance.json) |
 | 016 | Chow lemma for separated finite-type morphisms over a Noetherian base | H2 | [016_stacks_0200.tex](items/016_stacks_0200.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0200) · [原文定位](sources/016/provenance.json) |
+| 030 | Cohen structure theorem | H2 | [030_stacks_032A.tex](items/030_stacks_032A.tex) | [作者原文](https://stacks.math.columbia.edu/tag/032A) · [原文定位](sources/030/provenance.json) |
 | 037 | Stein factorization with geometrically connected fibres | H2 | [037_stacks_03H0.tex](items/037_stacks_03H0.tex) | [作者原文](https://stacks.math.columbia.edu/tag/03H0) · [原文定位](sources/037/provenance.json) |
+| 062 | Skolem-Noether conjugacy theorem | H2 | [062_stacks_074Q.tex](items/062_stacks_074Q.tex) | [作者原文](https://stacks.math.columbia.edu/tag/074Q) · [原文定位](sources/062/provenance.json) |
 | 065 | Lazard characterization of flat modules | H2 | [065_stacks_058G.tex](items/065_stacks_058G.tex) | [作者原文](https://stacks.math.columbia.edu/tag/058G) · [原文定位](sources/065/provenance.json) |
 | 112 | Miracle flatness | H2 | [112_stacks_00R4.tex](items/112_stacks_00R4.tex) | [作者原文](https://stacks.math.columbia.edu/tag/00R4) · [原文定位](sources/112/provenance.json) |
 | 114 | Openness of fibrewise exactness for finite free complexes over flat finite-type algebras over a Noetherian base with Cohen-Macaulay fibres of fixed dimension | H2 | [114_stacks_00RB.tex](items/114_stacks_00RB.tex) | [作者原文](https://stacks.math.columbia.edu/tag/00RB) · [原文定位](sources/114/provenance.json) |
@@ -24,3 +26,21 @@
 | 252 | Existence and arbitrary base change of relative dualizing complexes for flat finitely presented algebras | H2 | [252_stacks_0E2F.tex](items/252_stacks_0E2F.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0E2F) · [原文定位](sources/252/provenance.json) |
 | 253 | Localization on the base of the right adjoint for proper pushforward | H2 | [253_stacks_0A9P.tex](items/253_stacks_0A9P.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0A9P) · [原文定位](sources/253/provenance.json) |
 | 254 | Tor-independent base change for the right adjoint of proper pushforward | H2 | [254_stacks_0AA8.tex](items/254_stacks_0AA8.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0AA8) · [原文定位](sources/254/provenance.json) |
+| 255 | Perfection, pushforward vanishing and self-duality of proper flat relative dualizing complexes | H2 | [255_stacks_0E4L.tex](items/255_stacks_0E4L.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0E4L) · [原文定位](sources/255/provenance.json) |
+| 256 | The dualizing complex of an arbitrary projective bundle | H2 | [256_stacks_0A9W.tex](items/256_stacks_0A9W.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0A9W) · [原文定位](sources/256/provenance.json) |
+| 257 | Dualizing Ext for a Koszul-regular immersion and its normal determinant | H2 | [257_stacks_0BQZ.tex](items/257_stacks_0BQZ.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0BQZ) · [原文定位](sources/257/provenance.json) |
+| 258 | Compactification independence of the twisted inverse image functor | H2 | [258_stacks_0AA0.tex](items/258_stacks_0AA0.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0AA0) · [原文定位](sources/258/provenance.json) |
+| 259 | Canonical transitivity of twisted inverse image for separated finite-type morphisms | H2 | [259_stacks_0ATX.tex](items/259_stacks_0ATX.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0ATX) · [原文定位](sources/259/provenance.json) |
+| 260 | Existence of normalized dualizing complexes on finite-type schemes | H2 | [260_stacks_0AU9.tex](items/260_stacks_0AU9.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0AU9) · [原文定位](sources/260/provenance.json) |
+| 261 | Global existence of relative dualizing complexes for flat locally finitely presented morphisms | H2 | [261_stacks_0E2X.tex](items/261_stacks_0E2X.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0E2X) · [原文定位](sources/261/provenance.json) |
+| 262 | Composition of rigidified relative dualizing complexes for flat morphisms | H2 | [262_stacks_0E30.tex](items/262_stacks_0E30.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0E30) · [原文定位](sources/262/provenance.json) |
+| 263 | Fundamental class of a local complete intersection and detection of smoothness | H2 | [263_stacks_0E9Z.tex](items/263_stacks_0E9Z.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0E9Z) · [原文定位](sources/263/provenance.json) |
+| 264 | Deligne systems represent derived Hom after restriction to an open subscheme | H2 | [264_stacks_0G2H.tex](items/264_stacks_0G2H.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0G2H) · [原文定位](sources/264/provenance.json) |
+| 265 | Topological duality between coherent cohomology and compactly supported cohomology | H2 | [265_stacks_0G5A.tex](items/265_stacks_0G5A.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0G5A) · [原文定位](sources/265/provenance.json) |
+| 266 | Nonvanishing of top coherent cohomology forces a variety to be proper | H2 | [266_stacks_0G5E.tex](items/266_stacks_0G5E.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0G5E) · [原文定位](sources/266/provenance.json) |
+| 267 | Equidimensionality of catenary Noetherian local S2 rings | H2 | [267_stacks_0FIW.tex](items/267_stacks_0FIW.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0FIW) · [原文定位](sources/267/provenance.json) |
+| 268 | Local-to-global finiteness of low local-cohomology modules | H2 | [268_stacks_0AW9.tex](items/268_stacks_0AW9.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0AW9) · [原文定位](sources/268/provenance.json) |
+| 269 | Associated-point criterion for coherence of pushforward from an open subscheme | H2 | [269_stacks_0BJZ.tex](items/269_stacks_0BJZ.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0BJZ) · [原文定位](sources/269/provenance.json) |
+| 3005 | Thompson’s group T has quadratic Dehn function | H1 | [3005_author_proof.tex](items/3005_author_proof.tex) | [作者原文](https://www.cambridge.org/core/journals/forum-of-mathematics-sigma/article/thompsons-group-t-has-quadratic-dehn-function/A23CB1A66E2CC7D2B413EE18032A8338) · [原文定位](sources/3005/provenance.json) |
+| 3198 | Universal minimal blowup stabilisation for dominant rational surface maps admitting stabilisation by a birational morphism | H1 | [3198_author_proof.tex](items/3198_author_proof.tex) | [作者原文](https://afst.centre-mersenne.org/item/10.5802/afst.1805.pdf) · [原文定位](sources/3198/provenance.json) |
+| 3215 | Every reduced quasi-excellent noetherian separated scheme has a projective birational modification regular over points of codimension at most two and unchanged outside its singular locus | H2 | [3215_author_proof.tex](items/3215_author_proof.tex) | [作者原文](https://api.algebraicgeometry.nl/Article/18579/2015-1-003.pdf) · [原文定位](sources/3215/provenance.json) |

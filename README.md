@@ -1,6 +1,6 @@
 # 高级数学题目与完整人类证明数据库
 
-当前可阅读、可编辑的实际成果在 [editable-corpus](editable-corpus/README.md)。本次实际交付 **20 题完整 TeX**，并附有全文 SQLite 数据库、总目录、作者来源、完整许可证和实际编译回执。
+当前可阅读、可编辑的实际成果在 [editable-corpus](editable-corpus/README.md)。本次实际交付 **40 题完整 TeX**，并附有全文 SQLite 数据库、总目录、作者来源、完整许可证和实际编译回执。
 
 - [直接查看题目目录](editable-corpus/INDEX.md)
 - [下载数据库](editable-corpus/corpus.sqlite)
