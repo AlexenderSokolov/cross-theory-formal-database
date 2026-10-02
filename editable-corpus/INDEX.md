@@ -1,6 +1,6 @@
 # 已验证的可编辑题证目录
 
-本目录实际交付 40 题。每题含完整作者原命题、完整人类证明、必要背景与可追溯来源。PDF 页面封装不列为完成条目。
+本目录实际交付 60 题。每题含完整作者原命题、完整人类证明、必要背景与可追溯来源。PDF 页面封装不列为完成条目。
 
 | 题号 | 题名 | 难度 | 可编辑 TeX | 来源及定位 |
 |---|---|---|---|---|
@@ -41,6 +41,26 @@
 | 267 | Equidimensionality of catenary Noetherian local S2 rings | H2 | [267_stacks_0FIW.tex](items/267_stacks_0FIW.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0FIW) · [原文定位](sources/267/provenance.json) |
 | 268 | Local-to-global finiteness of low local-cohomology modules | H2 | [268_stacks_0AW9.tex](items/268_stacks_0AW9.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0AW9) · [原文定位](sources/268/provenance.json) |
 | 269 | Associated-point criterion for coherence of pushforward from an open subscheme | H2 | [269_stacks_0BJZ.tex](items/269_stacks_0BJZ.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0BJZ) · [原文定位](sources/269/provenance.json) |
+| 270 | Coherence across codimension-two boundaries on Nagata universally catenary schemes | H2 | [270_stacks_0AWA.tex](items/270_stacks_0AWA.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0AWA) · [原文定位](sources/270/provenance.json) |
+| 271 | Descent of etale sheaf sections along submersive morphisms with connected geometric fibres | H2 | [271_stacks_0EZK.tex](items/271_stacks_0EZK.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0EZK) · [原文定位](sources/271/provenance.json) |
+| 272 | Reconstruction of affine scheme morphisms from locally ringed etale topoi | H2 | [272_stacks_04I6.tex](items/272_stacks_04I6.tex) | [作者原文](https://stacks.math.columbia.edu/tag/04I6) · [原文定位](sources/272/provenance.json) |
+| 273 | Full faithfulness of etale base change under universal homeomorphisms | H2 | [273_stacks_0BTY.tex](items/273_stacks_0BTY.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0BTY) · [原文定位](sources/273/provenance.json) |
+| 274 | Higher direct images commute with inverse limits of quasi-compact quasi-separated scheme morphisms | H2 | [274_stacks_0EYM.tex](items/274_stacks_0EYM.tex) | [作者原文](https://stacks.math.columbia.edu/tag/0EYM) · [原文定位](sources/274/provenance.json) |
+| 293 | Beck monadicity | H2 | [293_author_proof.tex](items/293_author_proof.tex) | [作者原文](https://github.com/wenweili/AlJabr-2/blob/e03224e2e867a49dc60c7975d890079068a30466/chapter7.tex#L1574) · [原文定位](sources/293/provenance.json) |
+| 294 | Morita equivalence classification | H2 | [294_author_proof.tex](items/294_author_proof.tex) | [作者原文](https://github.com/wenweili/AlJabr-2/blob/e03224e2e867a49dc60c7975d890079068a30466/chapter7.tex#L1977) · [原文定位](sources/294/provenance.json) |
+| 295 | Gabriel compact-projective-generator theorem | H2 | [295_author_proof.tex](items/295_author_proof.tex) | [作者原文](https://github.com/wenweili/AlJabr-2/blob/e03224e2e867a49dc60c7975d890079068a30466/chapter7.tex#L2071) · [原文定位](sources/295/provenance.json) |
+| 541 | Formal canonical submanifold defining map | H3 | [541_author_proof.tex](items/541_author_proof.tex) | [作者原文](https://sigma-journal.com/2025/002/) · [原文定位](sources/541/provenance.json) |
+| 542 | Second-order conformal defining-density obstructions | H3 | [542_author_proof.tex](items/542_author_proof.tex) | [作者原文](https://sigma-journal.com/2025/002/) · [原文定位](sources/542/provenance.json) |
+| 546 | Framed wild-bundle moduli and Ooguri–Vafa space | H3 | [546_author_proof.tex](items/546_author_proof.tex) | [作者原文](https://sigma-journal.com/2025/005/) · [原文定位](sources/546/provenance.json) |
+| 548 | Positive intermediate Ricci curvature by fiber scaling | H2 | [548_author_proof.tex](items/548_author_proof.tex) | [作者原文](https://sigma-journal.com/2025/006/) · [原文定位](sources/548/provenance.json) |
+| 549 | Twisted intermediate-Ricci-positive surgery metric | H2 | [549_author_proof.tex](items/549_author_proof.tex) | [作者原文](https://sigma-journal.com/2025/006/) · [原文定位](sources/549/provenance.json) |
+| 1917 | A quantitative parabolic shearing criterion for disjointness of weakly mixing flows on sigma-compact metric probability spaces | H2 | [1917_author_proof.tex](items/1917_author_proof.tex) | [作者原文](https://jep.centre-mersenne.org/articles/10.5802/jep.111/) · [原文定位](sources/1917/provenance.json) |
+| 1918 | Approximate versus exact L2 controllability for canonical complex two-state scalar-input difference systems with two irrationally related delays | H3 | [1918_author_proof.tex](items/1918_author_proof.tex) | [作者原文](https://jep.centre-mersenne.org/articles/10.5802/jep.112/) · [原文定位](sources/1918/provenance.json) |
+| 1919 | Uniform positive-time polynomial velocity tails for rapidly decaying periodic classical non-cutoff Boltzmann solutions with hard potentials and hydrodynamic bounds | H3 | [1919_author_proof.tex](items/1919_author_proof.tex) | [作者原文](https://jep.centre-mersenne.org/articles/10.5802/jep.113/) · [原文定位](sources/1919/provenance.json) |
+| 2553 | Unique least-energy hyperbolic metrics for connected finite weighted graphs surjecting onto the fundamental group of a closed surface of genus greater than one | H2 | [2553_author_proof.tex](items/2553_author_proof.tex) | [作者原文](https://ahl.centre-mersenne.org/item/AHL_2021__4__1767_0/) · [原文定位](sources/2553/provenance.json) |
+| 2593 | Left exact profinite fundamental groups and algebraic base change for commutative pro-algebraic groups over perfect fields | H2 | [2593_author_proof.tex](items/2593_author_proof.tex) | [作者原文](https://ahl.centre-mersenne.org/item/AHL_2020__3__1_0/) · [原文定位](sources/2593/provenance.json) |
+| 2839 | Conditional separation NP from coNP from constant-round student-teacher hardness and the specified bounded-arithmetic model-extension assumption | H2 | [2839_author_proof.tex](items/2839_author_proof.tex) | [作者原文](https://lmcs.episciences.org/18158) · [原文定位](sources/2839/provenance.json) |
 | 3005 | Thompson’s group T has quadratic Dehn function | H1 | [3005_author_proof.tex](items/3005_author_proof.tex) | [作者原文](https://www.cambridge.org/core/journals/forum-of-mathematics-sigma/article/thompsons-group-t-has-quadratic-dehn-function/A23CB1A66E2CC7D2B413EE18032A8338) · [原文定位](sources/3005/provenance.json) |
 | 3198 | Universal minimal blowup stabilisation for dominant rational surface maps admitting stabilisation by a birational morphism | H1 | [3198_author_proof.tex](items/3198_author_proof.tex) | [作者原文](https://afst.centre-mersenne.org/item/10.5802/afst.1805.pdf) · [原文定位](sources/3198/provenance.json) |
 | 3215 | Every reduced quasi-excellent noetherian separated scheme has a projective birational modification regular over points of codimension at most two and unchanged outside its singular locus | H2 | [3215_author_proof.tex](items/3215_author_proof.tex) | [作者原文](https://api.algebraicgeometry.nl/Article/18579/2015-1-003.pdf) · [原文定位](sources/3215/provenance.json) |
+| 3406 | Outer forms of type A2 with infinite genus | H2 | [3406_author_proof.tex](items/3406_author_proof.tex) | [作者原文](https://ems.press/journals/dm/articles/14297947) · [原文定位](sources/3406/provenance.json) |
