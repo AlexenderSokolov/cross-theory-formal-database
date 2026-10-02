@@ -35,15 +35,15 @@ Inspect the actual final engine invocation in each bound aggregate `compiler.log
 
 Admission PDFs/logs are external to this frozen package. A remote checkout does not acquire them automatically. Publish the portable evidence sidecar with the package and regenerate compilation outside the package when that work is authorized:
 
-Current compressed-database packages include `database-delivery.json` and `corpus.sqlite.gz`. Before validation, run the bundled no-download restore helper. It verifies both hashes, SQLite integrity, foreign keys, item count and exact TeX full text, and refuses to replace a differing existing file. The dated377 example above predates this transport and remains an uncompressed historical example.
+Current compressed-database packages include `database-delivery.json` and either one `corpus.sqlite.gz` file (v1) or every ordered file in `database-parts` (v2). Download all declared parts before restoring; hashes and order are checked. Before validation, run the bundled no-download restore helper. It verifies both hashes, SQLite integrity, foreign keys, item count and exact TeX full text, and refuses to replace a differing existing file. The dated377 example above predates this transport and remains an uncompressed historical example.
 
 ```sh
-if [ -f "$PACKAGE/database-delivery.json" ] && [ -f "$PACKAGE/corpus.sqlite.gz" ]; then
+if [ -f "$PACKAGE/database-delivery.json" ]; then
   python3 "$PACKAGE/restore_database.py"
 fi
 ```
 
-This restore step is backed by the exact restored506 checkout gate and seven gzip-adapter tests; it is a bounded documentation update, not a new independent behavioral skill evaluation. Set `PACKAGE` to the current checkout package before using it.
+The v1 restore step is backed by the exact restored506 checkout gate and seven gzip-adapter tests; v2 is additionally backed by 27 adapter tests and an exact complete 756-row three-part roundtrip with full-text/integrity/FK checks and the literal offline command. It is a bounded documentation update, not a new independent behavioral skill evaluation. Set `PACKAGE` to the current checkout package before using it.
 
 ```sh
 python3 scripts/compile_editable_delivery.py --package PACKAGE \
