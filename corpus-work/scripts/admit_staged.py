@@ -79,6 +79,12 @@ def import_metadata(corpus,stage,meta,item):
             if field!='license_path':raise
             src=corpus/corpus_path(corpus,name)
         dst=corpus/dest;dst.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(src,dst);m[field]=dest
+        if field=='tex_path' and m.get('evidence_mode')=='source_pdf_pages':
+            # Historical staged PDF wrappers must not overlay source text with article footers.
+            text=dst.read_text()
+            text=re.sub(r'(\\includepdf\[[^\]]*?)pagecommand=\{\}',
+                        lambda match: match[1]+r'pagecommand={\thispagestyle{empty}}',text)
+            dst.write_text(text)
     contexts=[]
     for c in m.get('contexts',[]):
         c=dict(c); src=stage_file(stage,c['excerpt_path']);dest='sources/stacks_verified/'+stem+'.context-'+c['tag']+'.tex'

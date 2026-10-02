@@ -13,6 +13,7 @@ def build(corpus,spec):
     for field in ('title','author','difficulty_reason','source_url','source_version','source_sha256','license','dedup_key','retrieved_at'):
         if not isinstance(m.get(field),str) or not m[field].strip():raise ValueError('authored '+field+' required')
     if m.get('difficulty_level') not in {'H1','H2','H3'}:raise ValueError('authored difficulty required')
+    if m.get('author_font') not in (None,'DejaVu Serif'):raise ValueError('unsupported author_font')
     locator=m.get('source_locator')
     if not isinstance(locator,dict) or not any(isinstance(locator.get(k),str) and locator[k].strip() for k in ('theorem','label','statement_identifier')):raise ValueError('unique theorem source_locator required')
     for field in ('source_path','license_path'):m[field]=corpus_path(corpus,m[field])
@@ -44,10 +45,13 @@ def build(corpus,spec):
 \begin{document}
 '''
     tex+=r'\begin{center}\Large '+escape(m['title'])+r'\end{center}'+'\n'
-    for label,value in fields:tex+=r'\noindent\textbf{'+label+r':} '+escape(value)+r'\par\medskip'+'\n'
+    for label,value in fields:
+        display=escape(value)
+        if label=='Author' and m.get('author_font')=='DejaVu Serif':display=r'{\fontspec{DejaVu Serif}'+display+'}'
+        tex+=r'\noindent\textbf{'+label+r':} '+display+r'\par\medskip'+'\n'
     tex+=r'\noindent\textbf{Original:} \url{'+m['source_url']+r'}\par\medskip'+'\n'
     if m.get('admission_hold'):tex+=r'\noindent\textbf{Admission hold:} '+escape(m['admission_hold'])+r'\par'+'\n'
-    tex+=r'\includepdf[pages={'+','.join(map(str,sorted(union)))+r'},pagecommand={}]{../'+m['source_path']+'}\n'+r'\end{document}'+'\n'
+    tex+=r'\includepdf[pages={'+','.join(map(str,sorted(union)))+r'},pagecommand={\thispagestyle{empty}}]{../'+m['source_path']+'}\n'+r'\end{document}'+'\n'
     return tex,m
 
 def main():

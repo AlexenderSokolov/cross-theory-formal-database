@@ -32,3 +32,27 @@ class PDFCandidateTests(unittest.TestCase):
  def test_unique_locator_and_authored_difficulty_required(self):
   self.spec.pop('source_locator')
   with self.assertRaisesRegex(ValueError,'locator'):module().build(self.c,self.spec)
+
+ def test_source_pages_have_no_added_wrapper_footer(self):
+  tex,_=module().build(self.c,self.spec)
+  self.assertIn(r"pagecommand={\thispagestyle{empty}}",tex)
+  self.assertNotIn('pagecommand={}',tex)
+
+ def test_explicit_author_font_preserves_unicode_without_global_font_change(self):
+  self.spec['author']='Jędrzej Kołodziejski'
+  self.spec['author_font']='DejaVu Serif'
+  tex,meta=module().build(self.c,self.spec)
+  self.assertIn(r'\noindent\textbf{Author:} {\fontspec{DejaVu Serif}Jędrzej Kołodziejski}\par',tex)
+  self.assertIn(r'\setmainfont{Noto Serif CJK SC}',tex)
+  self.assertEqual(meta['author'],self.spec['author'])
+  self.assertIn(r'pagecommand={\thispagestyle{empty}}',tex)
+
+ def test_unrequested_author_font_leaves_existing_cover_unchanged(self):
+  tex,_=module().build(self.c,self.spec)
+  self.assertIn(r'\noindent\textbf{Author:} Author\par',tex)
+  self.assertNotIn(r'\fontspec{DejaVu Serif}',tex)
+
+ def test_arbitrary_author_font_rejected(self):
+  self.spec['author_font']='Unknown font'
+  with self.assertRaisesRegex(ValueError,'author_font'):
+   module().build(self.c,self.spec)

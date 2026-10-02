@@ -45,3 +45,21 @@ class AdmissionTests(unittest.TestCase):
   self.assertEqual(Path(out['tex_path']).name,'241_source_pdf.tex')
   self.assertNotIn('stacks',out['tex_path'])
   self.assertTrue(out['license_path'].startswith('assets/license-'))
+
+ def test_pdf_import_removes_legacy_added_footer_preserving_original(self):
+  p=self.staged();m=json.loads(p.read_text());m['evidence_mode']='source_pdf_pages'
+  from pypdf import PdfWriter
+  original=self.c/'raw'/'source.pdf';w=PdfWriter();w.add_blank_page(width=600,height=800)
+  with original.open('wb') as f:w.write(f)
+  m['source_path']=str(original);before=original.read_bytes()
+  tex=Path(m['tex_path']);tex.write_text(r"\includepdf[pages={1,2},pagecommand={}]{../raw/source.pdf}")
+  staged_before=tex.read_bytes()
+  out=module().import_metadata(self.c,p.parent,m,'241')
+  self.assertIn(r"pagecommand={\thispagestyle{empty}}",(self.c/out['tex_path']).read_text())
+  self.assertEqual(original.read_bytes(),before)
+  self.assertEqual(tex.read_bytes(),staged_before)
+ def test_native_import_does_not_change_page_commands(self):
+  p=self.staged();m=json.loads(p.read_text());tex=Path(m['tex_path'])
+  tex.write_text(r"native \includepdf[pages={1},pagecommand={}]{source.pdf}")
+  before=tex.read_bytes();out=module().import_metadata(self.c,p.parent,m,'241')
+  self.assertEqual((self.c/out['tex_path']).read_bytes(),before)
