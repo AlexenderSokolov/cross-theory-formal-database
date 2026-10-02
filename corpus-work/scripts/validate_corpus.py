@@ -1,36 +1,70 @@
 """Fail-closed evidence/compilation gate; does not prove mathematics or difficulty."""
-import argparse, contextvars, hashlib, io, json, re, sys
+import argparse, contextvars, hashlib, json, os, re, sys
 from pathlib import Path
 from contextlib import contextmanager
 ID_RE=re.compile(r'^[0-9]{3,}$')
 _validation_cache=contextvars.ContextVar('validation_file_cache',default=None)
+def stat_signature(stat):
+ return (stat.st_mtime_ns,stat.st_ctime_ns,stat.st_size,stat.st_ino)
 def snapshot(path):
- path=path.resolve();stat=path.stat();signature=(stat.st_mtime_ns,stat.st_ctime_ns,stat.st_size,stat.st_ino)
- key=(path,signature);cache=_validation_cache.get()
- if cache is not None and key in cache:return cache[key]
- data=path.read_bytes();after=path.stat()
- if signature!=(after.st_mtime_ns,after.st_ctime_ns,after.st_size,after.st_ino):raise OSError('file changed while reading: '+str(path))
- result={'bytes':data}
- if cache is not None:cache[key]=result
- return result
-def file_bytes(path):return snapshot(path)['bytes']
+ path=path.resolve();signature=stat_signature(path.stat());cache=_validation_cache.get()
+ if cache is not None:
+  state=cache.get(path)
+  if state is not None and state['signature']==signature:return state
+ # Keep only the current version of a path. Never retain full binary payloads.
+ state={'signature':signature}
+ if cache is not None:cache[path]=state
+ return state
+def unchanged(path,state,stat=None):
+ if state['signature']!=stat_signature(path.stat() if stat is None else stat):
+  cache=_validation_cache.get()
+  if cache is not None and cache.get(path.resolve()) is state:cache.pop(path.resolve(),None)
+  raise OSError('file changed while reading: '+str(path))
+@contextmanager
+def checked_stream(path,state):
+ with path.open('rb') as stream:
+  unchanged(path,state,os.fstat(stream.fileno()))
+  try:yield stream
+  finally:
+   unchanged(path,state,os.fstat(stream.fileno()));unchanged(path,state)
+def hash_snapshot(path,state):
+ if 'sha' not in state:
+  digest=hashlib.sha256();prefix=b''
+  with checked_stream(path,state) as stream:
+   while True:
+    chunk=stream.read(1024*1024)
+    if not chunk:break
+    if not prefix:prefix=chunk[:5]
+    digest.update(chunk)
+  state.update(sha=digest.hexdigest(),prefix=prefix)
+ return state['sha']
+def file_bytes(path):
+ state=snapshot(path);data=path.read_bytes();unchanged(path,state)
+ # The return value is caller-owned and is deliberately absent from the cache.
+ return data
 def file_text(path):
  state=snapshot(path)
- if 'text' not in state:state['text']=state['bytes'].decode('utf-8')
+ if 'text' not in state:
+  data=path.read_bytes();unchanged(path,state)
+  state.update(text=data.decode('utf-8'),sha=hashlib.sha256(data).hexdigest(),prefix=data[:5])
  return state['text']
 def file_lines(path):
  state=snapshot(path)
- if 'lines' not in state:state['lines']=file_text(path).splitlines()
+ if 'lines' not in state:
+  text=file_text(path);unchanged(path,state);state['lines']=text.splitlines()
  return state['lines']
 def sha(path):
- state=snapshot(path)
- if 'sha' not in state:state['sha']=hashlib.sha256(state['bytes']).hexdigest()
- return state['sha']
+ state=snapshot(path);return hash_snapshot(path,state)
+def pdf_signature(path):
+ state=snapshot(path);hash_snapshot(path,state);return state['prefix']==b'%PDF-'
 def pdf_page_count(path):
  state=snapshot(path)
  if 'page_count' not in state:
   from pypdf import PdfReader
-  state['page_count']=len(PdfReader(io.BytesIO(state['bytes'])).pages)
+  # A seekable file avoids both corpus-wide retained bytes and PdfReader's
+  # whole-file copy when given a path. Only the resulting integer is retained.
+  with checked_stream(path,state) as stream:count=len(PdfReader(stream).pages)
+  state['page_count']=count
  return state['page_count']
 def local(corpus,name):
  if not isinstance(name,str) or not name:raise ValueError('missing local path')
@@ -118,7 +152,7 @@ def check_item(corpus,item,record,rows,receipts):
     if meta.get('excerpt_path') and file_text(local(corpus,meta['excerpt_path'])).strip()!=excerpt.strip():error('source excerpt does not exactly match locator')
    if '\\begin{proof}' not in file_text(tex):error('tex proof environment missing')
   elif mode=='source_pdf_pages':
-   if not file_bytes(source).startswith(b'%PDF-'):error('source PDF signature missing')
+   if not pdf_signature(source):error('source PDF signature missing')
    for field in ('statement_pages','proof_pages','context_pages'):
     pages=meta.get(field,[])
     if not isinstance(pages,list) or (field!='context_pages' and not pages) or any(type(x)!=int or x<1 for x in pages):error(field+' invalid')
@@ -167,7 +201,7 @@ def check_item(corpus,item,record,rows,receipts):
    if receipt.get('dependency_sha256')!=deps:error('compile dependency hash mismatch')
    try:
     pdf=local(corpus,receipt.get('pdf'))
-    if not file_bytes(pdf).startswith(b'%PDF-') or receipt.get('pdf_sha256')!=sha(pdf):error('compile PDF hash/signature mismatch')
+    if not pdf_signature(pdf) or receipt.get('pdf_sha256')!=sha(pdf):error('compile PDF hash/signature mismatch')
    except (OSError,ValueError,TypeError) as e:error('compile PDF: '+str(e))
  except (OSError,ValueError,KeyError,TypeError,UnicodeError) as e:error('source/tex/dependency: '+str(e))
  entry=rows.get(item,[])
@@ -238,7 +272,19 @@ def validate(root,item=None):
  finally:_validation_cache.reset(token)
 
 def main():
- parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);parser.add_argument('--item');args=parser.parse_args()
- report=validate(args.root.resolve(),args.item);write_json(args.root/'corpus/.work/validation_report.json',report)
+ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]);parser.add_argument('--item')
+ parser.add_argument('--mode',choices=('historical-evidence','editable-delivery'))
+ parser.add_argument('--package',type=Path);parser.add_argument('--source-root',type=Path);parser.add_argument('--build-root',type=Path);parser.add_argument('--receipt-root',type=Path);parser.add_argument('--evidence',type=Path);parser.add_argument('--exclusions',type=Path);parser.add_argument('--report',type=Path);args=parser.parse_args()
+ if args.mode is None and args.package is None:
+  print(json.dumps({'schema_version':1,'mode':'unspecified','editable_qualified_count':0,'items':{},'errors':['An explicit --mode historical-evidence is required for legacy inspection; use --mode editable-delivery --package PACKAGE for current editable qualification.']},indent=2));return 1
+ if args.mode=='editable-delivery' or (args.mode is None and args.package is not None):
+  import editable_delivery
+  if args.package is None:parser.error('--package is required for editable-delivery')
+  report=editable_delivery.validate(args.package,args.item,args.evidence,args.source_root,args.build_root,args.exclusions,args.receipt_root)
+  if args.report:
+   if args.report.resolve().is_relative_to(args.package.resolve()):report['errors'].append('report path must be outside the read-only package');report['editable_qualified_count']=0
+   else:write_json(args.report,report)
+  print(json.dumps(report,ensure_ascii=False,indent=2));return int(bool(report['errors']) or any(r['status']=='failed' for r in report['items'].values()))
+ report=validate(args.root.resolve(),args.item);report['mode']='historical-evidence';report['count_semantics']='Historical evidence qualification only; not full editable delivery completion.';write_json(args.report or args.root/'corpus/.work/validation_report.json',report)
  print(json.dumps(report,ensure_ascii=False,indent=2));return int(bool(report['errors']) or any(r['status']=='failed' for r in report['items'].values()))
 if __name__=='__main__':sys.exit(main())

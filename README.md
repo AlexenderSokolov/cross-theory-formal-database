@@ -1,11 +1,10 @@
 # 高级数学题目与完整人类证明数据库
 
-当前可阅读、可编辑的实际成果在 [editable-corpus](editable-corpus/README.md)。本次实际交付 **151 题完整 TeX**，并附有全文 SQLite 数据库、总目录、作者来源、完整许可证和实际编译回执。
+当前实际交付377题独立可编辑TeX和377条全文SQLite记录，已在匹配清单上逐题及整包通过完整交付门禁。
 
-- [直接查看题目目录](editable-corpus/INDEX.md)
-- [下载数据库](editable-corpus/corpus.sqlite)
-- [查看尚待整理的历史记录](editable-corpus/pending-inventory.csv)
+- [打开题目总目录](editable-corpus/INDEX.md)
+- [下载全文SQLite数据库](editable-corpus/corpus.sqlite)
+- [查看来源、许可与可复现门禁方法](editable-corpus/README.md)
+- [查看机器门禁记录](editable-corpus/gate-status.json)
 
-历史 3195 是旧证据门禁数量，包含 2822 个 PDF 页面封装；它不是已交付完整可编辑题面和人类证明的数量。原有 `参考计划和资源/` 与 `corpus-work/` 保留供接续与历史参考。
-
-上传的题证材料数量与新的可执行完整题证门禁通过数分别记录；逐题门禁需要当前正文/来源绑定、编译输入及数据库目录一致性检查。
+历史3195是旧证据门禁数量，含2822个PDF页面封装，并非完整可编辑题证完成数。旧材料保留供恢复与历史参考。原论文图仅作为必要图示，所有题面和人类证明数学正文均在可编辑TeX中。机械核对不等于独立数学审稿。

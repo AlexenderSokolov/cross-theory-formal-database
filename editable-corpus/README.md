@@ -2,10 +2,10 @@
 
 ## 当前实际交付
 
-本目录实际交付 **151 题**，不是 3195 题完成。每题均为独立可编辑 `.tex`，包含完整作者原命题、完整作者证明、必要背景、保留的原始宏和可追溯出处。整理说明明确标为非作者正文。数学证明来自可追溯的人类作者，不由助手补造。
+本目录实际交付 **377 题**，不是 3195 题完成。每题均为独立可编辑 `.tex`，包含完整作者原命题、完整作者证明、必要背景、保留的原始宏和可追溯出处。整理说明明确标为非作者正文。数学证明来自可追溯的人类作者，不由助手补造。
 
 - [打开可读总目录](INDEX.md)
-- [下载实际全文 SQLite 数据库](corpus.sqlite)：151 条完整题证，TeX 全文存于 `problems.tex_content`；含来源表、稳定编号、难度与依据、版本和原文定位
+- [下载实际全文 SQLite 数据库](corpus.sqlite)：377 条完整题证，TeX 全文存于 `problems.tex_content`；含来源表、稳定编号、难度与依据、版本和原文定位
 - [查看机器可读清单](manifest.json)
 - [查看当前已恢复及新增的 3002 个记录和格式状态](pending-inventory.csv)
 
@@ -13,7 +13,16 @@
 
 ## 可执行门禁状态
 
-材料核对和实际编译回执已保存。当前151条清单的新完整题证门禁正在生成逐题来源/正文绑定与重新执行记录；上传材料数与最终机器门禁通过数分别记录。当前清单不据此宣称151条均已通过新的可执行门禁。历史清单来自已恢复3000条检查点及逐条恢复/新增编号，不能据此宣称3195条历史元数据均已恢复。
+当前377条在冻结清单SHA256 `ab147c3265e105ce863a2dd4cbea0c25df425d4d78699f98ec62333047246ded` 上逐题及整包通过完整可编辑交付门禁。对应 [来源/正文绑定](delivery-evidence.json) 与 [门禁记录](gate-status.json) 已保存。清单保留冻结前的待检验文字，当前通过结果以这两份匹配记录为准；旧3195历史证据数量不能代替当前完成数。
+
+检查实际比对作者正文/原文边界、当前编译输入和最后实际编译轮次、唯一题号、目录与SQLite全文。13个条目的排版交叉引用额外稳定轮次均如实记录为3遍；1668及2113的重叠上下文已去重，原作者完整文字仍保留一次，实际稳定编译分别为2遍及3遍，旧回执保留在工作档案中。3215的三句具体难度说明已同步到封面、来源和数据库，作者数学正文没有变化。
+
+下载后需已安装XeLaTeX、所需宏包/字体与pypdf，重新生成外部编译文件而不覆盖包内存档回执。在仓库根目录运行：
+
+    python3 corpus-work/scripts/compile_editable_delivery.py --package editable-corpus --build-root .editable-build --receipt-root .editable-receipts
+    python3 corpus-work/scripts/validate_corpus.py --mode editable-delivery --package editable-corpus --evidence editable-corpus/delivery-evidence.json --build-root .editable-build --receipt-root .editable-receipts --report editable-delivery-report.json
+
+逐题验证再加 `--item 编号`。缺少实际匹配编译文件、源文绑定或完整正文会失败关闭；辅助程序不下载或安装依赖。机械门禁不是独立数学审稿。历史清单来自已恢复3000条检查点及逐条恢复/新增编号，没有宣称3195条历史元数据均已恢复。
 
 ## 阅读和编译
 
@@ -31,7 +40,7 @@
 
 来源包括 The Stacks Project、Wen-Wei Li《代数学方法》第二卷，以及 SIGMA、JEP、AHL、LMCS、Documenta Mathematica、Algebraic Geometry 等的署名文献。逐题记录准确作者、作品、版本、题证边界及具体许可证，区分原生作者 TeX 与忠实 PDF 转录。Stacks 使用版本：`a04446e57ec1fbc252a871afcec7752fb2807b14`。每题的 `sources/<编号>/provenance.json` 给出原文件 SHA256、行范围、原命题网页、保留的上下文、精确摘录 SHA256、访问日期和许可证。
 
-`primary.excerpt.tex` 与 `context-*.tex` 保留作者源文本。题文件仅改动引用展示、标题/来源说明，保留原语言、数学内容和证明顺序。037 增补作者 Tag 03GY 的完整因子分解证明，251 增补 Tag 0E9P 的完整下界证明，来源记录给出边界。241 中初等 essential-extension 性质在作者原文写为 Omitted；它是非核心背景，本題分类与单射包络构造的完整作者证明均保留。
+`primary.excerpt.tex` 与 `context-*.tex` 保留作者源文本。题文件仅改动引用展示、标题/来源说明，保留原语言、数学内容和证明顺序。037 增补作者 Tag 03GY 的完整因子分解证明，377 增补 Tag 0E9P 的完整下界证明，来源记录给出边界。241 中初等 essential-extension 性质在作者原文写为 Omitted；它是非核心背景，本題分类与单射包络构造的完整作者证明均保留。
 
 Copyright (C) 2005--2025 Johan de Jong and The Stacks Project Authors。Stacks 作者数学文本及改编 TeX 按 GNU FDL 1.2 或后续版本发布，无不变章节或封面文本；[许可全文](licenses/COPYING)、[贡献者名单](sources/STACKS-CONTRIBUTORS)。其他作者论文按其 CC BY 4.0 或 CC BY-NC 3.0 许可保存；逐题许可证见来源记录与 licenses/，不把 Stacks 的许可套给其他来源。必要原作者图在 assets/，不替代任何证明正文。
 

@@ -17,7 +17,7 @@ class Pipeline(unittest.TestCase):
  def tearDown(self):self.tmp.cleanup()
  def save(self):(self.c/'metadata/1001.json').write_text(json.dumps(self.m))
  def run_validation(self,*args):
-  r=subprocess.run([sys.executable,str(ROOT/'scripts/validate_corpus.py'),'--root',str(self.root),*args],capture_output=True,text=True)
+  r=subprocess.run([sys.executable,str(ROOT/'scripts/validate_corpus.py'),'--mode','historical-evidence','--root',str(self.root),*args],capture_output=True,text=True)
   report=self.c/'.work/validation_report.json';return r, json.loads(report.read_text()) if report.exists() else {}
  def test_four_digit_noncontiguous_item_qualifies(self):
   r,j=self.run_validation('--item','1001');self.assertEqual(r.returncode,0,r.stderr+r.stdout);self.assertEqual(j['qualified_count'],1)
