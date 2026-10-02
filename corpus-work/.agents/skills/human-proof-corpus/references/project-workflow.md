@@ -2,7 +2,7 @@
 
 Run from the corpus project root. The dated local example below uses an immutable package and existing artifacts. Validation reports are written outside the package; validation does not admit candidates, change SQLite or publish remotely.
 
-## Dated local frozen example (2026-10-02 UTC)
+## Dated local frozen example (2026-10-02 UTC; historical uncompressed transport)
 
 - Package: `publication/tex-remediation-20261002/frozen-377-v3`
 - Existing derived evidence sidecar: `audit/root-derived377-v3-20261002-0528.json`
@@ -34,6 +34,16 @@ Inspect the actual final engine invocation in each bound aggregate `compiler.log
 ## Checkout portability and authorized regeneration
 
 Admission PDFs/logs are external to this frozen package. A remote checkout does not acquire them automatically. Publish the portable evidence sidecar with the package and regenerate compilation outside the package when that work is authorized:
+
+Current compressed-database packages include `database-delivery.json` and `corpus.sqlite.gz`. Before validation, run the bundled no-download restore helper. It verifies both hashes, SQLite integrity, foreign keys, item count and exact TeX full text, and refuses to replace a differing existing file. The dated377 example above predates this transport and remains an uncompressed historical example.
+
+```sh
+if [ -f "$PACKAGE/database-delivery.json" ] && [ -f "$PACKAGE/corpus.sqlite.gz" ]; then
+  python3 "$PACKAGE/restore_database.py"
+fi
+```
+
+This restore step is backed by the exact restored506 checkout gate and seven gzip-adapter tests; it is a bounded documentation update, not a new independent behavioral skill evaluation. Set `PACKAGE` to the current checkout package before using it.
 
 ```sh
 python3 scripts/compile_editable_delivery.py --package PACKAGE \

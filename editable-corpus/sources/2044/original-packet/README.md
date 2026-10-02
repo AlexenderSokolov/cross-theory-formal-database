@@ -1,0 +1,1 @@
+Editable stable item 2044. Compile 2044.tex with xelatex -no-shell-escape at least twice. Exact original source hashes, boundaries and all layout compatibility changes appear in SOURCE_BOUNDARIES.json.

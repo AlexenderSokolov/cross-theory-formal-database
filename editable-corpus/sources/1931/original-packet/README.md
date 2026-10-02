@@ -1,0 +1,1 @@
+Stable item 1931. Editable original statement and complete selected human proof with supporting author context. Compile 1931.tex twice with xelatex -no-shell-escape. SOURCE_BOUNDARIES.json records exact local publisher originals, line ranges, and selected scope.
