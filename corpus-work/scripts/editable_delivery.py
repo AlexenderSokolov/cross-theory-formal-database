@@ -180,21 +180,53 @@ def check_bodies(root, row, evidence, source_root):
     if not isinstance(bodies, list):
         return errors + ['missing primary_statement and primary_proof bodies']
     roles = [b.get('role') for b in bodies if isinstance(b, dict)]
-    for context in row.get('contexts', []):
-        if context.get('excerpt_path') and not any(isinstance(b, dict) and b.get('role') == 'context' and b.get('source_excerpt_path') == context['excerpt_path'] for b in bodies):
-            error('declared context body absent from delivered evidence: ' + context['excerpt_path'])
     for role in ['primary_statement', 'primary_proof']:
         if roles.count(role) != 1:
             error('exactly one declared ' + role + ' body required')
     text = local(root, row['item_path']).read_bytes().decode('utf-8')
+    checked_spans = []
     for body in bodies:
+        try:
+            if not isinstance(body, dict) or body.get('role') not in ['primary_statement', 'primary_proof', 'context']:
+                raise ValueError('unsupported body evidence schema')
+            if 'tex_spans' in body or 'source_spans' in body:
+                raise ValueError('unsupported supplemental span fields; use checked spans form')
+            if 'spans' in body:
+                scalar_fields = {'tex_lines', 'tex_sha256', 'source_index', 'source_lines',
+                                 'method', 'replacements', 'fidelity_receipt'}
+                if scalar_fields.intersection(body):
+                    raise ValueError('scalar and multi-span body forms are mutually exclusive')
+                if not isinstance(body['spans'], list) or not body['spans']:
+                    raise ValueError('body spans must be a nonempty list')
+                spans = []
+                for span in body['spans']:
+                    if not isinstance(span, dict) or {'role', 'spans', 'tex_spans', 'source_spans'}.intersection(span):
+                        raise ValueError('unsupported nested body span schema')
+                    spans.append(dict(span, role=body['role']))
+            else:
+                spans = [body]
+            fragments = []
+            previous_end = 0
+            for span in spans:
+                fragment = lines(text, span.get('tex_lines'))
+                if span['tex_lines'][0] <= previous_end:
+                    raise ValueError('body spans must be ordered and nonoverlapping')
+                previous_end = span['tex_lines'][1]
+                fragments.append(fragment)
+            if not substantive_body('\n'.join(fragments)):
+                error('empty ' + body['role'] + ' body')
+            checked_spans.extend(spans)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            error('body evidence: ' + str(exc))
+    for context in row.get('contexts', []):
+        if context.get('excerpt_path') and not any(b.get('role') == 'context' and b.get('source_excerpt_path') == context['excerpt_path'] for b in checked_spans):
+            error('declared context body absent from delivered evidence: ' + context['excerpt_path'])
+    for body in checked_spans:
         try:
             if not isinstance(body, dict) or body.get('role') not in ['primary_statement', 'primary_proof', 'context']:
                 raise ValueError('unsupported body evidence schema')
             role = body['role']
             delivered = lines(text, body.get('tex_lines'))
-            if not substantive_body(delivered):
-                error('empty ' + role + ' body')
             if digest(delivered) != body.get('tex_sha256'):
                 error('delivered ' + role + ' body hash mismatch')
             source_index = body.get('source_index')

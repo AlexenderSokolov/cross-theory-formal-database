@@ -2,10 +2,10 @@
 
 ## 当前实际交付
 
-本目录实际交付 **377 题**，不是 3195 题完成。每题均为独立可编辑 `.tex`，包含完整作者原命题、完整作者证明、必要背景、保留的原始宏和可追溯出处。整理说明明确标为非作者正文。数学证明来自可追溯的人类作者，不由助手补造。
+本目录实际交付 **506 题**，不是 3195 题完成。每题均为独立可编辑 `.tex`，包含完整作者原命题、完整作者证明、必要背景、保留的原始宏和可追溯出处。整理说明明确标为非作者正文。数学证明来自可追溯的人类作者，不由助手补造。
 
 - [打开可读总目录](INDEX.md)
-- [下载实际全文 SQLite 数据库](corpus.sqlite)：377 条完整题证，TeX 全文存于 `problems.tex_content`；含来源表、稳定编号、难度与依据、版本和原文定位
+- [下载实际全文 SQLite 数据库压缩包](corpus.sqlite.gz)：506 条完整题证，下载后运行 `python3 restore_database.py` 完成一次无损解压；TeX 全文存于 `problems.tex_content`；含来源表、稳定编号、难度与依据、版本和原文定位
 - [查看机器可读清单](manifest.json)
 - [查看当前已恢复及新增的 3002 个记录和格式状态](pending-inventory.csv)
 
@@ -13,12 +13,17 @@
 
 ## 可执行门禁状态
 
-当前377条在冻结清单SHA256 `ab147c3265e105ce863a2dd4cbea0c25df425d4d78699f98ec62333047246ded` 上逐题及整包通过完整可编辑交付门禁。对应 [来源/正文绑定](delivery-evidence.json) 与 [门禁记录](gate-status.json) 已保存。清单保留冻结前的待检验文字，当前通过结果以这两份匹配记录为准；旧3195历史证据数量不能代替当前完成数。
+当前506条在冻结清单SHA256 `1d59ff84ca2b11bc9e7ed2ecb46e9d7d6f9a46be06ace0953434a0ef9d7d504b` 上逐题及整包通过完整可编辑交付门禁。对应 [来源/正文绑定](delivery-evidence.json) 与 [门禁记录](gate-status.json) 已保存。清单保留冻结前的待检验文字，当前通过结果以这两份匹配记录为准；旧3195历史证据数量不能代替当前完成数。
 
-检查实际比对作者正文/原文边界、当前编译输入和最后实际编译轮次、唯一题号、目录与SQLite全文。13个条目的排版交叉引用额外稳定轮次均如实记录为3遍；1668及2113的重叠上下文已去重，原作者完整文字仍保留一次，实际稳定编译分别为2遍及3遍，旧回执保留在工作档案中。3215的三句具体难度说明已同步到封面、来源和数据库，作者数学正文没有变化。
+本次在前377条基础上增加44条AHL及85条SIGMA作者完整题证。当前总计359条经原问题单位标准核对的Stacks原生题证、146条原PDF封装的可编辑完整替换，以及1条新增独立主结果。原373条Stacks已逐条核对，其中14条因难度或问题单位标准暂不计数；同篇文章的技术支撑材料不单独增加题数。
+
+当前185项程序测试全部通过。门禁实际核对作者正文/原文边界、所有多段正文的逐段源文与哈希、当前编译输入和最后实际编译轮次、唯一题号、目录及SQLite全文。回执如实记录每题实际2–4遍以内的稳定编译；此前13条交叉引用稳定修正、1668及2113的重复上下文修正、3215的三句具体难度说明均已保留，作者数学正文没有补造。
+
+当前数据库完整SQLite原始文件为18,927,616字节，受连接器请求大小限制，以4,600,205字节的无损gzip交付。`database-delivery.json` 固定压缩前后哈希；恢复脚本核对哈希、完整性、外键、506条记录与每题全文，原子创建当前 `corpus.sqlite`，拒绝覆盖不同内容的现有文件。旧377条数据库已原样保留在 [historical-database/corpus-377.sqlite](../historical-database/corpus-377.sqlite)，明确属于历史版本。
 
 下载后需已安装XeLaTeX、所需宏包/字体与pypdf，重新生成外部编译文件而不覆盖包内存档回执。在仓库根目录运行：
 
+    python3 editable-corpus/restore_database.py
     python3 corpus-work/scripts/compile_editable_delivery.py --package editable-corpus --build-root .editable-build --receipt-root .editable-receipts
     python3 corpus-work/scripts/validate_corpus.py --mode editable-delivery --package editable-corpus --evidence editable-corpus/delivery-evidence.json --build-root .editable-build --receipt-root .editable-receipts --report editable-delivery-report.json
 
@@ -34,7 +39,7 @@
 
 各题已实际成功编译至少两遍；个别条目实际使用三遍，回执如实记录，且没有未解析的引用。`receipts/` 保存对应输入 SHA256、编译时间、实际 PDF 页数与结果。编译通过只证明文件能排版，不等于独立数学审稿。
 
-中文条目293–295及个别中文整理说明依赖 Noto Serif CJK SC 字体，已在本环境实际测试；没有声称未测试的 Fandol/ctex 回退可用。英文正文使用 TeX Live Latin Modern 字体，1919 的指示符需要标准 Latin Modern Math 字体。必要宏和原图随条目保存，无私人绝对字体路径。
+中文条目293–295及个别中文整理说明依赖 Noto Serif CJK SC 字体，已在本环境实际测试；没有声称未测试的 Fandol/ctex 回退可用。英文正文使用 TeX Live Latin Modern 字体，1919 的指示符需要标准 Latin Modern Math 字体；2606 的出版社姓名字符ȩ另需 DejaVu Serif 字体，已实际测试，限制在该字符。必要宏和原图随条目保存，无私人绝对字体路径。
 
 ## 来源、归属、许可与修改
 
@@ -52,8 +57,10 @@ Copyright (C) 2005--2025 Johan de Jong and The Stacks Project Authors。Stacks �
 
 `schema.sql` 只定义 `sources` 与 `problems`，不建立研究标签。`origin_class` 区分作者原生 TeX 和保留人类证明的助手忠实转录。只装入已验证条目，待处理清单另列。
 
-    python3 rebuild_database.py
+    python3 restore_database.py
+    python3 test_restore_database.py
     python3 test_database.py
+    python3 rebuild_database.py
 
 数据库由同一清单和题文件确定生成。重建核对输入哈希与实际两遍编译回执。测试检查完整 TeX 全文、唯一编号、来源外键、已验证状态、条目数、SQLite 完整性和重复重建的字节一致性。
 

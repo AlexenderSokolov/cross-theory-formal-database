@@ -187,6 +187,98 @@ class EditableDelivery(unittest.TestCase):
         result, report = self.run_gate()
         self.assertEqual(result.returncode, 0, report)
 
+    def multi_span_proof_fixture(self, first=r'\begin{proof}The original first argument.',
+                                 second=r'The original concluding argument.\end{proof}'):
+        self.raw = '\n'.join(['% Original human source', self.statement, first,
+                              '% Non-proof source annotation', second, ''])
+        self.tex = '\n'.join([r'\documentclass{article}', r'\begin{document}',
+                              self.statement, first, '% Editorial separation',
+                              second, r'\end{document}', ''])
+        (self.sources / 'raw/source.tex').write_text(self.raw)
+        (self.package / self.row['item_path']).write_text(self.tex)
+        excerpt = '\n'.join(self.raw.splitlines()[1:]) + '\n'
+        (self.package / self.row['primary']['excerpt_path']).write_text(excerpt)
+        self.row['primary'].update(end_line=5, source_sha256=digest(self.raw),
+                                   excerpt_sha256=digest(excerpt))
+        self.evidence_item['sources'][0]['sha256'] = digest(self.raw)
+        self.row['tex_sha256'] = self.receipt['input_sha256'] = self.evidence_item['item_sha256'] = digest(self.tex)
+        self.evidence_item['bodies'][1] = dict(role='primary_proof', spans=[
+            dict(tex_lines=[4, 4], tex_sha256=digest(first), source_index=0,
+                 source_lines=[3, 3], method='exact_tex'),
+            dict(tex_lines=[6, 6], tex_sha256=digest(second), source_index=0,
+                 source_lines=[5, 5], method='exact_tex')])
+        self.save()
+
+    def test_nonconsecutive_primary_proof_checks_each_exact_span(self):
+        self.multi_span_proof_fixture()
+        result, report = self.run_gate()
+        self.assertEqual(result.returncode, 0, report)
+        self.assertEqual(report['editable_qualified_count'], 1)
+
+    def test_multispan_second_hash_cannot_be_ignored(self):
+        self.multi_span_proof_fixture()
+        self.evidence_item['bodies'][1]['spans'][1]['tex_sha256'] = '0' * 64
+        self.save()
+        self.assert_fails('body hash mismatch')
+
+    def test_multispan_primary_may_include_structural_only_fragment(self):
+        self.multi_span_proof_fixture(first=r'\begin{proof}')
+        result, report = self.run_gate()
+        self.assertEqual(result.returncode, 0, report)
+
+    def test_multispan_all_structural_is_not_a_proof(self):
+        self.multi_span_proof_fixture(first=r'\begin{proof}', second=r'\end{proof}')
+        self.assert_fails('empty primary_proof body')
+
+    def test_grouped_context_checks_structural_fragment_and_its_substance(self):
+        self.multi_span_proof_fixture()
+        fragments = [r'\begin{gather}', r'f=0\end{gather}']
+        self.tex = self.tex.replace(r'\end{document}', '\n'.join(fragments + [r'\end{document}']))
+        (self.package / self.row['item_path']).write_text(self.tex)
+        self.row['tex_sha256'] = self.receipt['input_sha256'] = self.evidence_item['item_sha256'] = digest(self.tex)
+        spans = []
+        for index, fragment in enumerate(fragments, 1):
+            path = 'sources/1001/context-' + str(index) + '.tex'
+            (self.package / path).write_text(fragment)
+            self.row['contexts'].append(dict(excerpt_path=path, excerpt_sha256=digest(fragment),
+                source_sha256=digest(fragment), start_line=1, end_line=1))
+            self.evidence_item['sources'].append(dict(root='package', path=path, sha256=digest(fragment)))
+            spans.append(dict(tex_lines=[6 + index, 6 + index], tex_sha256=digest(fragment),
+                source_index=index, source_lines=[1, 1], method='exact_tex', source_excerpt_path=path))
+        self.evidence_item['bodies'].append(dict(role='context', spans=spans))
+        self.save()
+        result, report = self.run_gate()
+        self.assertEqual(result.returncode, 0, report)
+
+    def test_multispan_second_source_cannot_be_ignored(self):
+        self.multi_span_proof_fixture()
+        self.evidence_item['bodies'][1]['spans'][1]['source_lines'] = [3, 3]
+        self.save()
+        self.assert_fails('source/body fidelity mismatch')
+
+    def test_multispan_cannot_mix_scalar_anchor(self):
+        self.multi_span_proof_fixture()
+        self.evidence_item['bodies'][1]['tex_lines'] = [4, 4]
+        self.save()
+        self.assert_fails('scalar and multi-span body forms are mutually exclusive')
+
+    def test_multispan_cannot_be_empty(self):
+        self.multi_span_proof_fixture()
+        self.evidence_item['bodies'][1]['spans'] = []
+        self.save()
+        self.assert_fails('body spans must be a nonempty list')
+
+    def test_multispan_cannot_overlap_or_reverse_delivered_ranges(self):
+        self.multi_span_proof_fixture()
+        self.evidence_item['bodies'][1]['spans'].reverse()
+        self.save()
+        self.assert_fails('body spans must be ordered and nonoverlapping')
+
+    def test_unchecked_supplemental_span_fields_are_rejected(self):
+        self.evidence_item['bodies'][1]['tex_spans'] = [[4, 4], [99, 100]]
+        self.save()
+        self.assert_fails('unsupported supplemental span fields')
+
     def test_stale_compile_input_is_rejected(self):
         self.receipt['input_sha256'] = '0' * 64
         self.save()

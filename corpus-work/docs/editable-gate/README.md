@@ -51,3 +51,18 @@ The skill correction is a review-only proposal. Static regression checks and the
 Two successful engine exits are a minimum, not evidence that labels or bookmarks have stabilized. The current validator checks the final engine invocation in the SHA256-bound aggregate compiler log, independently of missing or empty receipt warning fields. A final rerun request or multiply-defined label fails admission. Warnings from earlier passes that are resolved in the final pass do not fail it. The checkout compiler makes at least two and at most four passes and rejects remaining rerun requests or duplicate labels. Keep superseded receipts and frozen snapshots as historical records; do not rewrite them to imply extra passes happened.
 
 Repeated overlapping source-context ranges can create duplicate TeX labels even when all original proof text is present. Correct this by retaining each complete original passage once with precise source mapping, then rebuilding and repinning a new immutable revision. Do not weaken evidence uniqueness checks to admit ambiguous body mappings.
+
+## Checked nonconsecutive body spans
+
+A logical primary statement or proof may consist of multiple exact source spans. Keep exactly one logical body per primary role, and use either the existing scalar form or this multi-span form, never both:
+
+    {"role":"primary_proof","spans":[
+      {"tex_lines":[10,12],"tex_sha256":"...","source_index":0,
+       "source_lines":[30,32],"method":"exact_tex"},
+      {"tex_lines":[20,24],"tex_sha256":"...","source_index":0,
+       "source_lines":[50,54],"method":"exact_tex"}
+    ]}
+
+Each span undergoes the same individual delivered-hash, source-range and fidelity checks as a scalar body. Delivered ranges must be ordered and nonoverlapping. Empty groups, mixed scalar/multi-span fields, nested groups and unchecked `tex_spans`/`source_spans` aliases fail. Gaps are never silently filled with a min/max envelope.
+
+Substantiveness is required for the logical group, not every TeX structural fragment. A standalone empty structural body still fails. When necessary, group retained author context fragments in a `context` spans body and put the corresponding `source_excerpt_path` on each child: every declared context must be represented by a checked child. All source excerpts and original provenance remain pinned. This expresses an already reviewed complete body; it does not establish mathematical completeness by itself.
