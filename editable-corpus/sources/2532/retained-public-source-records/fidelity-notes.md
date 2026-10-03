@@ -1,0 +1,5 @@
+Complete original native statement, full human proof and all necessary new local core retained in editable TeX. Every selected block is byte-bound exactly once to the full printed mathematical carrier. Original source line indices, reference values, hypotheses, signs and formulas are unchanged. Carrier excludes original preamble/classes, private unprinted comments and inactive iffalse material; raw acquisition stays private.
+
+All 9 output pages and 19 current source/output comparison pairs were actually viewed. Two actual fresh no-shell-escape passes reached unchanged aux/out. Final scan retains one harmless amsfonts Obsolete command Bbb warning in an original bibliography entry; no Underfull/Overfull boxes, missing glyphs, unresolved references or rerun requests. No zero-warning claim. Standard typefaces are embedded.
+
+Native v2 grant is CC BY4.0; separately byte-matched complete published PDF is CC BY3.0. The generic contents-list URL is navigation only, with actual exact PDF URL/hash and DOI used as pin. Root source admission required; no live corpus, database, Git or registry changes. Temporary storage only.
