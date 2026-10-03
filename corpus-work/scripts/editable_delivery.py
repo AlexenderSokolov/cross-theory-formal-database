@@ -290,6 +290,110 @@ def check_bodies(root, row, evidence, source_root):
     return errors
 
 
+
+def check_published_transcription(root, row, evidence, source_root):
+    """Bind declared published-transcription artifacts; no rights or math certification."""
+    errors = []
+    def error(message):
+        errors.append('published transcription: ' + message)
+    def per_item_file(name):
+        # Check both the declared namespace and the resolved target, including
+        # symlinks. An artifact from another problem is never interchangeable.
+        if (not isinstance(name, str) or Path(name).is_absolute() or
+                Path(name).parts[:2] != ('sources', row['problem_id'])):
+            raise ValueError('file must be inside sources/' + row['problem_id'])
+        path = local(root, name)
+        if not path.is_relative_to(root.resolve() / 'sources' / row['problem_id']):
+            raise ValueError('file escapes per-item sources: ' + name)
+        return path
+    try:
+        descriptor = row.get('published_transcription_evidence')
+        if (not isinstance(descriptor, dict) or
+                not isinstance(descriptor.get('sha256'), str) or not HASH.fullmatch(descriptor['sha256'])):
+            raise ValueError('missing or malformed evidence descriptor/hash')
+        record_path = per_item_file(descriptor.get('path'))
+        record_bytes = record_path.read_bytes()
+        if digest(record_bytes) != descriptor['sha256']:
+            raise ValueError('evidence record hash mismatch')
+        # Parse exactly the hash-checked bytes with the gate's duplicate-key guard.
+        record = json.loads(record_bytes.decode('utf-8'), object_pairs_hook=unique_object)
+        if not isinstance(record, dict):
+            raise ValueError('evidence record must be object')
+        if type(record.get('schema_version')) is not int or record['schema_version'] != 1:
+            error('unsupported evidence record schema')
+        if record.get('problem_id') != row['problem_id']:
+            error('evidence problem ID mismatch')
+        if record.get('representation') != 'checked_published_transcription':
+            error('unsupported representation')
+        for key in ['source_url', 'source_version', 'license']:
+            if not nonempty(record.get(key)) or record[key] != row.get(key):
+                error('evidence ' + key + ' mismatch')
+        for key in ['private_upstream_archive_or_classes_included', 'private_upstream_classes_executed']:
+            if record.get(key) is not False:
+                error(key + ' must be boolean false')
+        comparison = record.get('comparison')
+        if not isinstance(comparison, dict):
+            raise ValueError('comparison must be object')
+        for key in ['method', 'notes']:
+            if not nonempty(comparison.get(key)):
+                error('comparison missing ' + key)
+        for key in ['source_pages', 'output_pages']:
+            pages = comparison.get(key)
+            if (not isinstance(pages, list) or not pages or
+                    any(type(page) is not int or page < 1 for page in pages) or
+                    len(set(pages)) != len(pages)):
+                error('comparison ' + key + ' must be unique positive integer pages')
+        for key in ['complete_statement', 'complete_proof', 'required_context_preserved']:
+            if comparison.get(key) is not True:
+                error('comparison ' + key + ' must be boolean true')
+        pdf = per_item_file(record.get('published_pdf_path')).read_bytes()
+        pdf_hash = record.get('published_pdf_sha256')
+        if not isinstance(pdf_hash, str) or not HASH.fullmatch(pdf_hash) or digest(pdf) != pdf_hash:
+            error('published PDF hash mismatch')
+        if not pdf.startswith(b'%PDF-'):
+            error('published PDF signature missing')
+        if not isinstance(row.get('primary'), dict) or row['primary'].get('source_pdf_sha256') != pdf_hash:
+            error('primary published PDF hash mismatch')
+        transcription_path = per_item_file(record.get('transcription_source_path'))
+        transcription_bytes = transcription_path.read_bytes()
+        transcription_bytes.decode('utf-8')
+        transcription_hash = record.get('transcription_source_sha256')
+        if (not isinstance(transcription_hash, str) or not HASH.fullmatch(transcription_hash) or
+                digest(transcription_bytes) != transcription_hash):
+            error('transcription source hash mismatch')
+        sources = evidence.get('sources')
+        if not isinstance(sources, list):
+            raise ValueError('missing body-evidence sources')
+        indices = set()
+        for index, source in enumerate(sources):
+            if (not isinstance(source, dict) or 'inline_text' in source or
+                    source.get('path') != record['transcription_source_path'] or
+                    source.get('sha256') != transcription_hash):
+                continue
+            scope = source.get('root', 'source')
+            if scope == 'package' or (scope == 'source' and local(source_root, source['path']) == transcription_path):
+                indices.add(index)
+        if not indices:
+            error('exact bundled transcription path/hash absent from body-evidence sources')
+        bodies = evidence.get('bodies')
+        if not isinstance(bodies, list):
+            raise ValueError('missing primary body evidence')
+        for body in bodies:
+            if not isinstance(body, dict) or body.get('role') not in ['primary_statement', 'primary_proof']:
+                continue
+            spans = body.get('spans') if 'spans' in body else [body]
+            if not isinstance(spans, list) or not spans:
+                error('primary body spans missing or malformed')
+                continue
+            for span in spans:
+                index = span.get('source_index') if isinstance(span, dict) else None
+                if type(index) is not int or index not in indices:
+                    error(body['role'] + ' must bind every span to the declared transcription source index')
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, UnicodeError) as exc:
+        error('evidence: ' + str(exc))
+    return errors
+
+
 def check_compile(root, row, build_root,receipt_root=None):
     errors = []
     try:
@@ -450,7 +554,8 @@ def validate(package, item=None, evidence_path=None, source_root=None, build_roo
                 errors.append('missing ' + key)
         if row.get('difficulty_level') not in ['H1','H2','H3'] or row.get('status') != 'verified_editable_tex' or row.get('admission_hold'):
             errors.append('unqualified difficulty/status or admission_hold')
-        if row.get('origin_class') not in ['human_authored_native_tex','human_authored_proof_assistant_transcription']:
+        if row.get('origin_class') not in ['human_authored_native_tex','human_authored_proof_assistant_transcription',
+                                           'human_authored_checked_published_transcription']:
             errors.append('unsupported source origin schema')
         try:
             path = local(root, row.get('item_path'))
@@ -477,6 +582,8 @@ def validate(package, item=None, evidence_path=None, source_root=None, build_roo
                   row.get('primary', {}).get('tag_url', row['source_url']) not in entries[0][4] or
                   '(sources/' + ident + '/provenance.json)' not in entries[0][4]):
                 errors.append('INDEX metadata mismatch')
+            if row.get('origin_class') == 'human_authored_checked_published_transcription':
+                errors.extend(check_published_transcription(root, row, evidence['items'].get(ident), source_root))
             if item is None or item == ident:
                 entry = evidence['items'].get(ident)
                 if not isinstance(entry, dict):

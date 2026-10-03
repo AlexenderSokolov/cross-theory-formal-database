@@ -68,3 +68,12 @@ A logical primary statement or proof may consist of multiple exact source spans.
 Each span undergoes the same individual delivered-hash, source-range and fidelity checks as a scalar body. Delivered ranges must be ordered and nonoverlapping. Empty groups, mixed scalar/multi-span fields, nested groups and unchecked `tex_spans`/`source_spans` aliases fail. Gaps are never silently filled with a min/max envelope.
 
 Substantiveness is required for the logical group, not every TeX structural fragment. A standalone empty structural body still fails. When necessary, group retained author context fragments in a `context` spans body and put the corresponding `source_excerpt_path` on each child: every declared context must be represented by a checked child. All source excerpts and original provenance remain pinned. This expresses an already reviewed complete body; it does not establish mathematical completeness by itself.
+
+
+## Checked published-text transcriptions
+
+The origin `human_authored_checked_published_transcription` is distinct from native TeX and proof-assistant transcription. It requires a per-item `published_transcription_evidence` path and SHA-256 descriptor. The hash-bound record must bind the exact licensed published PDF, the complete portable editable transcription, and actual original-to-output comparison evidence. Every primary statement/proof span must point to that exact bundled transcription source. All existing body, source, admission, difficulty, deduplication, compile, INDEX, and full-text SQLite gates still apply.
+
+The record schema is version 1, representation `checked_published_transcription`, with matching problem ID/source URL/version/license; same-ID `sources/<id>/` PDF and transcription paths/hashes; positive unique physical source/output page arrays; nonempty comparison method/notes; literal true statement/proof/context flags; and literal false declarations for exporting private upstream archives/classes or executing private classes. Exact-version permission and the positive public export allowlist are reviewed separately; declarations are not a rights certificate.
+
+Original records and legacy representation flags remain historical evidence. Current metadata must clearly identify the checked published transcription. After any validator runtime change, execute fresh explicit per-item validation for the entire current package and a fresh aggregate run; do not reuse historical execution identity to claim the changed runtime was tested.
