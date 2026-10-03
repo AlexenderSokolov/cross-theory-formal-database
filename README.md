@@ -1,19 +1,34 @@
 # 高级数学题目与完整人类证明数据库
 
-## 当前可阅读成果
+## 本地接续入口：目标30,000道
 
-最新规范化题证在 [工作分支的 editable-corpus](https://github.com/AlexenderSokolov/cross-theory-formal-database/tree/corpus-progress-20261001/editable-corpus)。目前已交付 **911 题独立可编辑 TeX 完整题证**；本轮911条全部重新逐题CLI通过，恢复后的整包911/911通过完整交付门禁，230项项目测试通过。每题包含完整作者原命题、完整人类证明和可追溯来源，附实际编译回执与全文 SQLite 数据库。
+[打开完整本地交接手册](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/README.md)。交接含现状、硬性标准、详细执行计划、本地模型指令、实际命令、来源目录、扩展来源、规范化经验和可恢复的待处理材料。
 
-- [直接打开题目总目录](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/corpus-progress-20261001/editable-corpus/INDEX.md)
-- [下载全文SQLite数据库全部有序分段](https://github.com/AlexenderSokolov/cross-theory-formal-database/tree/corpus-progress-20261001/editable-corpus/database-parts)
-- [阅读范围、许可及编译方法](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/corpus-progress-20261001/editable-corpus/README.md)
-- [最新完整交付提交](https://github.com/AlexenderSokolov/cross-theory-formal-database/commit/a96843d4c18d09c028d37614315f746f1b26a411)
+- [状态与计数口径](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/STATUS_SNAPSHOT.json)
+- [3,255条来源材料目录](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/catalog/README.md)：3,197个稳定ID及58个未分配候选键，不是合格完成数
+- [44个核查后的扩展来源入口](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/new-sources/扩展题源手册.md)
+- [本地执行命令与恢复](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/plan/04_COMMANDS_AND_RECOVERY.zh-CN.md)
+- [40份待合并规范题证及1907未完成材料](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/materials/RESTORE_PENDING.md)
+- [可直接阅读的待处理TeX索引](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/pending/PENDING_INDEX.md)
+- [本地1002题整包恢复](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/handoff/local1002/README.md)：975主库加上述40份中的27份，另13份独立封存；1002尚未作为另一主库合并发布，不能重复相加到远端完成数
+
+先按交接手册克隆工作分支并核对 `handoff/SHA256SUMS`，再恢复数据库和固定待合并材料。30,000是本地后续目标，本次没有声称完成三万题。
+
+## 当前主库：975道完整可编辑题证
+
+已交付 **975道独立可编辑TeX完整人类题证**，含作者原命题、原证明、必需新局部核心、可追溯来源、实际编译回执、INDEX和全文SQLite。64道新增题逐题新检查通过；911道既有题仅在正文、来源、构建、运行时等身份精确核对后保留成功检查记录。归属及安全见证修订涉及的题另作新检查；当前恢复整包975/975和230项项目测试通过。机械核对不代替独立数学审稿。
+
+- [直接打开题目总目录](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/editable-corpus/INDEX.md)
+- [全文SQLite全部有序分段](https://github.com/AlexenderSokolov/cross-theory-formal-database/tree/2a654a974767ad64d0a4da0767adaa41d2dafae9/editable-corpus/database-parts)
+- [题证范围、许可及编译说明](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/editable-corpus/README.md)
+- [975主库完整交付提交](https://github.com/AlexenderSokolov/cross-theory-formal-database/commit/5bb58ff2b57284a3ab2f2a76e50f588f4a8e629f)
+- [本地交接提交](https://github.com/AlexenderSokolov/cross-theory-formal-database/commit/2a654a974767ad64d0a4da0767adaa41d2dafae9)
 - [首批已核实提交](https://github.com/AlexenderSokolov/cross-theory-formal-database/commit/93012acd777d84b190e9cfcf26409e59d03385ee)
 
-历史 3195 是旧证据门禁数量，包含 2822 个 PDF 页面封装，不能视为已交付完整可编辑题证的完成数。原有文件保留供历史参考和继续整理。
+当前完整SQLite以五个有序无损gzip字节分段交付。下载全部分段与 [顺序/哈希清单](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/editable-corpus/database-delivery.json)，保持目录结构后运行 `python3 editable-corpus/restore_database.py`；脚本核对分段、压缩流与SQLite身份、完整性、外键及975份全文，拒绝覆盖不同内容的已有文件。交接中的catalog数据库是来源元数据工作队列，不替代这份全文主库。
 
-当前911条同时具有完整可编辑正文、人类原证明、来源/正文绑定、稳定编译回执、目录和SQLite全文。下载后可按说明重建实际编译文件并逐题运行失败关闭的门禁；机械核对不代替独立数学审稿。
+## 历史材料与许可边界
 
-当前完整SQLite以四个有序的无损gzip字节分段交付。请下载全部分段及 [顺序/哈希清单](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/corpus-progress-20261001/editable-corpus/database-delivery.json)，保持目录结构后运行 `python3 editable-corpus/restore_database.py` 一次恢复；脚本核对所有分段顺序、长度和哈希、完整压缩流与SQLite哈希、完整性、外键、911条记录及完整题证正文，并拒绝覆盖不同内容的现有文件。旧377条原SQLite保存在 [历史数据库](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/corpus-progress-20261001/historical-database/corpus-377.sqlite)。
+历史3195是旧证据门禁数量，其中2822个为PDF页面封装，不能当作完整可编辑题证的完成数。原有文件继续保留供历史参考；[旧377条SQLite](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/historical-database/corpus-377.sqlite)及[旧684条压缩数据库](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/2a654a974767ad64d0a4da0767adaa41d2dafae9/historical-database/corpus-684.sqlite.gz)都不是当前主库。
 
-旧684条单gzip原样保存在 [历史压缩数据库](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/corpus-progress-20261001/historical-database/corpus-684.sqlite.gz)，不作为当前数据库。
+来源许可逐条保留，完整必要正文与可分发的作者数学宏有明确绑定。原始敏感HTML、隐藏请求字段、私有非独占辅助源包及未核验再分发权限的实现不在交接导出中；历史临时路径不是本地恢复依赖。
