@@ -83,3 +83,5 @@ bash "$REPO/corpus-work/run_delivery_reuse_checks.sh" "$PYTHON"
 CAS当前接口使用仓库 `handoff/materials/restore_history.py`（`--manifest`、`--expected-manifest-sha256`、`--destination`）；`restore_pending.py`接收的是40题运输描述及`--expected-transport-sha256`，不可混用。执行前读取真实`--help`并固定对应helper身份。打包只选逐题必要编译输出，排除 `.cache/fontconfig` 等可重建运行缓存；排除不等于删除。
 
 术语宏（例如 `\gls`）必须使用原作者定义的实际符号／展开；不得把key直接打印或用空 `\newglossaryentry`、假字体宏糊过编译。普通页分隔等纯格式宏可据原定义规范化；数学字母／字体和映射须忠实保留，变更后真实重编并全页核对。
+
+已实测的[验证产物恢复链](artifact-chain.md)可复用明确已公开基础archive与新增小archive，原schema1不改，所有源/最终字节显式对账。源码与小包通过不等于整库通过；本项目首次真实1040链恢复及完整门禁见handoff/yupeng/reusable-tools/ARTIFACT_CHAIN_ACTUAL_FULL1040.json。两类SQLite程序CLI/API不同，执行前读help；通用重建入口是固定 `rebuild(root,output)`，原rebuild_database.py CLI仅--output且包根来自保存程序目录，不接受虚构--package。
