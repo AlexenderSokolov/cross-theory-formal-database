@@ -86,7 +86,7 @@ def sync(package, manifest_pin, master, helper_pins, helper_pins_pin, output):
         raise ValueError('schema differs; no automatic migration')
     sys.path.insert(0, str(scripts))
     from corpus_delivery_tools import local, ordinary
-    from merge_editable_packages import validate_union
+    from merge_editable_packages import validate_union, local as safe_package_path
     from editable_delivery import check_bodies
     before = inventory(package)
     if 'corpus.sqlite.tmp' in before:
@@ -106,6 +106,17 @@ def sync(package, manifest_pin, master, helper_pins, helper_pins_pin, output):
     if manifest.get('verified_count') != len(rows):
         raise ValueError('reviewed manifest count differs; do not auto-correct it')
     validate_union([(manifest, evidence)])
+    report_relative = (Path('sources') / ids[0] / 'PROJECTION_PREPARATION.json'
+                       if len(ids) == 1 else
+                       Path('reports') / ('projection-preparation-' + manifest_pin + '.json'))
+    safe_package_path(output, report_relative.as_posix())
+    # Preserve prior preparation receipts in the fresh output, without carrying
+    # an unscoped root filename or overwriting the prior canonical receipt.
+    prior_reports = {}
+    for relative in sorted({Path('PROJECTION_PREPARATION.json'), report_relative}):
+        if (package / relative).is_file():
+            prior_reports[relative] = (report_relative.parent / 'projection-preparation-history' /
+                                       (sha(package / relative) + '.json'))
     for row in rows:
         ident = row['problem_id']
         if row['status'] != 'verified_editable_tex':
@@ -135,8 +146,18 @@ def sync(package, manifest_pin, master, helper_pins, helper_pins_pin, output):
             if not isinstance(row.get(field), str) or any(c in row[field] for c in ('|', '\r', '\n')):
                 raise ValueError('metadata cannot be represented in the current five-column INDEX: ' + field)
     # Copy2, never hardlinks: the following derived files must not mutate inputs.
+    excluded_copy_paths = {Path('corpus.sqlite'), *prior_reports}
     shutil.copytree(package, output, ignore=lambda directory, names:
-                    ['corpus.sqlite'] if Path(directory) == package else [])
+                    [name for name in names
+                     if Path(directory).relative_to(package) / name in excluded_copy_paths])
+    for prior, history in prior_reports.items():
+        target = output / history
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            if sha(target) != sha(package / prior):
+                raise ValueError('conflicting preparation report history')
+        else:
+            shutil.copy2(package / prior, target)
     for name in HELPERS:
         if not (output / name).is_file() or sha(output / name) != helpers[name]:
             shutil.copy2(master / name, output / name)
@@ -158,7 +179,9 @@ def sync(package, manifest_pin, master, helper_pins, helper_pins_pin, output):
     spec.loader.exec_module(module)
     count = module.rebuild(output, output / 'corpus.sqlite')  # Real current API; CLI has no --package.
     allowed = {'INDEX.md', 'delivery-evidence.json', 'corpus.sqlite', *HELPERS,
-               *('sources/' + ident + '/provenance.json' for ident in ids)}
+               *('sources/' + ident + '/provenance.json' for ident in ids),
+               *(name.as_posix() for name in prior_reports),
+               *(name.as_posix() for name in prior_reports.values())}
     after = inventory(output)
     changed = {name for name in before.keys() | after.keys() if before.get(name) != after.get(name)}
     if changed - allowed or inventory(package) != before or sha(output / 'manifest.json') != manifest_pin:
@@ -180,7 +203,8 @@ def sync(package, manifest_pin, master, helper_pins, helper_pins_pin, output):
         programme_sha256=programs, fresh_compilation_performed=False, remote_delivered_increment=0,
         compile_scope='Existing receipt input/assets/PDF/log pins and warning fields checked; external actual artifacts must still pass full gate.',
         required_next_action='Run explicit actual per-item and aggregate editable-delivery with matching actual build/receipts, then separate root merge/public restoration.')
-    dump(output / 'PROJECTION_PREPARATION.json', result)
+    result['report_path'] = report_relative.as_posix()
+    dump(output / report_relative, result)
     return result
 
 

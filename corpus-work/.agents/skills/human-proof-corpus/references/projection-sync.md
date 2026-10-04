@@ -24,7 +24,13 @@ bash candidates/reusable-projection-sync-r001/run_projection_sync.sh \
   --output candidates/reusable-projection-sync-r001/YOUR_FRESH_OUTPUT
 ```
 
-`PROJECTION_PREPARATION.json` means prepared projections only. Invoke `repo/corpus-work/scripts/validate_corpus.py --mode editable-delivery` separately with explicit `--package`, `--evidence`, actual `--build-root`, actual `--receipt-root`, and an independent `--report`; use `--item ID` for the item gate, then omit it for the aggregate. Root merge/public restoration belongs to the main owner.
+The JSON result includes the package-relative `report_path`. A single-item output writes `sources/ID/PROJECTION_PREPARATION.json`; a multi-item output writes `reports/projection-preparation-MANIFEST_SHA256.json`, using the complete externally reviewed 64-character manifest SHA. These scoped names prevent preparation reports from colliding when independently prepared packages are merged.
+
+If the input already carries a root `PROJECTION_PREPARATION.json` or the current scoped report, its exact bytes are retained only in the fresh output under the selected report directory's `projection-preparation-history/REPORT_SHA256.json`. The original input and all its previous reports remain unchanged. This is preparation-report metadata handling only: no mathematics, source/body witnesses, receipt identity or merge guard changes. CLI flags are unchanged.
+
+Before merging, preflight all paths in the explicit filemaps, including historical draft reports. Unreferenced root draft metadata such as `provenance.json` must be kept under its owning `sources/ID/` in an explicitly reviewed fresh copy with original bytes preserved; do not change current provenance or relax collision guards. This tool only namespaces projection preparation reports and does not perform generic draft relocation.
+
+The preparation report means prepared projections only. Invoke `repo/corpus-work/scripts/validate_corpus.py --mode editable-delivery` separately with explicit `--package`, `--evidence`, actual `--build-root`, actual `--receipt-root`, and an independent `--report`; use `--item ID` for the item gate, then omit it for the aggregate. Root merge/public restoration belongs to the main owner.
 
 ## Targeted retained trial
 
