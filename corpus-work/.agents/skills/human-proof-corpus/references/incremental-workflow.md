@@ -48,7 +48,7 @@
 
 同一作品／版本的 `sources` 记录共用同一许可见证；逐题 proof locator 与 provenance 独立。许可路径不同而文件字节和其他来源字段完全相同，可以在新包显式规范化并对账；其他字段冲突不能靠换 source_id 绕过。
 
-单一合并者复用 `merge_editable_packages.py`／`merge_editable_batch.py` 的当前接口：固定 base 和 incoming 的清单身份，输入明确 root 材料／语义去重决定和完整文件表，输出全新包。根据实际清单计算数量，不写死 975→1002 或某题号。复用当前实际编译产物时核 input／资产／helper 身份；合并后执行实际全文投影和整包门禁。失败保留部分输出与日志，不改基库，不覆盖旧目录。
+单一合并者使用 [批次合并 CLI 与已验证实例](batch-merge.md)，复用 `merge_editable_packages.py`／`merge_editable_batch.py` 的当前接口：固定 base 和 incoming 的清单身份，输入明确 root 材料／语义去重决定和完整文件表，输出全新包。根据实际清单计算数量，不写死 975→1002 或某题号。复用当前实际编译产物时核 input／资产／helper 身份；合并后执行实际全文投影和整包门禁。失败保留部分输出与日志，不改基库，不覆盖旧目录。
 
 ## CAS 和公开恢复
 
