@@ -48,3 +48,5 @@ ROOT-REVIEW-SKELETON-1497-r001.json只供复制字段结构；其external_root_r
 实测SQLite SHA256：84de2eb0fe09a1bca0e1965b4aec28e8db0b61e9d318e474c73d3e5d1c0715ee
 
 实测aggregate SHA256：f01b2ccab51ff650fec11ed6660bc7888c83b58dbf6436f3fe65f44f3869aec2
+
+发布候选和真实本地恢复按 [release-preparation.md](release-preparation.md) 执行；复用 `corpus-work/run_prepare_release.sh`，明确签审文件清单与实际aggregate身份；远端精确恢复成功才计交付。

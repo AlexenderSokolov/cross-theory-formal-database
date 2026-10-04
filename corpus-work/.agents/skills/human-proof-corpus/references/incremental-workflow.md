@@ -77,3 +77,5 @@ bash "$REPO/corpus-work/run_delivery_reuse_checks.sh" "$PYTHON"
 ```
 
 变量必须来自本次实际输入及外部固定身份。check-report只检查既有报告，不能伪造一次门禁执行。normalize-recovery同时携带恢复程序及其测试依赖；CAS输出和恢复目标拒绝现有文件／目录与符号链接。JSON重复键必须拒绝，不能让后写的passed掩盖前写的failed。SHA从机器字段取得并检查64位，避免终端折行手抄。
+
+发布候选和真实本地恢复按 [release-preparation.md](release-preparation.md) 执行；复用 `corpus-work/run_prepare_release.sh`，明确签审文件清单与实际aggregate身份；远端精确恢复成功才计交付。
