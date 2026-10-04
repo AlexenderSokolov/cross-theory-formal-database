@@ -79,3 +79,7 @@ bash "$REPO/corpus-work/run_delivery_reuse_checks.sh" "$PYTHON"
 变量必须来自本次实际输入及外部固定身份。check-report只检查既有报告，不能伪造一次门禁执行。normalize-recovery同时携带恢复程序及其测试依赖；CAS输出和恢复目标拒绝现有文件／目录与符号链接。JSON重复键必须拒绝，不能让后写的passed掩盖前写的failed。SHA从机器字段取得并检查64位，避免终端折行手抄。
 
 发布候选和真实本地恢复按 [release-preparation.md](release-preparation.md) 执行；复用 `corpus-work/run_prepare_release.sh`，明确签审文件清单与实际aggregate身份；远端精确恢复成功才计交付。
+
+CAS当前接口使用仓库 `handoff/materials/restore_history.py`（`--manifest`、`--expected-manifest-sha256`、`--destination`）；`restore_pending.py`接收的是40题运输描述及`--expected-transport-sha256`，不可混用。执行前读取真实`--help`并固定对应helper身份。打包只选逐题必要编译输出，排除 `.cache/fontconfig` 等可重建运行缓存；排除不等于删除。
+
+术语宏（例如 `\gls`）必须使用原作者定义的实际符号／展开；不得把key直接打印或用空 `\newglossaryentry`、假字体宏糊过编译。普通页分隔等纯格式宏可据原定义规范化；数学字母／字体和映射须忠实保留，变更后真实重编并全页核对。
