@@ -87,3 +87,7 @@ CAS当前接口使用仓库 `handoff/materials/restore_history.py`（`--manifest
 已实测的[验证产物恢复链](artifact-chain.md)可复用明确已公开基础archive与新增小archive，原schema1不改，所有源/最终字节显式对账。源码与小包通过不等于整库通过；本项目首次真实1040链恢复及完整门禁见handoff/yupeng/reusable-tools/ARTIFACT_CHAIN_ACTUAL_FULL1040.json。两类SQLite程序CLI/API不同，执行前读help；通用重建入口是固定 `rebuild(root,output)`，原rebuild_database.py CLI仅--output且包根来自保存程序目录，不接受虚构--package。
 
 仅元数据变更后的[机械投影同步](projection-sync.md)使用 `sync_editable_projections.py`：明确已审manifest/pins、保留全部数学源和item evidence，在新目录生成provenance/INDEX/SQL并同步既有manifest身份字段。它不补证据、不判H/许可、不晋级；必须随后实际逐题和aggregate验证。
+
+## Reference fidelity after mechanical compilation
+
+A clean compiler log alone does not establish original reference fidelity. Never replace cite/citep with a wrapper that simply prints the BibKey. Preserve actual source citations and match their original published reference entries/numbers; internal key ordering is not a bibliographic map. Check active original citation passages, including similarly named keys and joint-only groups, and explicitly record what the PDF distinguishes. Correct editorial bibliography mappings in a fresh input, then actually compile the final input again. The author mathematical body and raw source stay unchanged. An original critical formula conflict is a source/core hold; a citation-wrapper defect is an engineering hold. Neither enters the main count. Existing technical green/CAS receipts do not resolve those holds.
