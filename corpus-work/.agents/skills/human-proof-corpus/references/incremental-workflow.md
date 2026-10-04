@@ -85,3 +85,5 @@ CAS当前接口使用仓库 `handoff/materials/restore_history.py`（`--manifest
 术语宏（例如 `\gls`）必须使用原作者定义的实际符号／展开；不得把key直接打印或用空 `\newglossaryentry`、假字体宏糊过编译。普通页分隔等纯格式宏可据原定义规范化；数学字母／字体和映射须忠实保留，变更后真实重编并全页核对。
 
 已实测的[验证产物恢复链](artifact-chain.md)可复用明确已公开基础archive与新增小archive，原schema1不改，所有源/最终字节显式对账。源码与小包通过不等于整库通过；本项目首次真实1040链恢复及完整门禁见handoff/yupeng/reusable-tools/ARTIFACT_CHAIN_ACTUAL_FULL1040.json。两类SQLite程序CLI/API不同，执行前读help；通用重建入口是固定 `rebuild(root,output)`，原rebuild_database.py CLI仅--output且包根来自保存程序目录，不接受虚构--package。
+
+仅元数据变更后的[机械投影同步](projection-sync.md)使用 `sync_editable_projections.py`：明确已审manifest/pins、保留全部数学源和item evidence，在新目录生成provenance/INDEX/SQL并同步既有manifest身份字段。它不补证据、不判H/许可、不晋级；必须随后实际逐题和aggregate验证。
