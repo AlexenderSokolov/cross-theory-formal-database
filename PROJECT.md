@@ -55,3 +55,5 @@ Python使用项目 `runtime/python/bin/python`。依赖与TeX发行版、字体�
 ## 可复用题证流程与工具
 
 当前流程入口：corpus-work/.agents/skills/human-proof-corpus/SKILL.md；增量经验：其 references/incremental-workflow.md。corpus-work/scripts/corpus_delivery_tools.py 提供严格报告检查、固定恢复程序规范化、显式文件表CAS封包及真实恢复核验；合并复用 merge_editable_packages.py / merge_editable_batch.py。用项目Python执行 bash corpus-work/run_delivery_reuse_checks.sh /absolute/project/python，测试保留临时目录，不清理旧材料。程序准备／恢复成功不自动授予数学、来源许可、难度或远端主库完成状态。实际计数与恢复入口看 handoff/yupeng/CONTINUATION_CURRENT.json。
+
+公开恢复数据传输复用 `corpus-work/run_public_transport.sh`，方法与证据边界见 skill 的 references/public-transport.md。按固定 commit/filelist 复用真正旧公开恢复缓存，变化文件精确下载；材料准备后仍实际恢复 SQLite/编译资产并验证，不能从 transport 回执增加完成数。各候选流程报告放 sources/ID 或带完整manifest身份的批次目录，避免同名根报告阻塞合并；旧文件只在新输出中重新安放并保留原件。

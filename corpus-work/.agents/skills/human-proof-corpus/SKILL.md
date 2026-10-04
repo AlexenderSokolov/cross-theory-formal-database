@@ -31,3 +31,5 @@ Use the current [incremental workflow](references/incremental-workflow.md) for c
 Publication belongs to the authorized publisher. Verify the exact remote commit, manifest, INDEX and TeX hashes. For this project, download the exact public commit and all declared database parts/CAS, actually restore into a new server directory, and verify complete SQLite projection and delivery gates before increasing the corresponding delivered total. Hash-only remote comparison is diagnostic evidence, not this project’s completed restoration. Quota, deadline, local success and a pending upload do not change this contract.
 
 发布候选和真实本地恢复按 [references/release-preparation.md](references/release-preparation.md) 执行；复用 `corpus-work/run_prepare_release.sh`，明确签审文件清单与实际aggregate身份；远端精确恢复成功才计交付。
+
+公开恢复取材可复用 [public transport](references/public-transport.md)：已核验旧公开恢复缓存按固定文件清单复制，变化文件按精确提交下载。`run_public_transport.sh` 只准备材料和逐文件账，SQLite/编译资产恢复及门禁必须另做；prepared receipt 不能冒充已完成公开恢复。
