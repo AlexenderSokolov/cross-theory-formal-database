@@ -1,3 +1,5 @@
+> Historical workflow retained as evidence. Current Yupeng incremental delivery requires explicit receipt-root and actual public recovery; use [incremental-workflow.md](incremental-workflow.md). The377/506/756 examples and hash-only fallback below are historical, not current admission conditions.
+
 # Project workflow: editable human-proof corpus
 
 Run from the corpus project root. The dated local example below uses an immutable package and existing artifacts. Validation reports are written outside the package; validation does not admit candidates, change SQLite or publish remotely.

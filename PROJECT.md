@@ -51,3 +51,7 @@ Python使用项目 `runtime/python/bin/python`。依赖与TeX发行版、字体�
 ## 来源下载优先
 
 用户2026-10-04明确要求先下载来源，再提取处理。当前先执行现有2390个唯一来源URL的批量预下载，PDF、公开网页与可取得原生TeX保存到服务器 source-cache/catalog-r001。下载器operations/download_catalog_sources.py为16路I/O、每主机2路，显式直连代理隔离，保存URL、实际HTTP结果、完整文件hash/bytes及失败记录；原网页只作私有缓存，不公开隐藏字段。下载文件数和字节数不计合格题，许可在公开准入时逐件核验。完整缓存的既有ready材料可以完成闭环，新来源必须先完成其领取下载批次再转录。用户已充分授权全自动，不请求重复审批；运行优先已授权SSH与命令通道，不调用会反复要求平台审批的MCP接口。
+
+## 可复用题证流程与工具
+
+当前流程入口：corpus-work/.agents/skills/human-proof-corpus/SKILL.md；增量经验：其 references/incremental-workflow.md。corpus-work/scripts/corpus_delivery_tools.py 提供严格报告检查、固定恢复程序规范化、显式文件表CAS封包及真实恢复核验；合并复用 merge_editable_packages.py / merge_editable_batch.py。用项目Python执行 bash corpus-work/run_delivery_reuse_checks.sh /absolute/project/python，测试保留临时目录，不清理旧材料。程序准备／恢复成功不自动授予数学、来源许可、难度或远端主库完成状态。实际计数与恢复入口看 handoff/yupeng/CONTINUATION_CURRENT.json。

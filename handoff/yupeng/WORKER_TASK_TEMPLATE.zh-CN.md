@@ -78,3 +78,7 @@
 ```
 
 将未执行项如实写 `not_run`。工具启动成功、PID存在或报告文件存在都不等于题证可用。即使本题READY，工作者仍不宣称主库或远端完成数增加。
+
+## 复用入口
+
+先读取仓库内 corpus-work/.agents/skills/human-proof-corpus/SKILL.md 和其增量流程。结构复用不能复制其他题的作者、版本、定位、难度或source_check。常见恢复与门禁报告问题使用 corpus_delivery_tools.py 的实际--help；引用先从当前原版PDF/native精确转录。对缺少新输出要执行生成，普通wrapper/schema问题要闭环；核心缺证/不清、低难、重题、必要许可不明才hold。已有同范围授权不重新要求用户确认。
