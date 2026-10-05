@@ -169,6 +169,7 @@ def main():
                 else:
                     if not args.plan and (not args.commit or not args.previous): p.error('--commit and --previous required')
                     result=corpus_batch.verify_public(args.batch_dir,args.plan,args.commit,args.previous)
+                    save(args.state_root/'pending-publication.json',{'batch_dir':str(args.batch_dir),'status':'delivered','commit':result.get('verified_corpus_commit',result.get('commit')),'count':result.get('remote_main_delivered_count',result.get('verified_count'))})
             else:
                 target=args.state_root/'owner.json'
                 old=load(target) if target.exists() else {'owner':'current-session'}

@@ -16,6 +16,10 @@
 
 ## 当前接续点
 
+**最新已核验：公开主库与本地主库均为1065题，数据提交 `347369e58e67feffcd520e56bf0f5ae6b95f7129` 已实际公开恢复；下一检查点1090。** 当前待合并准入与READY分别读取queue和CONTINUATION_CURRENT，不沿用下段实施起点。下一公开恢复的`--previous`使用`$B/operations/corpusctl/batches/batch-1048-1065-r002/verify-public/result.json`。
+
+已接续来源块r003、r004、r005，各自OWNER给出互斥范围；1791原文关键记号/书目hold，不能从技术READY晋级。
+
 2026-10-05 实施起点：公开主库 **1040**，本地已合并 **1048**，另有 **11** 题已准入待合并，累计准入1059；1065检查点还需6题。以实际 status、queue、manifest 和公开恢复报告更新这些值。七份独立公开备份与主库重叠，不能再次相加。975＋40遗产接收已完成，不重复接收；1907和hold不计数。
 
 本地基库是 queue 的 `base.package`，不是仓库中历史未跟踪的 `editable-corpus/corpus.sqlite`。冻结题1662、1663、1665、1706、1707、1708、1710、1712、1714、1740、1741的包、最终编译、逐题报告和准入理由全部在queue中，复用这些成功结果。
@@ -84,4 +88,4 @@ CTL="$B/repo/corpus-work/corpusctl"
 
 云电脑中转命令为`python corpus-work/scripts/publish_corpus_bundle.py --bundle ABS --relay ABS --expected-base COMMIT --receipt ABS`。服务器先提交明确文件，再用`git bundle create ABS LAST_REMOTE..HEAD`出包，云电脑通过scp取得bundle。脚本实际验证Git bundle、远端祖先和正常push结果；若远端前进则停在待整合，不强推。bundle推送回执不增加数学交付数。
 
-真实断连验收见[记录](handoff/yupeng/corpusctl-real-reconnect-r001.json)：控制SSH退出、另一次SSH重连及服务重启后，同一在途来源worker仍为同PID/启动时间；重复resume未启动第二份。首个1065真实发布和自动续批仍按[实施状态](handoff/yupeng/CORPUSCTL_IMPLEMENTATION.json)验收，不以工程测试替代。
+真实断连验收见[记录](handoff/yupeng/corpusctl-real-reconnect-r001.json)：控制SSH退出、另一次SSH重连及服务重启后，同一在途来源worker仍为同PID/启动时间；重复resume未启动第二份。首个1065真实发布已通过[公开恢复](handoff/yupeng/main1065/PUBLIC_RESTORE_VERIFIED.json)；下一批已持续生产。dot云端SSH与GitHub身份接通仍未实测。

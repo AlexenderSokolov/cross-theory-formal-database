@@ -20,7 +20,7 @@
 
 ## 当前生产状态与固定节奏（2026-10-05 root 交接）
 
-当前为1048道local已合并、1040道main远端已交付。七题公开CAS已实际恢复，证据为 `reports/pending7-public-restoration-r001.json`；它们与local主库重叠，不能再加到main计数。冻结准入材料和剩余数量以PRODUCTION_QUEUE为准；1581书目与页码工程问题已修复，2026-10-05加入待批队列。后续状态以对应实际产物更新，不把启动、缓存、报告或工程READY当作净新增。
+当前为1065道local已合并、1065道main远端已交付，数据提交`347369e58e67feffcd520e56bf0f5ae6b95f7129`已实际公开恢复。25净新增由1048本地基库加17个准入包一次组装，rebuild和aggregate各1次，耗时74.6秒。下一批继续至1090，具体待准入/已准入、来源块与hold见PRODUCTION_QUEUE和CONTINUATION_CURRENT；历史七题备份不另计数。
 
 固定使用root加3个来源workers，每个worker领取互不重叠的10—20候选来源块并连续处理。沿用项目Python3.13（`runtime/python/bin/python`）及已有源缓存，不重下已有原件。按真实模型配额排队；旧8次启动不等于8个有效worker，不爆发重试、不换账号规避配额。
 
