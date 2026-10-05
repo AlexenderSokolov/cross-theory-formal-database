@@ -50,3 +50,9 @@ ROOT-REVIEW-SKELETON-1497-r001.json只供复制字段结构；其external_root_r
 实测aggregate SHA256：f01b2ccab51ff650fec11ed6660bc7888c83b58dbf6436f3fe65f44f3869aec2
 
 发布候选和真实本地恢复按 [release-preparation.md](release-preparation.md) 执行；复用 `corpus-work/run_prepare_release.sh`，明确签审文件清单与实际aggregate身份；远端精确恢复成功才计交付。
+
+## 当前一次多包生产入口
+
+SPEC使用base与incoming数组；每个输入给出真实package/build_root/receipt_root和已有manifest身份，master_helpers固定为本仓库editable-corpus（其同仓库validator及policy依赖供唯一final gate使用）。每个incoming用accepted_report对象（path、既有final manifest身份）或accepted_reports覆盖全部ID；禁止只凭同ID成功复用另一个版本。paths与artifact_paths仅给明确包内文件路径，或复用旧filemap的keys，不重新生成目录散列。ROOT决定仍明确全部incoming IDs、材料准入与去重、编译复用范围。
+
+合并CLI保持--spec、--semantic-review、--output；旧--semantic-review-sha256仅兼容可选，生产不新增这一层。输出只有package/build/receipts/reports和batch-result.json，无steps/step-N或逐步骤review。主SQLite重建与final aggregate各一次，已有incoming报告只读取不重新运行。batch-result记录rebuild_calls、gate_calls、incoming_gate_reuse、elapsed；工程fixture不计数学题。固定命令：bash corpus-work/run_batch_merge_once.sh SPEC.json ROOT_REVIEW.json FRESH_OUTPUT。

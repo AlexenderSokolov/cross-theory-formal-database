@@ -32,18 +32,21 @@ def dump(path, data):
 
 def local(root, value):
     p = PurePosixPath(value)
-    if p.is_absolute() or '..' in p.parts or '\\' in value:
+    if not value or p.as_posix() != value or p.is_absolute() or '..' in p.parts or '\\' in value:
         raise ValueError('unsafe package-relative path: '+value)
     result = root.joinpath(*p.parts)
     if result.is_symlink() or not result.resolve().is_relative_to(root.resolve()):
         raise ValueError('symlink/escaping package path: '+value)
     return result
 
-def load_package(root):
+def load_package(root, validate_material=True, expected_manifest=None):
     manifest_path = root/'manifest.json'
     manifest = strict_load(manifest_path)
     evidence = strict_load(root/'delivery-evidence.json')
-    if evidence.get('package_manifest_sha256') != sha(manifest_path):
+    manifest_identity = sha(manifest_path)
+    if expected_manifest is not None and manifest_identity != expected_manifest:
+        raise ValueError('pinned manifest identity mismatch')
+    if evidence.get('package_manifest_sha256') != manifest_identity:
         raise ValueError('evidence does not bind the actual manifest')
     rows = manifest['items']
     ids = [x['problem_id'] for x in rows]
@@ -54,6 +57,12 @@ def load_package(root):
         if item['status'] != 'verified_editable_tex': raise ValueError('unqualified input status: '+ident)
         if not witness.get('independent_problem_unit') or not witness.get('claim_key'):
             raise ValueError('missing independent claim/core evidence: '+ident)
+        if witness.get('item_sha256') != item['tex_sha256']:
+            raise ValueError('body/evidence identity mismatch: '+ident)
+        if not witness.get('bodies') or not witness.get('sources'):
+            raise ValueError('missing body/source evidence: '+ident)
+        if not validate_material:
+            continue
         path = local(root, item['item_path'])
         if not path.is_file() or sha(path) != item['tex_sha256']:
             raise ValueError('missing/changed editable body: '+ident)
@@ -98,10 +107,80 @@ def copy_inputs(root, output, filemap):
         if len(relative.parts)==1 and relative.name in GLOBAL_FILES: continue
         target = output/relative
         if target.exists():
-            if sha(target) != sha(source): raise ValueError('conflicting package file: '+str(relative))
+            if not same_content(target, source): raise ValueError('conflicting package file: '+str(relative))
             continue
         target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copy2(source,target)
+
+
+def same_content(first, second):
+    """Compare an actual path collision directly; no directory fingerprinting."""
+    if first.stat().st_size != second.stat().st_size:
+        return False
+    with first.open('rb') as left, second.open('rb') as right:
+        while True:
+            a, b = left.read(1024 * 1024), right.read(1024 * 1024)
+            if a != b:
+                return False
+            if not a:
+                return True
+
+
+def explicit_paths(root, names):
+    """Accept an existing path list or old filemap keys; do not hash a tree."""
+    if not isinstance(names, (list, tuple, dict)) or not names:
+        raise ValueError('explicit nonempty package paths required')
+    paths = list(names)
+    if any(not isinstance(name, str) for name in paths):
+        raise ValueError('malformed explicit path')
+    selected = set(paths)
+    if len(selected) != len(paths):
+        raise ValueError('duplicate or malformed explicit path')
+    for name in paths:
+        source = local(root, name)
+        if not source.is_file():
+            raise ValueError('missing/nonregular explicit path: ' + name)
+        for parent in source.parents:
+            if parent == root:
+                break
+            if parent.is_symlink():
+                raise ValueError('symlink in explicit input path: ' + name)
+    for name in paths:
+        if any(parent.as_posix() in selected for parent in PurePosixPath(name).parents if str(parent) != '.'):
+            raise ValueError('file/directory path collision: ' + name)
+    return paths
+
+
+def assemble_packages(roots, packages, copy_paths, retained_index, master, output, identities):
+    """Write one material union only; caller performs the one fixed SQL rebuild."""
+    if output.exists() or output.is_symlink():
+        raise ValueError('output must be new; existing outputs are preserved')
+    output.mkdir(parents=True)
+    for root, paths in zip(roots, copy_paths):
+        copy_inputs(root, output, paths)
+    for name in ('schema.sql', 'rebuild_database.py', 'restore_database.py',
+                 'test_database.py', 'test_restore_database.py'):
+        shutil.copy2(master / name, output / name)
+    rows = sorted([row for manifest, _ in packages for row in manifest['items']],
+                  key=lambda row: int(row['problem_id']))
+    manifest = dict(packages[0][0])
+    manifest.update(items=rows, verified_count=len(rows), material_reviewed_count=len(rows),
+                    scope='Canonical material union; final batch gate and publication status recorded separately.',
+                    yupeng_merge_inputs={'base_manifest_sha256': identities[0],
+                        'incoming_manifest_sha256': identities[1:],
+                        'incoming_ids': [row['problem_id'] for m, _ in packages[1:] for row in m['items']]})
+    dump(output / 'manifest.json', manifest)
+    evidence = dict(packages[0][1])
+    evidence['items'] = {ident: value for _, ev in packages for ident, value in ev['items'].items()}
+    evidence['package_manifest_sha256'] = sha(output / 'manifest.json')
+    evidence['derived_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
+    evidence['derivation_scope'] = 'Accepted final item evidence retained once; no new compile or material admission.'
+    evidence['merge_input_evidence'] = [{'manifest_sha256': identity} for identity in identities]
+    dump(output / 'delivery-evidence.json', evidence)
+    lines = ['# 完整可编辑题证材料目录', '', '| 题号 | 题名 | 难度 | 可编辑 TeX | 来源及定位 |', '|---|---|---|---|---|']
+    lines.extend(retained_index[row['problem_id']] for row in rows)
+    (output / 'INDEX.md').write_text('\n'.join(lines) + '\n', encoding='utf8')
+    return len(rows)
 
 # Preserve the original single-packet guards and expose the same preflight to batches.
 def claim_keys(witness):

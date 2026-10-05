@@ -2,11 +2,22 @@
 
 适用于本仓库的人类高级数学题证采集、规范化、并行处理和交付。用户已授权的服务器、分支和公开范围继续有效；本流程不扩大授权，也不要求对同范围正常操作重复确认。先读仓库根 `PROJECT.md` 和 `handoff/yupeng/CONTINUATION_CURRENT.json` 的相关部分。
 
+## 固定production顺序（2026-10-05）
+
+1. root固定分配互不重叠的来源块给3个workers，每块10—20候选连续处理。沿用项目Python3.13与已有源缓存；真实模型配额不足就排队，不把历史8启动当作8有效worker、不爆发重试。
+2. worker在小包先完成原文引用与实际书目映射、必要资产／许可、宏字体和最终排版。保留完整作者statement、proof及新局部core；不重新转录已完成正文、不补数学。
+3. 固定final输入后调用一次真实compile流程（helper内部仍要求2—4个成功且稳定TeX passes），完成必要全页及原文关键页QA，自动完成所需兼容投影，然后只跑一次最终--item。通过后固定该final revision和交付contract，不再编辑；已绿未变直接复用。
+4. root负责准入/H、必要core覆盖、semantic、发布，仅按已有来源定位及索引检查必要范围。每25个净新增准入项汇总一次真正multi-pack，再一次主库rebuild、aggregate、发布和公开恢复；稳定后100项checkpoint、每500项完整对账。
+
+不重复同一single aggregate，不逐题CAS恢复或逐题main合并；不为已绿未变输入重编或重跑验收。实际失败、必要改动或明确不匹配才进入新revision并检查受影响范围，原件／旧revision保留。旧接收与工具回归例子只供真实追溯，不是每题额外步骤。
+
+Stop That Shit持续生效：先走Stop Ladder（用户要求→当前结果必需→实际数据/接口/验收依据→略去是否失败）；无依据就停止扩展。Production只计实际题证、验收及计数推进，重复思考、重复报告不算产出。不要新增全目录散列、多层pins、专门hash报告测试或调度／网站／技能平台；原compile／restore接口必需兼容字段继续由现有helper自动完成。
+
 ## 工作者的最小交接
 
 领取不重叠的作品／版本块；先下载原 PDF、原生 TeX／网页与必要资产到服务器缓存，再提取。原件按 URL、作品版本和 SHA256 共用，`source0` 保持原字节。工作者只写自己的候选及报告目录；一个合并者独占编号、主库清单、INDEX、SQLite 和 Git。
 
-每题交接实际题证 TeX、原始命题／证明／新局部核心的精确定位、来源与逐组件许可、H1/H2/H3 的 2—4 句具体残余证明义务、实际编译回执及最终日志、全页 QA、全文 SQLite、逐题与整包门禁、可恢复包和 READY。READY 必须列出实际完成范围及待办；存在文件、渲染了图片或返回 PID 都不是通过证据。
+每题只有一条worker交付contract：题号；固定final包；statement/proof/必要新core的原文定位；H1/H2/H3及2—4句具体残余理由；许可；真实compile、最终日志及必要page QA；已有最终item gate或具体hold。所需小包SQLite等兼容投影由现有helper完成，主库aggregate／恢复由root在批次checkpoint处理。存在文件、渲染图片或返回PID不能代替实际验收。
 
 只处理题目、完整人类证明及必要数学背景／图。无关插画、品牌页和其他非数学素材直接不进入交付；必要数学图的公式和关键文字必须可编辑，资产仍须具备再分发依据。许可不明而证明又必需的资产才隔离本题；不要为无关美术开展调查。
 
@@ -22,7 +33,7 @@
 
 ## 编译与门禁
 
-先查当前程序 `--help`。在项目既有隔离环境以真正 TeX Live、禁用 shell escape 编译；包只读，构建和回执在包外，不暴露网络和凭据。Yupeng 的 wrapper 需要显式传包与输出根目录；查询编译参数时运行原编译脚本的 `--help`，不要裸调用需要这些参数的 wrapper。
+沿用已核实际CLI；只有接口发生实际变化或调用不明时才查`--help`。在固定项目Python3.13及既有隔离环境以真正 TeX Live、禁用 shell escape 编译；包只读，构建和回执在包外，不暴露网络和凭据。Yupeng 的 wrapper 需要显式传包与输出根目录；查询编译参数时运行原编译脚本的 `--help`，不要裸调用需要这些参数的 wrapper。
 
 ```sh
 "$PYTHON" "$REPO/corpus-work/scripts/compile_editable_delivery.py" --help
@@ -31,26 +42,25 @@
 "$PYTHON" "$REPO/corpus-work/scripts/validate_corpus.py" --mode editable-delivery \
   --package "$PACKAGE" --evidence "$PACKAGE/delivery-evidence.json" \
   --build-root "$BUILD" --receipt-root "$RECEIPTS" --item "$ID" --report "$ITEM_REPORT"
-"$PYTHON" "$REPO/corpus-work/scripts/validate_corpus.py" --mode editable-delivery \
-  --package "$PACKAGE" --evidence "$PACKAGE/delivery-evidence.json" \
-  --build-root "$BUILD" --receipt-root "$RECEIPTS" --report "$AGGREGATE_REPORT"
 ```
 
-这些变量由实际项目环境填写，不是已执行回执。先同步 manifest、逐题 provenance、INDEX、来源与完整 SQLite，再运行逐题门禁；整包通过才能作为可合并包。报告必须放在独立路径。来源工作者直接调用可信 Python validator，可写自己候选目录内的 reports；该验证器不执行 TeX。主代理通过 operations/env-isolated.sh 验证时才要求报告位于项目 ROOT/reports 下，按工作单分独占子目录。隔离编译仍必须走真实 compile-isolated，不受这条报告路径区别影响。
+这些变量由实际项目环境填写，不是已执行回执。先完成小包manifest、逐题provenance、INDEX、来源与完整SQLite的必要兼容投影，再仅执行一次最终--item。worker不追加same single aggregate；root在25项multi-pack主库checkpoint执行一次aggregate和公开恢复。报告必须放在独立路径。来源工作者直接调用可信 Python validator，可写自己候选目录内的 reports；该验证器不执行 TeX。主代理通过 operations/env-isolated.sh 验证时才要求报告位于项目 ROOT/reports 下，按工作单分独占子目录。隔离编译仍必须走真实 compile-isolated，不受这条报告路径区别影响。
 
 成功需要实际 exit 0、正确 qualified count、全局及每个 item 的 errors 都空、没有 failed item。`errors: []` 的顶层值不能遮盖嵌套 item 失败。可用 `corpus_delivery_tools.py check-report` 汇总，但它不替代真实门禁。
 
-编译至少 2、最多 4 遍，最终真实日志必须稳定。实际查看新输出各页和关键原文页，尤其公式号、Lemma／Theorem 引用类型、图中数学标签、证明末段与文献。修 bibliography、字体、counter 或 TeX 后要真实重编；只改非编译元数据可在全部编译输入／资产／运行程序身份一致时复用回执，同时重跑受影响 SQL／门禁，说明复用范围。
+编译至少 2、最多 4 遍，最终真实日志必须稳定。实际查看新输出各页和关键原文页，尤其公式号、Lemma／Theorem 引用类型、图中数学标签、证明末段与文献。引用、字体、counter、资产和最终版面检查前置到final输入。已绿final不再编辑或重编；实际发现问题才进入新revision，按改动范围完成必要编译／最终item gate。未变的正文和证据直接复用；元数据的必要兼容投影由既有helper一次完成，不追加同输入的重复验收。
 
 ## 固定恢复程序与合并
 
-不要为每题重新写 SQLite 恢复代码。采用固定主库 `rebuild_database.py` 和相同 `schema.sql`，记录程序 SHA。发现单题包带了变体，在新目录调用 `corpus_delivery_tools.py normalize-recovery`，保留原包，检查题证／清单身份未变，真实重建全文 SQL 并重新跑该题门禁。它只准备材料，不自动授予合格或发表状态。
+不要为每题重新写 SQLite 恢复代码。采用固定`rebuild_database.py`和相同`schema.sql`；接口必要身份字段由既有helper处理，不追加手工SHA层。发现单题包带了变体，在新目录调用 `corpus_delivery_tools.py normalize-recovery`，保留原包，检查题证／清单身份未变，真实重建全文 SQL 并重新跑该题门禁。它只准备材料，不自动授予合格或发表状态。
 
 同一作品／版本的 `sources` 记录共用同一许可见证；逐题 proof locator 与 provenance 独立。许可路径不同而文件字节和其他来源字段完全相同，可以在新包显式规范化并对账；其他字段冲突不能靠换 source_id 绕过。
 
-单一合并者使用 [批次合并 CLI 与已验证实例](batch-merge.md)，复用 `merge_editable_packages.py`／`merge_editable_batch.py` 的当前接口：固定 base 和 incoming 的清单身份，输入明确 root 材料／语义去重决定和完整文件表，输出全新包。根据实际清单计算数量，不写死 975→1002 或某题号。复用当前实际编译产物时核 input／资产／helper 身份；合并后执行实际全文投影和整包门禁。失败保留部分输出与日志，不改基库，不覆盖旧目录。
+每25项checkpoint由root汇总已准入小包，使用 [批次合并 CLI 与已验证实例](batch-merge.md) 做真正multi-pack，复用 `merge_editable_packages.py`／`merge_editable_batch.py` 的当前接口：固定 base 和 incoming 的清单身份，输入明确 root 材料／语义去重决定和完整文件表，输出全新包。根据实际清单计算数量，不写死 975→1002 或某题号。复用当前实际编译产物时核 input／资产／helper 身份；整批只做一次主库rebuild／全文投影和aggregate，再发布并实际公开恢复，不把逐incoming多次主库rebuild当作该checkpoint。失败保留部分输出与日志，不改基库，不覆盖旧目录。
 
-## CAS 和公开恢复
+## 批次checkpoint的CAS与公开恢复
+
+本节仅用于root批次checkpoint的实际发布／恢复或真实恢复故障；不要求每题CAS封包及恢复。已绿且不变的编译与来源证据直接复用，已有重叠公开备份不增加main。
 
 `corpus_delivery_tools.py pack-cas` 只接受明确审查的文件列表：`status=public_filelist_review_complete`，每项含 `source`、包内相对 `path`、实际 `sha256`。列表代表已完成的内容／权利审查；程序不会做或伪造该审查。不要按工作目录全量 glob 发布，不包含 private events、原始 HTML、凭据、未核许可原件或未知类文件。
 
@@ -63,10 +73,12 @@ Zip blob 必须携带 Unix 普通文件类型 `S_IFREG`；只写权限位会被�
 - 优先修复已完成正文的 wrapper／元数据，避免工作者遇到普通工程错误就结束。
 - 同一源的已完成数学正文和完整必要 core 不重复提取；已验证身份一致的历史证据按受影响范围复用。
 - 当前 native agent 槽位、服务器模型进程、排队任务、CPU 编译并行分别记录；接口限流时排队，CPU 多不代表模型请求槽位多。进程真实终止后才接续，观察超时不是终止。
-- 每题立即检查；每 25—100 新通过项保存可恢复检查点，每 500 新合格题全库对账。继续 20 净新增试点→100／500→30,000 的原目标，不以工具或文档完成代替题库完成。
+- 每题在fixed final上完成一次真实compile和最终item检查；每25个净新增准入项做一次真正multi-pack主库checkpoint，稳定后100项、每500项完整对账。继续30,000目标，不以工具、文档、重复报告或备份文件数代替题证与计数推进。
 - 中断前保存 commit、计数依据、源 owner／位置、hold、必要文件和恢复命令。新的经验只针对已观察的失败，不积累无关审批和复杂平台。
 
-### 可复用工具命令
+### 现有接口的兼容命令（非逐题额外清单）
+
+以下保留现有恢复／批次接口的兼容用法。仅在对应批次checkpoint或实际失败需要时调用，原身份字段从已有回执自动取得；不要为每题专门执行目录散列、pins报告、hash测试或全部工具回归。
 
 ```sh
 "$PYTHON" "$REPO/corpus-work/scripts/corpus_delivery_tools.py" check-report --report "$ITEM_REPORT" --expected-count 1
@@ -86,7 +98,7 @@ CAS当前接口使用仓库 `handoff/materials/restore_history.py`（`--manifest
 
 已实测的[验证产物恢复链](artifact-chain.md)可复用明确已公开基础archive与新增小archive，原schema1不改，所有源/最终字节显式对账。源码与小包通过不等于整库通过；本项目首次真实1040链恢复及完整门禁见handoff/yupeng/reusable-tools/ARTIFACT_CHAIN_ACTUAL_FULL1040.json。两类SQLite程序CLI/API不同，执行前读help；通用重建入口是固定 `rebuild(root,output)`，原rebuild_database.py CLI仅--output且包根来自保存程序目录，不接受虚构--package。
 
-仅元数据变更后的[机械投影同步](projection-sync.md)使用 `sync_editable_projections.py`：明确已审manifest/pins、保留全部数学源和item evidence，在新目录生成provenance/INDEX/SQL并同步既有manifest身份字段。它不补证据、不判H/许可、不晋级；必须随后实际逐题和aggregate验证。
+仅元数据变更后的[机械投影同步](projection-sync.md)使用 `sync_editable_projections.py`：明确已审manifest/pins、保留全部数学源和item evidence，在新目录生成provenance/INDEX/SQL并同步既有manifest身份字段。它不补证据、不判H/许可、不晋级；必要投影在最终item前一次完成。已绿且输入未变时复用既有item验收，aggregate只在root批次checkpoint执行，不为same single追加。
 
 ## Reference fidelity after mechanical compilation
 
