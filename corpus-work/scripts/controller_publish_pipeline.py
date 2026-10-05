@@ -132,7 +132,7 @@ with authorized_stage():
   if merged.get('status')!='actual_editable_batch_gate_passed_not_remote' or merged.get('items')!=active['expected_count']:raise ValueError('actual merged batch required')
   proof=load(Path(previous['result_path']))
   if proof.get('verified_corpus_commit')!=previous['commit'] or proof.get('remote_main_delivered_count')!=previous['count']:raise ValueError('previous full public proof mismatch')
-  remote=git('remote','get-url','origin');branch=git('branch','--show-current')
+  remote=git('remote','get-url','origin');branch=git('symbolic-ref','--quiet','--short','HEAD')
   base=git('ls-remote',remote,'refs/heads/'+branch).split()[0]
   subprocess.run(['git','-C',str(repo),'merge-base','--is-ancestor',base,'HEAD'],check=True)
   pub=dict(schema_version=2,record_type='publication',batch_id=active['batch_id'],actor=cfg['actor'],started_by=cfg['actor'],actor_history=[],stage='merged',expected_count=active['expected_count'],incoming_ids=active['incoming_ids'],remote=remote,branch=branch,expected_remote_base=base,server_parent=None,expected_tree=None,target_commit=None,bundle_path=None,previous_public_result=previous['result_path'],receipt_paths={'merge':str(batch/'merge/batch-result.json')})
