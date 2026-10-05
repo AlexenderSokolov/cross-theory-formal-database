@@ -83,10 +83,12 @@ def plan(root):
     old=load(root/'candidates/native-source-continuous-r002/executor-1-r002/RUNTIME_JOB.json')
     argv=list(old['argv'])
     argv[argv.index('--model')+1]='gpt-6.1-sol'
+    if '--sandbox' in argv:
+        i=argv.index('--sandbox');argv[i:i+2]=['--permission-profile','corpus-source']
     for n,v in enumerate(argv):
         if v.startswith('model_reasoning_effort='):argv[n]='model_reasoning_effort="medium"'
     argv[argv.index('-C')+1]='{workspace}';argv[argv.index('-o')+1]='{result_path}.FINAL.txt'
-    argv[-1:-1]=['--add-dir',str(state/'jobs')]
+    argv[-1:-1]=['--add-dir',str(state/'jobs'),'-c','permissions.corpus-source.extends=":workspace"','-c','permissions.corpus-source.network.enabled=true']
     command=dict(argv=argv,task_file=str(root/'repo/corpus-work/scripts/SOURCE_WORKER_TASK.md'))
     return flow,command,packets,dict(inherited=13,successor_counts=counts,next_candidate_count=sum(counts.values()),unstable_candidate_keys_skipped=unstable,selected_ids={b['block_id']:[u['problem_id'] for u in b['units']] for b in blocks},model='gpt-6.1-sol',effort='medium',production_started=False)
 

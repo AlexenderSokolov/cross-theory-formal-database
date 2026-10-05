@@ -155,4 +155,27 @@ class Recovery(unittest.TestCase):
   self.assertTrue(marker.exists(),(self.state/(s['job_id']+'.runner.log')).read_text())
   self.r.collect()
 
+ def test_three_unchanged_partial_attempts_stop_automatic_dispatch(self):
+  self.worker_config()
+  for n in range(1,4):
+   s=self.spec(job=f'b-a{n:03}',attempt=f'a{n:03}')
+   if n>1:s['previous_job_id']=f'b-a{n-1:03}'
+   self.r.register(s);units=[self.unit(i) for i in s['unit_ids']]
+   # Revision and evidence-path renaming are deliberately not checkpoint progress.
+   for u in units:u['revision']=f'r{n:03}';u['evidence_refs']={'package':str(self.ws/f'draft-r{n:03}')}
+   save_json(s['result_path'],self.result(s,units));self.r.finish(s['job_id'],0)
+  self.assertEqual(self.r.schedule(),[])
+  self.assertEqual(self.r.schedule(),[])
+  row=self.r.status('b-a003')[0];self.assertEqual(row['state'],'collected');self.assertEqual(row['reason_code'],'tool_failure');self.assertIn('unchanged checkpoint',row['detail']);self.assertEqual(len(self.r.status()),3)
+ def test_checkpoint_advance_allows_partial_continuation(self):
+  self.worker_config()
+  for n in range(1,4):
+   s=self.spec(job=f'b-a{n:03}',attempt=f'a{n:03}')
+   if n>1:s['previous_job_id']=f'b-a{n-1:03}'
+   self.r.register(s);units=[self.unit(i) for i in s['unit_ids']]
+   if n==3:
+    for u in units:u.update(last_completed_stage='page_qa',next_stage='projected')
+   save_json(s['result_path'],self.result(s,units));self.r.finish(s['job_id'],0)
+  self.assertEqual(self.r.schedule(),['b-a004'])
+
 if __name__=='__main__':unittest.main()

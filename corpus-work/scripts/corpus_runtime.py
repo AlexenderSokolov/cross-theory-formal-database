@@ -130,6 +130,17 @@ class Runtime:
                 if prior['state']=='rate_limited' and prior['next_attempt_at']>time.time():continue
                 if prior['state']=='collected':
                     checkpoint=load_json(prior['job_spec']['result_path'])
+                    recent=runs[-3:]
+                    if len(recent)==3 and all(r['state']=='collected' and r.get('result_status')=='partial' for r in recent):
+                        signatures=[]
+                        for finished in recent:
+                            saved=load_json(finished['job_spec']['result_path'])
+                            signatures.append((tuple(sorted(finished['job_spec']['unit_ids'])),tuple(sorted((u['problem_id'],u['last_completed_stage'],u['next_stage'],u['disposition']) for u in saved['units']))))
+                        if signatures[0]==signatures[1]==signatures[2]:
+                            detail='unchanged checkpoint across 3 consecutive partial attempts; controller must inspect preserved work before explicit continuation'
+                            if prior.get('reason_code')!='tool_failure' or prior.get('detail')!=detail:
+                                with self.tx() as c:c.execute("UPDATE jobs SET reason_code='tool_failure',detail=?,updated_at=? WHERE job_id=?",(detail,now(),prior['job_id']))
+                            continue
                     ids=[u['problem_id'] for u in checkpoint['units'] if u['disposition']=='unfinished']
                     if not ids:
                         with self.tx() as c:c.execute('UPDATE jobs SET block_accounted=1 WHERE job_id=?',(prior['job_id'],))
