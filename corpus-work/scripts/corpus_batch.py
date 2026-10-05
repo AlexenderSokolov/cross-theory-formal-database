@@ -77,7 +77,7 @@ def prepare(queue, state_root, threshold=25, project=DEFAULT_ROOT):
     summary=status(queue,state_root,threshold)
     if summary['status']!='batch_ready': return summary
     q=load(Path(queue)); project=Path(project).resolve(); state=safe(state_root,project)
-    name='batch-'+str(summary['local_count'])+'-'+ '-'.join(summary['incoming_ids'])
+    name='batch-'+str(summary['local_count'])+'-'+str(summary['expected_count'])+'-r'+str(q.get('batch_revision',1)).zfill(3)
     folder=state/name
     if folder.exists():
         frozen=load(folder/'batch.json')
@@ -159,7 +159,7 @@ def publish_plan(batch_dir, project=DEFAULT_ROOT):
     files=[];filemap={}
     for name in selected_paths(package):
         filemap[name]=merger.core.sha(package/name)
-        if Path(name).parts[0] in ('database-parts','validation-artifact-parts','validation-artifact-deltas') or name in TRANSPORT_NAMES or name in ('validation-chain.json','restore_validation_chain.py'):
+        if Path(name).parts[0] in ('database-parts','validation-artifact-parts','validation-artifact-deltas') or name in TRANSPORT_NAMES or name in ('validation-chain.json','restore_validation_chain.py','RECOVERY_CURRENT.md'):
             continue
         files.append(dict(root='package',path=name,sha256=filemap[name]))
     for name in HELPERS:
