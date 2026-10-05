@@ -49,6 +49,4 @@ Publication belongs to root at the multi-pack checkpoint. Existing compile/resto
 
 ## Durable controller
 
-Read the repository root `DOT_HANDOFF.md` for Your dot takeover. Use `corpus-work/corpusctl status --json` as the current runtime/queue view. The Yupeng user service continues submitted jobs and merges a full admitted batch; root/dot still makes explicit material, difficulty, rights and semantic decisions. A successful worker exit can contain zero admissible packets. Resume its unfinished material stage; never count exit0 as a new problem. A process proven stuck inspecting its own events is an execution failure, not sourcehold. Preserve outputs and terminal evidence before an explicitly reviewed revision.
-
-Use fixed JOB_ID and both `id:ID` and work identity in claims. Current/final package paths come from queue/READY, not historical launcher defaults. GitHub authentication belongs to the controller (Your dot cloud computer after actual connection). Normal Git bundle publishing retains concurrent remote changes; verify-public alone updates delivered count. Service install/status: `corpus-work/run_corpusctl_service.sh`. Engineering checks are for related code changes only, never per-item steps.
+现行入口为仓库根LOCAL_CONTROLLER_HANDOFF.md，固定状态/恢复契约在corpus-work/docs/controller-v2/。DOT_HANDOFF只作历史。queue是准入/计数权威，runtime只记执行；块级连续worker使用严格JOB_RESULT，不凭exit0或READY文件晋级。active_batch从冻结意图贯穿到reconciled，FIFO每批25且最终截到30000。actor必须显式owner＋generation；只读status不迁移。发布使用本地publish-batch、原生SSH guard及既有relay，成功阶段复用，公开精确恢复后才计数。2小时汇报沿用automationId2，不恢复旧会话/心跳。

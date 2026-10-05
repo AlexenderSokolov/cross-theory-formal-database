@@ -1,3 +1,7 @@
+<!-- Historical dot handoff; superseded by LOCAL_CONTROLLER_HANDOFF.md. -->
+
+> 历史停止快照。dot方案已放弃，现行入口为 [LOCAL_CONTROLLER_HANDOFF.md](LOCAL_CONTROLLER_HANDOFF.md)。下文不作为当前派工指令。
+
 # Your dot 接管：高级数学人类证明题库
 
 ## 先接管控制，再继续生产

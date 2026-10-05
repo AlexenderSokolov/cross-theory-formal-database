@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 
 import corpus_batch
+from corpus_control_protocol import controller_guard, publication_guard, require_owner, transfer_owner, assert_publication_guard, load_json, save_json
 
 B = Path(__file__).resolve().parents[3]
 DEFAULT_STATE = B / 'operations/corpusctl'
@@ -32,12 +33,8 @@ def save(path, data):
         name = f.name
     os.replace(name, path)
 
-@contextlib.contextmanager
-def controller_lock(state):
-    state.mkdir(parents=True, exist_ok=True)
-    with (state/'controller.lock').open('a') as f:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        yield
+def controller_lock(state,controller_id,generation=None):
+    return controller_guard(state,controller_id,generation)
 
 def admit(queue, decision, project=B):
     row = load(decision)
@@ -88,101 +85,103 @@ def check_claim(queue, state, argv):
     if ids & set(holds): raise ValueError('source hold: '+','.join(sorted(ids & set(holds))))
     from corpus_runtime import Runtime
     requested_job=argv[argv.index('--job-id')+1] if '--job-id' in argv else None
+    previous=argv[argv.index('--previous-job-id')+1] if '--previous-job-id' in argv else None
     def normalize(k):return 'id:'+k if k.isdecimal() else k.lower()
     normalized={normalize(k) for k in keys}
-    for job in Runtime(state/'runtime.sqlite').status():
-        if job['job_id']!=requested_job and normalized & {normalize(k) for k in job['work_keys']}:
+    for job in Runtime(state/'runtime.sqlite',readonly=True).status():
+        if job['job_id'] not in (requested_job,previous) and normalized & {normalize(k) for k in job['work_keys']}:
             raise ValueError('work already claimed by '+job['job_id'])
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--state-root',type=Path,default=DEFAULT_STATE)
-    p.add_argument('--queue',type=Path,default=DEFAULT_QUEUE)
-    p.add_argument('action',choices=['status','claim','run','resume','collect','serve','adopt','admit','batch','publish','verify-public','owner'])
-    p.add_argument('--json',action='store_true')
-    p.add_argument('--decision',type=Path)
-    p.add_argument('--batch-dir',type=Path)
-    p.add_argument('--plan',type=Path)
-    p.add_argument('--commit')
-    p.add_argument('--previous',type=Path)
-    p.add_argument('--max-jobs',type=int,default=3)
-    p.add_argument('--poll-seconds',type=float,default=10)
-    p.add_argument('--threshold',type=int,default=25)
-    p.add_argument('--set-owner')
-    p.add_argument('--expected-owner')
-    args,rest=p.parse_known_args()
-    runtime=Path(__file__).with_name('corpus_runtime.py')
+    p.add_argument('--state-root',type=Path,default=DEFAULT_STATE);p.add_argument('--queue',type=Path,default=DEFAULT_QUEUE)
+    p.add_argument('--controller-id');p.add_argument('--generation',type=int)
+    p.add_argument('action',choices=['status','claim','revise','run','resume','collect','serve','adopt','admit','batch','publish','verify-public','owner','import-handoff'])
+    p.add_argument('--json',action='store_true');p.add_argument('--decision',type=Path);p.add_argument('--batch-dir',type=Path);p.add_argument('--plan',type=Path);p.add_argument('--commit');p.add_argument('--previous',type=Path)
+    p.add_argument('--max-jobs',type=int,default=3);p.add_argument('--poll-seconds',type=float,default=10);p.add_argument('--threshold',type=int,default=25)
+    p.add_argument('--set-owner');p.add_argument('--expected-owner');p.add_argument('--expected-generation',type=int)
+    p.add_argument('--handoff',type=Path);p.add_argument('--spec',type=Path);p.add_argument('--job-id');p.add_argument('--pid',type=int);p.add_argument('--proc-start');p.add_argument('--exit-record');p.add_argument('--publication-guard')
+    args=p.parse_args();actor={'owner':args.controller_id,'generation':args.generation}
+    from corpus_runtime import Runtime
     db=args.state_root/'runtime.sqlite'
-    if args.action in ('claim','run','resume','collect','adopt'):
-        if args.action=='claim':
-            with controller_lock(args.state_root):
-                check_claim(args.queue,args.state_root,rest)
-                return subprocess.call([sys.executable,str(runtime),'--db',str(db),args.action,*rest])
-        return subprocess.call([sys.executable,str(runtime),'--db',str(db),args.action,*rest])
-    if rest: p.error('unrecognized arguments: '+' '.join(rest))
-    if args.action=='serve':
-        from corpus_runtime import Runtime
-        if not 1<=args.max_jobs<=3: raise ValueError('initial effective capacity must be 1..3')
-        rt=Runtime(db)
-        while True:
-            rows=rt.collect()
-            capacity=args.max_jobs-sum(x['state'] in ('running','starting','orphan_running') for x in rows)
-            for row in rows:
-                if capacity<=0: break
-                if row['state']=='queued' or (row['state']=='rate_limited' and row.get('next_attempt_at',0)<=time.time()):
-                    rt.start(row['job_id']);capacity-=1
-            summary=corpus_batch.status(args.queue,args.state_root/'batches',args.threshold)
-            if summary['status']=='batch_ready':
-                try:
-                    with controller_lock(args.state_root):
-                        frozen=corpus_batch.prepare(args.queue,args.state_root/'batches',args.threshold,B)
-                        if frozen['status']!='waiting_for_admissions':
-                            blocked=args.state_root/'batch-blocked.json'
-                            if not blocked.exists() or load(blocked).get('batch_id')!=frozen['batch_id']:
-                                try:
-                                    corpus_batch.merge(Path(frozen['batch_dir']))
-                                    save(args.state_root/'pending-publication.json',{'batch_dir':frozen['batch_dir'],'status':'merged_pending_controller_publish'})
-                                except Exception as e:
-                                    save(blocked,{'batch_id':frozen['batch_id'],'error':str(e),'next_action':'reconcile preserved batch output before a reviewed revision'})
-                except BlockingIOError:
-                    pass
-            time.sleep(max(1,args.poll_seconds))
-    elif args.action=='status':
-        r=subprocess.run([sys.executable,str(runtime),'--db',str(db),'status'],capture_output=True,text=True)
-        if r.returncode: raise RuntimeError(r.stderr.strip())
-        result={'production':corpus_batch.status(args.queue,args.state_root/'batches',args.threshold),
-                'jobs':json.loads(r.stdout),
-                'controller':load(args.state_root/'owner.json') if (args.state_root/'owner.json').exists() else {'owner':'current-session','dot_connection_verified':False},
-                'pending_publication':load(args.state_root/'pending-publication.json') if (args.state_root/'pending-publication.json').exists() else None}
+    if args.action=='status':
+        result={'production':corpus_batch.status(args.queue,args.state_root/'batches',args.threshold),'jobs':Runtime(db,readonly=True).status(),'controller':load(args.state_root/'owner.json') if (args.state_root/'owner.json').exists() else None,'pending_publication':load(args.state_root/'pending-publication.json') if (args.state_root/'pending-publication.json').exists() else None}
+    elif args.action=='owner':
+        if not args.set_owner:result=load(args.state_root/'owner.json') if (args.state_root/'owner.json').exists() else {'owner':'current-session','generation':0}
+        else:
+            if args.controller_id!=args.set_owner:raise ValueError('new actor owner must equal --set-owner')
+            if args.expected_generation is None:raise ValueError('--expected-generation required')
+            if args.generation!=args.expected_generation+1:raise ValueError('new actor generation must equal previous+1')
+            result=transfer_owner(args.state_root,args.expected_owner,args.expected_generation,args.set_owner)
     else:
-        with controller_lock(args.state_root):
-            if args.action=='admit':
-                if not args.decision: p.error('--decision required')
+        require_owner(args.state_root,actor)
+        if args.action=='import-handoff':
+            if not args.handoff:p.error('--handoff required')
+            result=Runtime(db,args.controller_id,args.generation).import_reference(args.handoff)
+        elif args.action in ('claim','revise','adopt'):
+            if not args.spec:p.error('--spec required')
+            spec=load(args.spec)
+            with controller_guard(args.state_root,actor):
+                rt=Runtime(db,args.controller_id,args.generation)
+                keys=spec['work_keys'];check_claim(args.queue,args.state_root,['--job-id',spec['job_id']]+(['--previous-job-id',spec['previous_job_id']] if spec.get('previous_job_id') else [])+[v for k in keys for v in ('--work-key',k)])
+                result=rt.register(spec)
+                if args.action=='adopt':
+                    if args.pid is None:p.error('--pid required')
+                    result=rt.adopt(spec['job_id'],args.pid,args.proc_start,args.exit_record)
+        elif args.action in ('run','resume','collect'):
+            rt=Runtime(db,args.controller_id,args.generation)
+            if args.action!='collect' and not args.job_id:p.error('--job-id required')
+            result=getattr(rt,'start' if args.action=='run' else args.action)(args.job_id)
+        elif args.action=='admit':
+            if not args.decision:p.error('--decision required')
+            with controller_guard(args.state_root,actor):
+                holdpath=args.state_root/'source-holds.json'
+                if holdpath.exists() and str(load(args.decision)['problem_id']) in load(holdpath):raise ValueError('source hold remains; explicit new source-based resolution required')
                 result=admit(args.queue,args.decision)
-            elif args.action=='batch':
+        elif args.action=='batch':
+            with controller_guard(args.state_root,actor):
+                if load(args.queue)['base']['local_count']>load(args.queue)['base']['remote_main_count'] and not load(args.queue).get('active_batch'):corpus_batch.recover_active_batch(args.queue,args.state_root/'batches')
                 result=corpus_batch.prepare(args.queue,args.state_root/'batches',args.threshold,B)
-                if result['status']!='waiting_for_admissions':
-                    result=corpus_batch.merge(Path(result['batch_dir']))
-            elif args.action in ('publish','verify-public'):
-                if not args.batch_dir: p.error('--batch-dir required')
-                if args.action=='publish': result=corpus_batch.publish(args.batch_dir,args.plan)
-                else:
-                    if not args.plan and (not args.commit or not args.previous): p.error('--commit and --previous required')
-                    result=corpus_batch.verify_public(args.batch_dir,args.plan,args.commit,args.previous)
-                    save(args.state_root/'pending-publication.json',{'batch_dir':str(args.batch_dir),'status':'delivered','commit':result.get('verified_corpus_commit',result.get('commit')),'count':result.get('remote_main_delivered_count',result.get('verified_count'))})
-            else:
-                target=args.state_root/'owner.json'
-                old=load(target) if target.exists() else {'owner':'current-session'}
-                if not args.set_owner: result=old
-                else:
-                    if args.expected_owner!=old['owner']: raise ValueError('owner changed; reconcile before handoff')
-                    result={'owner':args.set_owner,'previous_owner':old['owner'],'updated_at':datetime.now(timezone.utc).isoformat()}
-                    save(target,result)
-    print(json.dumps(result,ensure_ascii=False,indent=2))
-    return 0
+            if result['status']=='prepared_frozen_batch':result=corpus_batch.merge(Path(result['batch_dir']),actor=actor)
+        elif args.action in ('publish','verify-public'):
+            if not args.batch_dir:p.error('--batch-dir required')
+            if args.publication_guard:
+                assert_publication_guard(args.state_root,args.publication_guard);guard=contextlib.nullcontext()
+            else:guard=publication_guard(args.state_root)
+            with guard:
+                with controller_guard(args.state_root,actor):pass
+                if args.action=='publish':result=corpus_batch.publish(args.batch_dir,args.plan,actor=actor)
+                else:result=corpus_batch.verify_public(args.batch_dir,args.plan,args.commit,args.previous,actor=actor)
+        else:
+            if not 1<=args.max_jobs<=8:raise ValueError('worker slots must be1..8; initial approved capacity3')
+            rt=Runtime(db,args.controller_id,args.generation)
+            while True:
+                with controller_guard(args.state_root,actor):
+                    rows=rt.collect();q=load(args.queue)
+                    if q['base']['remote_main_count']>=30000: return 0
+                    backlog=sum(sum(u['disposition']=='ready_for_review' for u in load(row['job_spec']['result_path'])['units']) for row in rows if row['result_status'] and row.get('job_spec') and Path(row['job_spec']['result_path']).is_file())
+                    admitted={str(x['problem_id']) for x in q['queued_new_root_admitted']};merged={str(x['problem_id']) for x in load(Path(q['base']['package'])/'manifest.json')['items']}
+                    pending=set()
+                    for row in rows:
+                        if row.get('result_status') and row.get('job_spec'):
+                            pending.update(u['problem_id'] for u in load(row['job_spec']['result_path'])['units'] if u['disposition']=='ready_for_review')
+                    rt.schedule(len(pending-admitted-merged));rows=rt.status()
+                    capacity=args.max_jobs-sum(r['state'] in ('running','starting','orphan_running') or r['child_live'] for r in rows)
+                    for row in rows:
+                        if capacity<=0:break
+                        if row['state'] in ('claimed','queued'):
+                            require_owner(args.state_root,actor);rt.start(row['job_id'],args.max_jobs);capacity-=1
+                    frozen=None
+                    if q['base']['local_count']>q['base']['remote_main_count'] and not q.get('active_batch'):
+                        corpus_batch.recover_active_batch(args.queue,args.state_root/'batches');q=load(args.queue)
+                    active=q.get('active_batch')
+                    resume_frozen=bool(active and active.get('frozen_base') and q['base']['local_count']==active['frozen_base']['local_count'] and not (Path(active['batch_dir'])/'merge/batch-result.json').exists())
+                    if resume_frozen or corpus_batch.status(args.queue,args.state_root/'batches',args.threshold)['status']=='batch_ready':frozen=corpus_batch.prepare(args.queue,args.state_root/'batches',args.threshold,B)
+                if frozen and frozen['status']=='prepared_frozen_batch':corpus_batch.merge(Path(frozen['batch_dir']),actor=actor)
+                time.sleep(max(1,args.poll_seconds))
+    print(json.dumps(result,ensure_ascii=False,indent=2));return 0
 
 if __name__=='__main__':
-    try: raise SystemExit(main())
+    try:raise SystemExit(main())
     except (ValueError,RuntimeError,BlockingIOError) as e:
-        print(json.dumps({'status':'action_required','error':str(e)},ensure_ascii=False),file=sys.stderr)
-        raise SystemExit(2)
+        print(json.dumps({'status':'action_required','error':str(e)},ensure_ascii=False),file=sys.stderr);raise SystemExit(2)
