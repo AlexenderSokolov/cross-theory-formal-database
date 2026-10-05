@@ -4,6 +4,14 @@
 
 新工作者先读[执行规范](handoff/yupeng/EXECUTION_SPEC.zh-CN.md)，主代理按[任务单模板](handoff/yupeng/WORKER_TASK_TEMPLATE.zh-CN.md)填写明确原件、负责人、阶段职责和完成条件后派发。规范统一建库标准、来源资源、先下载后整理、真实门禁、计数及并发权限；当前进度以实际CURRENT/manifest/SQLite/远端为准。原件已存在不等于准入，尚未生成的工作成果不是来源hold。
 
+## 持久执行与 dot 交接
+
+唯一交接入口为 [DOT_HANDOFF.md](DOT_HANDOFF.md)。Your dot自己的云电脑承担SSH控制与GitHub发布，Yupeng保留全部计算和题库。正式云端SSH/发布身份尚须实际验证，不能把现有个人电脑可连接当作已接管。
+
+`corpus-work/corpusctl status --json` 返回真实任务、计数和待发布状态。用户服务 `corpusctl.service` 使用同一入口，已启用Linger，可脱离前台SSH运行。SQLite运行台账在工作根`operations/corpusctl/runtime.sqlite`；它与全文题库严格分开。固定JOB_ID防重复，作品claim互斥，PID与启动时间/cwd对应，技术终态仅待准入；已有成功stage不重放。已准入队列满25净新增时服务自动调用现有一次合并器，发布由唯一控制者完成。
+
+`corpusctl admit --decision ABS`接收明确材料/H/语义/许可决定；`batch`自动构造输入；`publish --batch-dir ABS`准备恢复包；`verify-public --batch-dir ABS --commit COMMIT --previous ABS`实际恢复后才推进远端计数。完整命令及真实限制见交接入口。
+
 ## 当前目标与边界
 
 在既有成果上推进到30,000道合格唯一题。每题严格高于常规博士资格考试，记录H1/H2/H3及2—4句具体依据；包含作者原命题、完整人类证明及必要的新局部核心，保留实际假设、量词、常数和版本。初始建库仅做难度粗筛和材料管理，不做a/c、跨理论、桥梁、距离或学科研究标签，不作独立数学审稿，不生成补证。
@@ -12,7 +20,7 @@
 
 ## 当前生产状态与固定节奏（2026-10-05 root 交接）
 
-当前为1048道local已合并、1040道main远端已交付。七题公开CAS已实际恢复，证据为 `reports/pending7-public-restoration-r001.json`；它们与local主库重叠，不能再加到main计数。1662、1663、1665已完成root准入，冻结在PRODUCTION_QUEUE待批次；1581仍有残余工程hold。后续状态以对应实际产物更新，不把启动、缓存、报告或工程READY当作净新增。
+当前为1048道local已合并、1040道main远端已交付。七题公开CAS已实际恢复，证据为 `reports/pending7-public-restoration-r001.json`；它们与local主库重叠，不能再加到main计数。冻结准入材料和剩余数量以PRODUCTION_QUEUE为准；1581书目与页码工程问题已修复，2026-10-05加入待批队列。后续状态以对应实际产物更新，不把启动、缓存、报告或工程READY当作净新增。
 
 固定使用root加3个来源workers，每个worker领取互不重叠的10—20候选来源块并连续处理。沿用项目Python3.13（`runtime/python/bin/python`）及已有源缓存，不重下已有原件。按真实模型配额排队；旧8次启动不等于8个有效worker，不爆发重试、不换账号规避配额。
 
@@ -24,7 +32,7 @@ root负责准入、H理由、必要core覆盖、semantic去重和发布，按交
 
 ## 唯一执行位置与接收起点
 
-服务器SSH别名为 `Yupeng-orx`，工作根目录为 `/disks/sata1/yupeng/human-proof-corpus`，仓库在其 `repo/`。本机旧工作区不改动。计算、来源、PDF页面检查、SQLite和构建都在服务器；本机仅运行轻量控制和GitHub认证发布通道。
+服务器SSH别名为 `Yupeng-orx`，工作根目录为 `/disks/sata1/yupeng/human-proof-corpus`，仓库在其 `repo/`。本机旧工作区不改动。计算、来源、PDF页面检查、SQLite和构建都在服务器；当前会话保留轻量控制和GitHub认证发布通道；正式接管后由 Your dot 自己的云电脑承担SSH控制与GitHub认证，详见 DOT_HANDOFF.md。
 
 工作分支 `corpus-progress-20261001`；固定交接提交 `2a654a974767ad64d0a4da0767adaa41d2dafae9`；固定975基线提交 `5bb58ff2b57284a3ab2f2a76e50f588f4a8e629f`。接手实际克隆HEAD与交接提交相同。每次发布前重新读取远端并保留后来新增提交。
 
@@ -58,7 +66,7 @@ root负责准入、H理由、必要core覆盖、semantic去重和发布，按交
 
 ## 全自动续跑
 
-用户明确授权离开后持续推进。当前任务Goal为30000且保持active；桌面heartbeat `20-1000` 已更新为固定流程，当前保留PAUSED状态；当前Goal及生产队列继续工作，不把自动化配置存在当作进程正在生产。固定root与3个来源workers，各worker连续处理10—20候选块；实际提供方配额决定排队。历史8个启动请求不等于8个有效采集槽，遇Concurrency limit exceeded正常排队，不爆发重试，不换账号或规避。返回后由主代理检查结果并续派。启动回执不等于采集完成；普通网络或题目hold不停止其他来源，不等待重复确认。只有30000题公开远端可恢复并通过既定门禁后才完成Goal。
+用户明确授权离开后持续推进。当前任务Goal为30000且保持active；桌面heartbeat `20-1000` 已更新为固定流程，当前保留PAUSED状态；当前30,000目标保持active；运行状态读取corpusctl status，不把目标或配置存在当作正在生产。固定root与3个来源workers，各worker连续处理10—20候选块；实际提供方配额决定排队。历史8个启动请求不等于8个有效采集槽，遇Concurrency limit exceeded正常排队，不爆发重试，不换账号或规避。服务器corpusctl用户服务收取真实退出状态并运行已领取任务；dot/当前总控负责材料准入和下一来源块领取。启动回执不等于采集完成；普通网络或题目hold不停止其他来源，不等待重复确认。只有30000题公开远端可恢复并通过既定门禁后才完成Goal。
 
 ## 来源下载优先
 

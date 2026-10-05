@@ -45,3 +45,10 @@ Publication belongs to root at the multi-pack checkpoint. Existing compile/resto
 批次checkpoint的发布候选和真实本地恢复按 [references/release-preparation.md](references/release-preparation.md) 执行；复用 `corpus-work/run_prepare_release.sh`，明确签审文件清单与实际aggregate身份；远端精确恢复成功才计交付。
 
 公开恢复取材可复用 [public transport](references/public-transport.md)：已核验旧公开恢复缓存按固定文件清单复制，变化文件按精确提交下载。`run_public_transport.sh` 只准备材料和逐文件账，SQLite/编译资产恢复及门禁必须另做；prepared receipt 不能冒充已完成公开恢复。
+
+
+## Durable controller
+
+Read the repository root `DOT_HANDOFF.md` for Your dot takeover. Use `corpus-work/corpusctl status --json` as the current runtime/queue view. The Yupeng user service continues submitted jobs and merges a full admitted batch; root/dot still makes explicit material, difficulty, rights and semantic decisions. A successful worker exit can contain zero admissible packets. Resume its unfinished material stage; never count exit0 as a new problem. A process proven stuck inspecting its own events is an execution failure, not sourcehold. Preserve outputs and terminal evidence before an explicitly reviewed revision.
+
+Use fixed JOB_ID and both `id:ID` and work identity in claims. Current/final package paths come from queue/READY, not historical launcher defaults. GitHub authentication belongs to the controller (Your dot cloud computer after actual connection). Normal Git bundle publishing retains concurrent remote changes; verify-public alone updates delivered count. Service install/status: `corpus-work/run_corpusctl_service.sh`. Engineering checks are for related code changes only, never per-item steps.
