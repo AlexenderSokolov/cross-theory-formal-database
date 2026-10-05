@@ -1,11 +1,11 @@
-# 1190题主库恢复
+# 1215题主库恢复
 
 正文、INDEX与全文SQLite的当前版本以本目录manifest及database-delivery.json为准。
 历史文件保留；只恢复当前描述中列出的分段，不把旧备份再次计数。
 
 ```sh
 python3 restore_database.py
-python3 restore_validation_chain.py --chain validation-chain.json --expected-chain-sha256 7845e76c4e3840cad5be6904450ba41a0c26d7904aea40395c985688ce88988d --archive-root based5c97b8febfed495=. --archive-root delta02099617a5431ad0=validation-artifact-deltas/delta02099617a5431ad0 --archive-root deltaaedcd63da893bd42=validation-artifact-deltas/deltaaedcd63da893bd42 --archive-root deltaf3f9fb2ea75b8f38=validation-artifact-deltas/deltaf3f9fb2ea75b8f38 --archive-root deltaa855a6a46fb89fd3=validation-artifact-deltas/deltaa855a6a46fb89fd3 --archive-root delta0f3189341d03b174=validation-artifact-deltas/delta0f3189341d03b174 --schema1-helper restore_validation_artifacts.py --expected-helper-sha256 33548dad0cfb3a268346d896ba2ca4340c1171df8f00d3c08bb18a95723c3594 --output /absolute/new/artifacts
+python3 restore_validation_chain.py --chain validation-chain.json --expected-chain-sha256 6e32ff6082958eb918edc21a10e012c7b5152782fcab51fe17bc1e54a24e6d81 --archive-root based5c97b8febfed495=. --archive-root delta02099617a5431ad0=validation-artifact-deltas/delta02099617a5431ad0 --archive-root deltaaedcd63da893bd42=validation-artifact-deltas/deltaaedcd63da893bd42 --archive-root deltaf3f9fb2ea75b8f38=validation-artifact-deltas/deltaf3f9fb2ea75b8f38 --archive-root deltaa855a6a46fb89fd3=validation-artifact-deltas/deltaa855a6a46fb89fd3 --archive-root delta0f3189341d03b174=validation-artifact-deltas/delta0f3189341d03b174 --archive-root delta71650395aca352a0=validation-artifact-deltas/delta71650395aca352a0 --schema1-helper restore_validation_artifacts.py --expected-helper-sha256 33548dad0cfb3a268346d896ba2ca4340c1171df8f00d3c08bb18a95723c3594 --output /absolute/new/artifacts
 ```
 
 然后执行corpus-work/scripts/validate_corpus.py --mode editable-delivery，传入实际package、delivery-evidence、恢复后的build和receipts及独立report。公开完整恢复成功后才更新交付数。当前组批复用未变题证编译及合并aggregate；公开恢复仍执行必要完整gate。
