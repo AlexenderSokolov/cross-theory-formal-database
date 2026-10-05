@@ -1,5 +1,11 @@
 # 高级数学人类证明题库
 
+## 控制权交接状态
+
+用户已于2026-10-05要求本会话停止生产，由Your dot自己的云电脑接管。当前目标PAUSED，旧桌面心跳PAUSED，Yupeng的corpusctl.service已停止并禁用自动启动，旧CLI已终止；材料保留。以下“全自动续跑”描述是dot接管后的运行规则，不代表当前会话仍获准派工。
+
+dot尚未实际接收。唯一入口为[DOT_HANDOFF.md](DOT_HANDOFF.md)，准确停止位置见[DOT_TRANSFER_STATE](handoff/yupeng/DOT_TRANSFER_STATE.json)。接管后由dot在其一侧设置每2小时汇报；本会话未创建该定时任务。原会话不能自行恢复目标或服务。
+
 ## 统一执行规范与并发工单
 
 新工作者先读[执行规范](handoff/yupeng/EXECUTION_SPEC.zh-CN.md)，主代理按[任务单模板](handoff/yupeng/WORKER_TASK_TEMPLATE.zh-CN.md)填写明确原件、负责人、阶段职责和完成条件后派发。规范统一建库标准、来源资源、先下载后整理、真实门禁、计数及并发权限；当前进度以实际CURRENT/manifest/SQLite/远端为准。原件已存在不等于准入，尚未生成的工作成果不是来源hold。
@@ -66,7 +72,7 @@ root负责准入、H理由、必要core覆盖、semantic去重和发布，按交
 
 ## 全自动续跑
 
-用户明确授权离开后持续推进。当前任务Goal为30000且保持active；桌面heartbeat `20-1000` 已更新为固定流程，当前保留PAUSED状态；当前30,000目标保持active；运行状态读取corpusctl status，不把目标或配置存在当作正在生产。固定root与3个来源workers，各worker连续处理10—20候选块；实际提供方配额决定排队。历史8个启动请求不等于8个有效采集槽，遇Concurrency limit exceeded正常排队，不爆发重试，不换账号或规避。服务器corpusctl用户服务收取真实退出状态并运行已领取任务；dot/当前总控负责材料准入和下一来源块领取。启动回执不等于采集完成；普通网络或题目hold不停止其他来源，不等待重复确认。只有30000题公开远端可恢复并通过既定门禁后才完成Goal。
+用户明确授权离开后持续推进。本会话Goal为30000，现按用户要求PAUSED；桌面heartbeat `20-1000` 已更新为固定流程，当前保留PAUSED状态；dot接管后的30,000目标保持进行中；运行状态读取corpusctl status，不把目标或配置存在当作正在生产。固定root与3个来源workers，各worker连续处理10—20候选块；实际提供方配额决定排队。历史8个启动请求不等于8个有效采集槽，遇Concurrency limit exceeded正常排队，不爆发重试，不换账号或规避。服务器corpusctl用户服务收取真实退出状态并运行已领取任务；dot/当前总控负责材料准入和下一来源块领取。启动回执不等于采集完成；普通网络或题目hold不停止其他来源，不等待重复确认。只有30000题公开远端可恢复并通过既定门禁后才完成Goal。
 
 ## 来源下载优先
 
