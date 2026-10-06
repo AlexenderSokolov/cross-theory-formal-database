@@ -32,3 +32,4 @@
 | 2762 | `public_exact_commit_full2762_restored_verified` | `21b7de9c8775af7015836c914da7acf75f5fe669` | batch-2575-2762-r002 |
 | 2949 | `public_exact_commit_full2949_restored_verified` | `391fd711d72df2108ac376c5ffb3a28497d3377e` | batch-2762-2949-r002 |
 | 3136 | `public_exact_commit_full3136_restored_verified` | `8fae9cba94864acccc97d76b05ef2347ecf2349d` | batch-2949-3136-r002 |
+| 3313 | `public_exact_commit_full3313_restored_verified` | `0704d722f833fc4ef3ad0408b485b18c5a005cb1` | batch-3136-3313-r002 |
