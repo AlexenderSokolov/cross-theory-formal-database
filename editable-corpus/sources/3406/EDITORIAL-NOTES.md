@@ -1,0 +1,19 @@
+# Editorial transcription notes
+
+This file is editorial commentary. It is separate from the complete human-authored article in `main.tex`.
+
+The source is Sergey V. Tikhonov, *Outer forms of type A2 with infinite genus*, Documenta Mathematica 29 (2024), 805–814, DOI 10.4171/DM/963. The original official PDF grants CC BY 4.0 on its first page; the recovered individual EMS Press page independently grants CC-BY-4.0. Original PDF SHA256: `1b2efc7c0e578c35c2580dd82186adaadeebfc3bc9c7da0b2a1d201734c705c9`.
+
+`main.tex` is a source-faithful editable transcription, not native author TeX obtained from the publisher. It contains the entire ten-page article, including the abstract, definitions, notation, all local lemmas and their proofs, transfinite construction, repeated exhaustion, final symbol-algebra construction, main proof, remarks and all ten references. All displayed formulas and the three mathematical diagrams are editable TeX. It contains no PDF-page or raster-image inclusions. No replacement proof or new mathematical argument is added.
+
+The English language, order, theorem numbering, citations and source formulas are preserved. Formatting changes include font and line wrapping, typesetting the mathematical diagrams in TikZ-CD, and moving the final long embedding formula in the proof of Lemma 2.4 to its own display to avoid a margin overflow. This does not alter that formula or its surrounding sentences.
+
+Source wording and notation are retained, including Proposition 2.5(3)'s single-pair field notation, the use of sigma for the algebra involution in Theorem 2.6(3), the phrase “3th root of unity,” and “If A1 are A2 are different algebras” in the main proof. These are source-fidelity notes, not a mathematical referee assessment.
+
+The recovered publisher page says that the submission date was incorrectly displayed on the web page between 2 July 2024 and 5 June 2025, linking to the date-only erratum DM1024. The scientific PDF matches the retained hash exactly. No separate corrigendum proof is added or counted.
+
+The selected primary is Theorem 1.3: the construction yields an infinitely generated characteristic-zero field and a simple simply connected outer A2 group with infinite genus. The full supporting proof is retained; its intermediate algebras, embedding lemmas and individual groups are not additional primary counts. The concrete H2 reason is the combined transferred generic Severi–Brauer field construction preserving Brauer distinctions, cubic cyclicization, Pfister function fields conjugating unitary involutions, and transfinite field embedding followed by finite-data descent.
+
+Two fresh TeX passes completed for the final text. The final native TeX SHA256 is `999a4af00ebdde603f7724e2282886cfcb35ff0f12ddb2224ccb480f293e982c`; the compiled PDF SHA256 is `028f6a05c33aac66256f7c3d4a42b40e50b56a8ac6b2a153b9befb8e54814930`. All ten original pages and all ten final native pages were visually inspected after executor access recovered. The source formulas and three diagrams were checked, final references resolved, and the final log has no missing-glyph or overfull-box warning. A page-by-page prose comparison retains all substantive author text. Source page and transcription line hashes are recorded in transcription-manifest.json. This confirms transcription and materials completeness; no master qualification or admission is claimed by this note.
+
+Root assigned stable problem ID3406. One separate editorial front page now contains the exact selected problem, H2 rationale, source version, DOI, CC BY4 grant and transcription origin. The full author body remains byte-identical (SHA256 1d2db967ca1d376045ff5e286e9f9823011201da81f12e34d5e3596a89744340); all10 authored PDF page texts remain unchanged modulo whitespace. Their physical positions shift to pages2–11, while their printed counters remain805–814. The source counter805 is set only after the editorial page. Final output is build-attempt3/main.pdf.

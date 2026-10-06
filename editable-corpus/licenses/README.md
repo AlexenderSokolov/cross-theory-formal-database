@@ -1,0 +1,1 @@
+The Stacks Project mathematical text and adapted TeX are distributed under GNU FDL 1.2 or later, with no invariant sections or cover texts. The full license is COPYING. Copyright (C) 2005--2025 Johan de Jong and The Stacks Project Authors. See sources/STACKS-CONTRIBUTORS. Editorial metadata is separately identified in every item.

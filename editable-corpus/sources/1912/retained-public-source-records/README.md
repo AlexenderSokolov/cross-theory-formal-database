@@ -1,0 +1,7 @@
+# Corrected stable item1912, revision1
+
+Supersedes frozen READY067 for current source fidelity. Original067 remains unchanged. Exact publisher Theorem3.9/full Sections1–3 and44-entry bibliography remain; source scope/threshold/rights unchanged. Only22 source-grounded parameter/glyph/style locations change: final Ext target publication mu(1), AMS preccurlyeq(7), original small/textstyle bigsqcup with limits(3), p/q/m labels across3convolution diagrams(9), italic constructible category c(2). Coprod was a rejected intermediate diagnosis, preserved only as non-delivery diagnostic evidence; exact original U-glyph/width is matched by standard installed textstyle bigsqcup.
+
+See closed change inventory and23 exact hashed formula/context comparisons for complete selected3.9/new3.10/3.11 reread against enlarged original physical16–19. Partial letter/glyph totals are not formula identity proof. All7 changed final pages5/6/7/8/9/11/12 compared and7others pixelidentical to067.14pages, actual3stable no-shell-escape passes, zero warnings/rerun/glyph/ref/layout errors. Entry bytes unchanged; corrected editable body is `author-published-transcription.tex`. No mathematical author repair/reinterpretation, new proof, source substitution or extra count.
+
+Only delivery_selection is exportable. Intermediate incorrect glyph-proposal/partial-build/probe images are diagnostics, not current proof. Private arXiv raw source/classes/comments remain excluded and unexecuted. Temporary authorized tmpfs, not durable backup/publication/admission/count.

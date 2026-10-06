@@ -1,0 +1,1 @@
+Stable item 1920. Editable author text and complete selected proof with supporting context. Compile 1920.tex twice with xelatex -no-shell-escape from this directory. SOURCE_BOUNDARIES.json records selected scope, exact original hashes and author-native line ranges. Surrounding reproduced article statements are context only.

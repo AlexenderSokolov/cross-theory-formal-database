@@ -1,0 +1,1 @@
+| 2445 | A small-tripling ball in a finitely generated group uniformly bounds later scales with new defining relations | H2 | [TeX](items/2445_author_proof.tex) | [Source](https://arxiv.org/pdf/2308.12428v2) · [Provenance](sources/2445/provenance.json) |

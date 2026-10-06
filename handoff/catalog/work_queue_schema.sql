@@ -1,0 +1,11 @@
+PRAGMA foreign_keys=ON;
+CREATE TABLE catalog_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+CREATE TABLE source_groups(work_key TEXT PRIMARY KEY,identity_basis TEXT NOT NULL,titles_json TEXT NOT NULL,authors_json TEXT NOT NULL,urls_json TEXT NOT NULL,versions_json TEXT NOT NULL,licenses_json TEXT NOT NULL);
+CREATE TABLE entries(entry_key TEXT PRIMARY KEY,problem_id TEXT UNIQUE,candidate_key TEXT UNIQUE,title TEXT,author TEXT,work_key TEXT REFERENCES source_groups(work_key),source_url TEXT,doi TEXT,source_version TEXT,theorem_locator_json TEXT,difficulty_level TEXT,difficulty_reason TEXT,difficulty_verification TEXT NOT NULL,license TEXT,license_url TEXT,status TEXT NOT NULL,source_approved INTEGER NOT NULL CHECK(source_approved IN(0,1)),github_verified_at_catalog_snapshot INTEGER NOT NULL CHECK(github_verified_at_catalog_snapshot IN(0,1)),safe_local975_member INTEGER NOT NULL CHECK(safe_local975_member IN(0,1)),local1002_member INTEGER NOT NULL CHECK(local1002_member IN(0,1)),historical_status TEXT,hold_reason TEXT,next_action TEXT,selected_metadata_path TEXT,selected_metadata_sha256 TEXT,dedup_aliases_json TEXT NOT NULL);
+CREATE TABLE record_refs(ref_id INTEGER PRIMARY KEY,entry_key TEXT NOT NULL REFERENCES entries(entry_key),record_path TEXT NOT NULL,record_sha256 TEXT NOT NULL,record_kind TEXT NOT NULL,id_assignment_basis TEXT NOT NULL,original_identifiers_json TEXT NOT NULL);
+CREATE TABLE materials(path TEXT PRIMARY KEY,sha256 TEXT,bytes INTEGER,exists_locally INTEGER NOT NULL CHECK(exists_locally IN(0,1)),export_classification TEXT NOT NULL,roles_json TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE entry_materials(entry_key TEXT NOT NULL REFERENCES entries(entry_key),material_path TEXT NOT NULL REFERENCES materials(path),PRIMARY KEY(entry_key,material_path)) WITHOUT ROWID;
+CREATE INDEX entries_status_idx ON entries(status);
+CREATE INDEX entries_work_idx ON entries(work_key);
+CREATE INDEX entries_doi_idx ON entries(doi);
+CREATE INDEX record_refs_entry_idx ON record_refs(entry_key);

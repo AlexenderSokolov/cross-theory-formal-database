@@ -1,0 +1,1 @@
+Stable item 1925. Editable author statement, complete selected proof and context. Compile 1925.tex twice with xelatex -no-shell-escape from this directory. SOURCE_BOUNDARIES.json binds exact originals and selected scope. Surrounding reproduced article results are context, not additional items.
