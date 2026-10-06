@@ -40,3 +40,4 @@
 | 3703 | `public_exact_commit_full3703_restored_verified` | `abfea69377018de4d21d1d3558e0d0e5cdf487c0` | batch-3563-3703-r002 |
 | 3843 | `public_exact_commit_full3843_restored_verified` | `6d71b7557a0090e0459cac1c112a952bce7d320d` | batch-3703-3843-r002 |
 | 4093 | `public_exact_commit_full4093_restored_verified` | `d23c1e7c61202f7ab0fb5575c853cf801ea2f098` | batch-3843-4093-r002 |
+| 4343 | `public_exact_commit_full4343_restored_verified` | `cf91d0891aa0366be2d7e752eba3978be16a555a` | batch-4093-4343-r002 |

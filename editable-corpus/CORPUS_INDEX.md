@@ -1,6 +1,6 @@
 # 题库总清单 / Corpus index
 
-- 生成时间：2026-10-06T23:16:49+0800
+- 生成时间：2026-10-06T23:40:50+0800
 - 条目数：**4343**
 - 权威 master：`/disks/sata1/yupeng/human-proof-corpus/operations/corpusctl/batches/batch-4093-4343-r002/merge/package/manifest.json`
 - 机器可读：`catalog.json` / `catalog.csv`
