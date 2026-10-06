@@ -1,0 +1,892 @@
+% concatenated from main.tex, macros.tex, 00_abstract.tex, 01_introduction.tex, 02_methodology.tex, 03_package.tex, 04_experiments.tex, 05_discussion.tex, A2_proofs.tex, A3_package.tex, A1_moreplots.tex
+\documentclass[10pt]{article} % For LaTeX2e
+\usepackage[accepted]{tmlr}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{bm}
+\usepackage{color,xcolor} 
+% \usepackage{fullpage}
+\usepackage{graphicx}
+\usepackage{hyperref}
+% \usepackage[round]{natbib}
+\usepackage[capitalise]{cleveref}
+\usepackage{booktabs} 
+
+
+\newcommand{\nugget}{\sigma}
+\newcommand{\nuggets}{\Sigma}
+\newcommand{\eig}{\lambda}
+
+\newcommand{\norm}[1]{\| #1 \|}
+\newcommand{\abs}[1]{| #1 |}
+\newcommand{\set}[1]{\{ #1 \}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+
+\newcommand{\jon}[1]{\textcolor{orange}{JC: #1}}
+\newcommand{\disha}[1]{\textcolor{green}{DH: #1}}
+
+\title{Extrapolating from Regularised Solutions for Solving Ill-Conditioned Linear Systems in Machine Learning}
+% \author{Disha Hegde$^1$, Jon Cockayne$^1$, Chris. J. Oates$^{2,3}$ \\
+% \small $^1$University of Southampton, UK \\
+% \small $^2$Newcastle University, UK \\
+% \small $^3$The Alan Turing Institute, UK }
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the tmlr package is used without the [accepted] or [preprint] options.
+% Non-anonymous submissions will be rejected without review.
+
+\author{\name Disha Hegde \email d.hegde@soton.ac.uk \\
+      \addr University of Southampton, UK
+      \AND
+      \name Jon Cockayne \email jon.cockayne@soton.ac.uk \\
+      \addr University of Southampton, UK
+      \AND
+      \name Chris. J. Oates \email chris.oates@newcastle.ac.uk\\
+      \addr Newcastle University, UK \\ The Alan Turing Institute, UK}
+
+% The \author macro works with any number of authors. Use \AND 
+% to separate the names and addresses of multiple authors.
+
+\def\month{06}  % Insert correct month for camera-ready version
+\def\year{2026} % Insert correct year for camera-ready version
+\def\openreview{\url{https://openreview.net/forum?id=fqbkenUpRa}} % Insert correct link to OpenReview for camera-ready version
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Rapid prototyping of algorithms is a critical step in modern machine learning.
+Most algorithms exploit linear algebra, creating a need for lightweight numerical routines which -- while potentially sub-optimal for the task at hand -- can be rapidly implemented.
+For the numerical solution of ill-conditioned linear systems of equations, the standard solution for prototyping is Tikhonov-regularised inversion using a nugget.
+However, selection of the size of nugget is often difficult, and the use of data-adaptive procedures precludes automatic differentiation, introducing instabilities into end-to-end training.
+Further, while data-adaptive procedures perform multiple linear solves to select the size of nugget, only the result of one such solve is returned, which we argue is wasteful.
+This paper aims to circumvent the above difficulties, presenting \texttt{autonugget}; a \texttt{Python} package for automatic and stable numerical solution of linear systems suitable for rapid prototyping, and fully compatible with automatic differentiation using \texttt{JAX}.
+% A distinguishing feature of \texttt{autonugget} is the ability to combine multiple linear solves using Richardson extrapolation, improving in accuracy over approximations based on a single nugget.
+\texttt{autonugget} combines multiple linear solves using Richardson extrapolation to determine the solution of the ill-conditioned system, improving in accuracy over approximations based on a single nugget.
+
+
+
+\end{abstract}
+
+\section{Introduction} \label{sec: introduction}
+Consider the problem of numerically solving $A x = b$ for $x \in \mathbb{R}^d$.
+It will be assumed that $A$ is a symmetric positive definite matrix, but that $A$ is (possibly severely) ill-conditioned and, as a result, solving the linear system with standard methods is challenging.
+This setting is ubiquitous in applied machine learning like Bayesian optimisation \citep{garnett_bayesoptbook_2023}, emulation \citep{gramacy_surrogates_nodate}, and probabilistic numerics \citep{hennig_probabilistic_2022}. 
+
+In machine learning, a widely-used approach to improving the conditioning of the system so that it can be solved is to use \emph{Tikhonov regularisation:}
+\begin{align}
+    x_\nugget := (A + \nugget I)^{-1} b, \qquad \nugget \geq 0, \label{eq: tik}
+\end{align}
+where $x_\nugget \rightarrow x$ in exact arithmetic as the regularisation parameter $\nugget \rightarrow 0$.
+The regularisation parameter $\nugget$ is referred to as a \emph{nugget}.
+For sufficiently regular matrices $A$, such as positive semi-definite matrices, the conditioning of $A + \nugget I$ improves monotonically as $\nugget$ is increased.
+However, in practice this often results in a conflation of two ideals:
+\begin{enumerate}
+    \item \textbf{Regularisation:} as a technique for penalising large values in the solution vector, improving generalisation performance. In this setting the focus is on $\nugget > 0$.
+    \item \textbf{Ill-conditioning:} as a technique for improving the numerical performance of solver routines. In this setting the quantity of interest is $\nugget = 0$, but the ill-conditioning of $A$ causes numerical problems in the computational pipeline.
+\end{enumerate}
+In this paper, the focus is solely on the latter: we assume that the nugget is being used only as a tool to improve the conditioning of $A$.
+
+When using Tikhonov regularisation to improve conditioning, one usually takes $\nugget$ to be just large enough that a numerical approximation $\hat{x}_\nugget$ to $x_\nugget$ can be obtained to a required level of precision using a direct method (e.g. LU-factorisation).
+The popularity of Tikhonov-regularisation for prototyping of algorithms is due to the simplicity with which it can be implemented, and the presence of only a single degree of freedom to be selected.
+For subsequent code optimisation, one would ideally upgrade from a Tikhonov-regularised direct method to a more scalable or sophisticated linear algebra routine, such as a preconditioned iterative method \citep{trefethen2022numerical}, though we note that Tikhonov regularisation often forms a component of these routines, e.g. in constructing preconditioners \citep{cutajar2016preconditioning} and in certain Krylov subspace methods \citep{gazzola2015krylov}.
+Moreover, while ideally the numerics should be improved to address instabilities resulting from poor conditioning, how often this actually happens could be questioned.
+
+The aim of this paper is to address three key issues that arise in applications of Tikhonov regularisation to address poor conditioning: 
+\begin{enumerate}
+\item \textbf{Size of the nugget:}  
+The critical minimum value $\nugget_{\star}$ of $\nugget$ at which $x_\nugget$ can be stably computed (i.e. as $\hat{x}_\nugget$) will be unknown in general, and will depend sensitively on the actual values in $A$ and $b$. 
+\item \textbf{End-to-end training:}
+Data-adaptive choices of $\nugget$, for example based on the condition number of $A + \nugget I$ remaining below a specified threshold, are typically incompatible with automatic differentiation with respect to any variables $\theta$ contained in $A \equiv A_\theta$ and $b \equiv b_\theta$.
+This precludes straight-forward end-to-end training of machine learning algorithms via gradient descent.
+\item \textbf{Data-efficiency:}
+While data-adaptive procedures perform multiple linear solves to select the size of nugget, only the result of one such solve is returned, which we argue is wasteful.
+\end{enumerate}
+
+To resolve these difficulties we present \texttt{autonugget}; a \texttt{Python} package for hassle-free stable numerical solution of linear systems, fully compatible with automatic differentiation using \texttt{JAX} \citep{jax2018github}. 
+To address data-efficiency, we explore the benefit of combining multiple linear solves corresponding to nuggets $\nuggets = \{\nugget_i\}_{i=1}^n$ using Richardson extrapolation, which enables \texttt{autonugget} to improve in accuracy over approximations based on a single nugget.
+Automatic selection of $\nuggets$ is performed by letting $\nuggets = h \nuggets_{\mathrm{ref}}$ for some reference set $\nuggets_{\mathrm{ref}}$ and selecting $h$ to (approximately) balance the error due to extrapolation with the error due to numerical solution of \eqref{eq: tik}.
+The \texttt{autonugget} package is described in \Cref{sec: package} and illustrated in \Cref{fig: cartoon}.
+Empirical evidence in support is presented in \Cref{sec: experiments}.
+
+
+
+\begin{figure}[t!]
+\centering
+% \includegraphics[width = 0.8\textwidth,clip,trim = 0cm 55cm 0cm 0cm]{figures/cartoons.pdf}
+\includegraphics[width = 0.5\textwidth]{fig1.pdf}
+\caption{Illustration of \texttt{autonugget}: 
+Here we plot numerical approximations $\hat{x}_\nugget$ to $x_\nugget$ as the nugget $\nugget$ is varied (to aid in visualisation, only the first three coordinates are displayed).
+The numerical approximations were obtained using \texttt{linalg.solve} in \texttt{numpy} \citep{harris2020array}, a direct method based on LU factorisation.
+There is a critical value $\nugget_{\star}$ (shaded) below which $\hat{x}_\nugget$ fails to reliably approximate $x_\nugget$.
+On the other hand, reliable calculations can be performed when $\nugget \geq \nugget_{\star}$, and extrapolation of these reliable data can even provide a better approximation to $x$ compared to $\hat{x}_{\nugget_{\star}}$.}
+\label{fig: cartoon}
+\end{figure}
+
+
+\subsection{Related Work}
+
+The fundamental importance of linear algebra ensures \eqref{eq: tik} has been theoretically and empirically well-studied.
+On the other hand, we argue that there is an important gap at the interface of theory and practice with respect to existing work:
+
+\paragraph{Machine Learning}
+
+The role of $\nugget$ is often conflated in applied machine learning, on the one hand being a numerical parameter that one would ideally want to be small, while on the other hand serving as a `regulariser' that affects downstream performance on a particular task.
+From this perspective, $\nugget$ is often folded into the hyper-parameters of a machine learning algorithm and tuned end-to-end (e.g., in Bayesian inference through marginalisation).
+Similarly, amortised approaches, which aim to learn a mapping from the inputs of the machine learning task to an appropriate value for $\nugget$, have been pursued \citep{chung2017learning,alberti2021learning,de2022machine}.
+However, both approaches represent a (possibly substantial) increase in the overall training cost.
+Further, there are important situations where one seeks the exact solution $x$ of \eqref{eq: tik} as $\nugget \rightarrow 0$; for instance in regression applications, where Tikhonov regularisation can lead to predictions that are under-confident \citep{andrianakis2012effect}.
+Guidance on the practical choice of $\nugget$ for exact solution is then limited; in our experience, manual choices based on the (in)sensitivity of the downstream output are often used.
+As a data-adaptive alternative, one can select $\nugget$ large enough that the condition number of $A + \nugget I$ remains below a specified threshold\footnote{The \emph{condition number} $\kappa(A)$ of a non-singular matrix $A$ is defined as the ratio $\lambda_{\max}(A) / \lambda_{\min}(A)$ of the largest and smallest eigenvalues of $A$; a smaller condition number is often associated with improved accuracy and/or faster convergence of numerical methods \citep{trefethen2022numerical}. }; however, the introduction of conditional expressions can introduce an incompatibility with automatic differentiation, which can preclude gradient-based training.
+On a different note, the potential to accelerate computation in machine learning using the classical idea of Richardson extrapolation is receiving renewed attention \citep{bach2021effectiveness,oates2025probabilistic} and its potential to accelerate linear algebra computations in modern machine learning has yet to be explored.
+
+
+\paragraph{Numerical Analysis}
+
+Numerical linear algebra is well-developed and the concepts that we discuss in this work are not novel.
+For instance, the theoretical application of Richardson extrapolation in the setting of Tikhonov regularisation was discussed as far back as \citet{groetsch1979extrapolation,thomas1979approximation}.
+Theoretical insight into the data-adaptive selection of $\nugget$ can be found in the works of \citet{gfrerer1987posteriori,engl1987choice,liu2013dynamical}.
+The topic has fallen out of fashion in numerical analysis as attention has turned to designing bespoke algorithms for particular problems, often with applications to partial differential equations in mind \citep{mardal2011preconditioning,kunoth2018splines}. 
+However, the sustained popularity of Tikhonov regularisation as a prototyping tool in modern machine learning suggests the time is right to return to this subject.
+In particular, there is a strong demand for a differentiable software implementation that provides the exact solution of \eqref{eq: tik} as $\nugget \rightarrow 0$, which the numerical analysis community have to-date not provided.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Methodology}
+This section presents \texttt{autonugget}.
+The premise is that there is typically a critical value $\nugget_{\star}$ such that the numerical approximation $\hat{x}_\nugget$ to $x_\nugget$ fails to be reliable for all $\nugget < \nugget_{\star}$.
+If one was able to estimate $\nugget_{\star}$, then one could generate data $\hat{x}_\nugget$ from the regime $\nugget \geq \nugget_{\star}$ and attempt to extrapolate these reliable data to predict the $\nugget \rightarrow 0$ limit (c.f. \Cref{fig: cartoon}).
+This amounts to an application of Richardson extrapolation, as explained in \Cref{sec: extrap}, and we prove that this enables convergence acceleration in \Cref{sec: theory}.
+The problem of identifying $\nugget_{\star}$ is deferred to \Cref{subsec: select lambda}.
+
+\paragraph{Notation}
+
+Let $x \in \mathbb{R}^d$ and $A \in \mathbb{R}^{d \times d}$.
+The following norms will be used: $\|x\|_\infty := \max\{|x_i|\}_{i=1}^d$, $\|x\|_2 := (\sum x_i^2)^{1/2}$, and $\|A\|_{\mathrm{op}} := \sup_{\|x\|_2 = 1} \|Ax\|_2$.
+The minimum and maximum eigenvalues of $A$ are denoted $\lambda_{\min}(A)$ and $\lambda_{\max}(A)$, and the condition number is denoted $\kappa(A) := \lambda_{\max}(A) / \lambda_{\min}(A)$.
+The set of real-valued functions on a set $S \subset \mathbb{R}$ whose derivatives up to order $r$ are continuous is denoted $C^r(S , \mathbb{R})$.
+For $f \in C^r(S,\mathbb{R})$ and $S \subset \mathbb{R}$ bounded, let $\|f\|_\infty := \sup_{s \in S} |f(s)|$ and $\|f\|_{\infty,\nuggets} := \sup\{f(\nugget)\}_{\nugget \in \nuggets}$ for $\nuggets \subset S$.
+Further, for a linear functional $\Pi$ on $C^0(S , \mathbb{R})$, the operator norm
+\begin{align}
+\|\Pi\|_{\mathrm{op}} := \sup_{0 \neq f \in C^0(S,\mathbb{R})} \frac{|\Pi(f)|}{\|f\|_\infty}    \label{eq: op norm}
+\end{align}
+will be used.
+
+
+\subsection{Extrapolation Estimator}
+\label{sec: extrap}
+
+Richardson extrapolation \citep{richardson1911ix} is a classical idea from numerical analysis, whose potential in modern machine learning and statistics is only beginning to be appreciated \citep{bach2021effectiveness,oates2025probabilistic}.
+In brief, the idea is to construct polynomial approximations of the coordinate maps $\nugget \mapsto [x_\nugget]_i$ and to extrapolate the fitted polynomial to $\nugget = 0$.
+Since in practice we only have access to numerical approximations $\hat{x}_\nugget$, we aim to work with data for which $\nugget \geq \nugget_{\min}$ so that we can substitute $x_\nugget$ with a reliable approximation $\hat{x}_\nugget$ produced using a direct method.
+
+Let $\mathcal{P} := \mathrm{span}\{p_1 , \dots , p_m\}$ where each $p_i : [0,\infty) \rightarrow \mathbb{R}$ is a polynomial.
+For the purposes of this paper the constant function is always an element of $\mathcal{P}$.
+%Given training data $\{\hat{x}_\nugget : \nugget \in \nuggets\}$ for which $\nuggets \subset [\nugget_{\min},\infty)$.
+Given a set $\nuggets = \{\nugget_i\}_{i=1}^n$, the \emph{Vandermonde matrix} is denoted
+\begin{align*}
+\mathbf{V}(\nuggets) := \left[ \begin{array}{ccc} p_1(\nugget_1) & \dots & p_m(\nugget_1) \\ \vdots & & \vdots \\ p_1(\nugget_n) & \dots & p_m(\nugget_n)
+  \end{array} \right] .
+\end{align*}
+In the case where $m$ and $n$ are equal, the \emph{Vandermonde determinant} is denoted $\mathrm{VDM}(\nuggets) = \mathrm{det}(\mathbf{V}(\nuggets))$.
+The set $\nuggets$ is called $\mathcal{P}$-\emph{unisolvent} if $\mathrm{VDM}(\nuggets) \neq 0$.
+Assuming $\nuggets$ is $\mathcal{P}$-\emph{unisolvent}, we can approximate $x$ using polynomial extrapolation applied coordinatewise to the training dataset.
+
+\begin{definition}[Extrapolation Estimator] \label{def: extrap estim}
+Let $f : [0,\infty) \rightarrow \mathbb{R}^d$.
+Let $f_n \in \mathcal{P}^d$ interpolate $f$ (coordinatewise) on $\nuggets = \{\nugget_i\}_{i=1}^n$.
+Then $f_n(0)$ is called an \emph{extrapolation estimator} of $f(0) \in \mathbb{R}^d$.
+\end{definition}
+
+\noindent The extrapolation estimator $f_n(0)$ exists and is unique provided that $\nuggets$ is $\mathcal{P}$-unisolvent.
+In this paper $f(\nugget) = x_\nugget$.
+The idea in \texttt{autonugget} is to estimate $f(0)$ using an extrapolation approach.
+To accomplish this we distinguish between the extrapolator $f_n$, based on exact solutions to the linear system, $x_\nugget$, and the extrapolator $\hat{f}_n$ based on approximations $\hat{x}_\nugget$.
+We focus on determining a set $\nuggets$ which balances the tension between accuracy of the approximations $\hat{x}_\nugget$, which is improved for large $\nugget$, and accuracy of the extrapolator $f(0)$ which is improved for small $\nugget$. 
+The computational cost of the extrapolation estimator is $n$ times that of a single linear solve, since polynomial interpolation requires negligible overhead.
+Typically $n$ will be small, e.g. $n \in \{2,3,4\}$, so that the overall computational cost of \texttt{autonugget} is of the same order as a single application of a direct method.
+
+
+
+\subsection{Analysis in Exact Arithmetic}
+\label{sec: theory}
+
+To understand the benefit of extrapolation we begin by analysing the error of extrapolation applied to exact data $x_\nugget$; the case where numerical approximation of $x_\nugget$  is taken into account is deferred to \Cref{subsec: select lambda}.
+
+Let $\ell_i(\cdot  ; \nuggets)$ denote the \emph{Lagrange polynomials}, defined as the elements of $\mathcal{P}$ for which $\ell_i(\nugget_j ; \nuggets) = \delta_{i,j}$.
+These can be computed as 
+\begin{align*}
+\ell_i(\nugget ; \nuggets) = \frac{\mathrm{VDM}(\{\nugget\} \cup (\nuggets \setminus \{\nugget_i\}))}{\mathrm{VDM}(\nuggets)} .
+\end{align*}
+The \emph{Lebesgue function} of $\nuggets$ is denoted
+\begin{align}
+\lambda(\nugget ; \nuggets) = \sum_{i=1}^n | \ell_i(\nugget ; \nuggets) | . \label{eq: leb fn}
+\end{align}
+
+\noindent The following result, which we prove in \Cref{app: proof extrap error}, indicates the potential benefit from extrapolation in this context:
+
+\begin{theorem}[Extrapolation error bound]
+\label{cor: extrap error}
+Let $f(\nugget) = (A + \nugget I)^{-1} b$ where $A$ is a symmetric positive definite matrix.
+Let $\mathcal{P} = \mathrm{span}\{1 , \nugget , \dots, \nugget^{n-1}\}$.
+Let $\nuggets_{\mathrm{ref}} = \{\nugget_i\}_{i=1}^n$ be $\mathcal{P}$-unisolvent.
+Let $f_n^h \in \mathcal{P}^d$ interpolate $f$ (coordinatewise) on $\nuggets_h = \{h \nugget_i\}_{i=1}^n$ for $h \in (0,1]$.
+Then 
+\begin{align*}
+&\underbrace{ \| f(0) - f_n^h(0) \|_\infty }_{\text{\normalfont extrapolation error}} \leq \underbrace{ ( 1 + \lambda(0; \nuggets_{\mathrm{ref}}) ) \nugget_{\max}^n \lambda_{\min}(A)^{-(n+1)} \|b\|_2  }_{\text{\normalfont constant in $h$}} \; \; \underbrace{ \phantom{|_p} h^n \phantom{|_p} }_{\text{\normalfont acceleration }} ,
+\end{align*}
+where $\nugget_{\max} := \max\{\nugget_i\}_{i=1}^n$.
+\end{theorem}
+
+\noindent To interpret \Cref{cor: extrap error} one should consider $h$ to be varying and $n$ to be fixed.
+The extrapolation error is then seen to converge at a rate $O(h^n)$, where the $n$ nuggets that are used to generate the dataset are each of size $O(h)$.
+As a sanity check, for the case of a single linear solve and no extrapolation, the map $\nugget \mapsto x_\nugget$ is continuous and the error $x - x_{h\nugget}$ is indeed $O(h)$.
+\Cref{cor: extrap error} thus shows that the convergence rate (in $h$) is strictly improved when $n \geq 2$ data are used.
+There is of course also a trade-off, in terms of the $n$-dependent constants appearing in the bound\footnote{For carefully chosen $\nuggets$ (e.g. Chebyshev nodes) the Lebesgue constant $\lambda(0,\nuggets)$ grows as $O(\log(n))$, so the main concern is the term $(h \nugget_{\max})^n \lambda_{\min}(A)^{-(n+1)}$.} and in terms of the computational cost\footnote{The computational complexity is $O(n)$, but if one has access to $n$ parallel processors the computational time becomes $O(1)$.}.
+
+In practice however we do not have access to $x_\nugget$, only to a approximation $\hat{x}_\nugget$ obtained via the numerical solution of \eqref{eq: tik}.
+Care is needed when using polynomial extrapolation applied to noisy data, because numerical errors can be amplified by higher-order terms in the polynomial.
+Understanding the trade-off between convergence acceleration and stability in finite precision arithmetic is the focus of \Cref{subsec: select lambda}.
+
+
+
+\subsection{Analysis in Finite Precision Arithmetic}
+\label{subsec: select lambda}
+
+To understand the practical performance of the extrapolation estimator we will characterise the estimator as a \emph{projection} of the data-generating function, and then analyse how the projection is affected when the input data are corrupted.
+As before, we consider a polynomial basis $\mathcal{P}$ and a collection $\nuggets = \{\nugget_i\}_{i=1}^n$.
+Denote the projection
+\begin{align*}
+\Pi_\nuggets : C^0([0,\nugget_{\max}],\mathbb{R}^d) & \rightarrow \mathbb{R}^d \\
+f & \mapsto f_n(0) ,
+\end{align*}
+where $f_n(0)$ is the extrapolation estimator of $f(0)$ based on $\mathcal{P}$ and $\nuggets$ (cf. \Cref{def: extrap estim}).
+Note that $\Pi_\nuggets[f]$ can be defined for \emph{any} function $f$, including $\hat{f}$, but one cannot hope to extrapolate a function that is discontinuous at $0$.
+
+Recall that we cannot exactly evaluate $f(\nugget) = x_\nugget$, but rather we obtain $\hat{f}(\nugget) = \hat{x}_\nugget$ where the error $\hat{x}_\nugget - x_\nugget$ can be large when $\nugget$ is small.
+The extrapolation estimator applied to $\hat{f}$, which we seek to analyse, is then $\Pi_{\nuggets}[\hat{f}]$.
+For any norm $\|\cdot\|$, the total error can be decomposed as
+\begin{align}
+\underbrace{ \| f(0) - \Pi_{\nuggets}[\hat{f}] \| }_{\text{actual error}} \leq \underbrace{ \| f(0) - \Pi_{\nuggets}[f] \| }_{\text{extrapolation error}} + \underbrace{ \| \Pi_{\nuggets}[f] - \Pi_{\nuggets}[\hat{f}] \| }_{\text{numerical error}} . \label{eq: decompose}
+\end{align}
+As before we fix a reference design $\nuggets_{\mathrm{ref}} = \{\nugget_i\}_{i=1}^n$ and consider $\nuggets_h = \{h \nugget_i\}_{i=1}^n$ for $h \in (0,1]$.
+From \Cref{cor: extrap error} we have a bound on the extrapolation error term in \eqref{eq: decompose}.
+For the numerical error term we have the following bound, whose proof is contained in \Cref{app: numerical proof}:
+
+\begin{theorem}[Numerical error bound]
+\label{thm: num er}
+In the setting of \Cref{cor: extrap error}, 
+$$
+\underbrace{ \| \Pi_{\nuggets_h}[f] - \Pi_{\nuggets_h}[\hat{f}] \|_\infty }_{\text{\normalfont numerical error}} 
+\leq \lambda(0;\nuggets_{\mathrm{ref}}) \| f - \hat{f}  \|_{\infty, \nuggets_h} .
+$$
+\end{theorem}
+
+\noindent The result is intuitively clear; since the extrapolation estimator is a projection and projections are linear maps, the error in the extrapolation estimator is linear in the numerical error $f - \hat{f}$ associated to the dataset.
+The magnitude of $\|f - \hat{f} \|_{\infty, \nuggets_h}$ is typically determined by $\|f(h \nugget_{\min}) - \hat{f}(h \nugget_{\min}) \|_\infty$ where $\nugget_{\min}$ is the smallest element of $\nuggets_{\mathrm{ref}}$.
+Further, for direct solvers the magnitude of the relative error is typically determined by the product of machine precision and the condition number \citep{weiss1986average}:
+\begin{align}
+\frac{ \|f(h\nugget_{\min}) - \hat{f}(h\nugget_{\min})\|_{\infty} }{ \|f(h\nugget_{\min})\|_\infty } \lessapprox \epsilon_{\mathrm{MP}} \kappa(A + h\nugget_{\min} I)   \label{eq: er bd}
+\end{align}
+where $\epsilon_{\mathrm{MP}}$ is the machine precision (e.g. typically double precision; $10^{-16}$).
+Combining these observations, we obtain
+\begin{align}
+&\underbrace{ \| \Pi_{\nuggets_h}[f] - \Pi_{\nuggets_h}[\hat{f}] \|_\infty }_{\text{\normalfont numerical error}} \lessapprox \lambda(0;\nuggets_{\mathrm{ref}}) \epsilon_{\mathrm{MP}} \kappa(A + h \nugget_{\min} I) \|f(h \nugget_{\min})\|_\infty  \label{eq: num er 1}
+\end{align}
+and to arrive at a practical upper-bound we use 
+\begin{align}
+\|f(h \nugget_{\min})\|_\infty \approx \|f(0)\|_\infty \lessapprox \lambda_{\min}(A)^{-1} \|b\|_2 \label{eq: num er 2}
+\end{align}
+Combining \Cref{cor: extrap error,thm: num er} and \Cref{eq: num er 1,eq: num er 2} as in \eqref{eq: decompose} we obtain a practically-relevant overall error bound which can be used to select $h$, as explained next.
+
+
+
+
+
+
+
+
+
+\subsection{Selecting \texorpdfstring{$h$}{h}}
+\label{sec: select h}
+
+The aim now is to select $h$ for which the bound obtained from \eqref{eq: decompose} and \Cref{cor: extrap error,thm: num er} and their subsequent discussion is minimised.
+Specifically, we seek to balance the size of the the numerical error and the extrapolation error, i.e.
+\begin{align*}
+&( 1 + \lambda(0; \nuggets_{\mathrm{ref}}) ) \nugget_{\max}^n \lambda_{\min}(A)^{-(n+1)} \|b\|_2    h^n =  \lambda(0; \nuggets_{\mathrm{ref}}) \epsilon_{\mathrm{MP}} \kappa(A + h \nugget_{\min} I )  \lambda_{\min}(A)^{-1} \|b\|_2
+\end{align*}
+and to this end we propose to use the value of $h$ for which
+\begin{align}
+\frac{ \kappa( A + h \nugget_{\min} I  ) }{ h^n }  
+= 
+\frac{ ( 1 + \lambda(0; \nuggets_{\mathrm{ref}}) ) }{ \lambda(0; \nuggets_{\mathrm{ref}}) } \frac{ \nugget_{\max}^n  }{ \lambda_{\min}(A)^n \epsilon_{\mathrm{MP}}  }    \label{eq: criterion}
+\end{align}
+The left hand side of \eqref{eq: criterion} is monotonic in $h$, diverging as $h \rightarrow 0$ and vanishing as $h \rightarrow \infty$, and thus there exists a unique solution $h_\star$ to \eqref{eq: criterion}.
+For well-conditioned $A$, \eqref{eq: criterion} implies that
+\begin{align}
+h_\star  \propto ( \epsilon_{\mathrm{MP}} \kappa(A) )^{1/n} \frac{ \lambda_{\min}(A) }{ \nugget_{\max} } \asymp  \epsilon_{\mathrm{MP}}^{1/n} , \label{eq: hstar well}
+\end{align}
+where we have treated the Lebesgue functions as constants in the proportionality statement.
+Conversely, for near-singular $A$ we have $\kappa(A + h \nugget_{\min} I) \asymp \lambda_{\max}(A) / ( h \nugget_{\min} )$ and thus an analogous calculation based on \eqref{eq: criterion} implies that
+\begin{align}
+h_\star \asymp \epsilon_{\mathrm{MP}}^{1/(n+1)}   . \label{eq: hstar ill}
+\end{align}
+As expected, \eqref{eq: hstar ill} is larger than \eqref{eq: hstar well} in general, indicating that for near-singular $A$ a larger nugget is required.
+More interestingly, we see that extrapolation with a larger number $n$ of data enables larger nuggets to be used; i.e. extrapolation can confer additional numerical stability, as well as accuracy, by enabling the size of the nuggets to be increased.
+Typical instances of the minimum critical size of nugget $\nugget_\star = h_\star \nugget_{\min}$ are depicted in \Cref{fig: selecting h}.
+
+Calculating the minimum eigenvalue of $A$ is typically as hard as solving the linear system itself, but for a symmetric positive definite matrix $M$ the smallest eigenvalue can be approximated based on the identity
+$$
+\lambda_{\min}(M)^{-1} = \frac{1}{\inf_{\|v\|_2 = 1} \|M v \|_2} = \sup_{\|v\|_2 = 1} \|M v \|_2^{-1}
+$$
+and substituting the supremum for a maximum over a finite set.
+For \texttt{autonugget} we used $\min\{100, 0.1d\}$ vectors $v$ randomly sampled from standard normal distribution, though more sophisticated methods are available in certain settings \citep{drmavc2006computing,ye2018accurate}.
+
+
+
+
+
+
+
+
+
+
+
+\begin{figure}[t!]
+\centering
+% \includegraphics[width = \textwidth,clip,trim = 0cm 8cm 0cm 50cm]{figures/cartoons.pdf}
+\includegraphics[width = \textwidth]{fig2_v2.pdf} 
+
+\caption{Identification of the critical value $\nugget_{\star}$, below which $\hat{x}_\nugget$ fails to be a reliable approximation to $x_\nugget$, using the approach proposed in \Cref{sec: select h}. 
+Here the matrix $A$ was a Gram matrix associated to a kernel with length-scale $\ell$; larger values of $\ell$ are associated with $A$ being more ill-conditioned.
+The numerical approximations were obtained using \texttt{linalg.solve} in \texttt{numpy}, a direct method based on LU factorisation.
+Our estimator $\nugget_{\star}$ is subject to slight fluctuations owing to the stochastic minimum eigenvalue approximation, but it always appears to be slightly risk-averse, favouring slightly larger nuggets than are strictly needed, which we view as a desirable property of the method.
+}
+\label{fig: selecting h}
+\end{figure}
+
+
+
+
+
+
+
+
+
+\section{The \texttt{autonugget} Package}
+\label{sec: package}
+A \texttt{Python} implementation of \texttt{autonugget} can be installed from \texttt{Github}\footnote{\url{https://github.com/hegdedisha/autonugget}}. 
+For standard usage, suitable for rapid prototyping, one simply replaces the conventional direct method, e.g.
+\begin{align}
+\texttt{x = np.linalg.solve(A,b)}  \label{eq: np}
+\end{align}
+with 
+$$
+\texttt{x = autonugget(A,b)} 
+$$
+where default settings of \texttt{autonugget} are used.
+The reference design $\nuggets_{\mathrm{ref}}$ can optionally be specified, as described in \Cref{app: package}.
+For simplicity we set $\nuggets_{\mathrm{ref}} = \{ 2^j \nugget_{\min} : 0 \leq j \leq m \}$ where $m$ is user-specified (defaults to $m=1$), since such geometric grids are known to be well-suited to polynomial extrapolation \citep{liem1995splitting}.
+
+A distinguishing feature of \texttt{autonugget} is that it is \texttt{JAX}-compatible, enabling end-to-end training of machine learning algorithms, as will now be explained.
+In a slight overloading of notation, suppose that $x_\theta$ denotes the solution of the linear system defined by $A \equiv A_\theta$ and $b \equiv b_\theta$, where $A_\theta$ and $b_\theta$ depend smoothly on parameters $\theta \in \mathbb{R}^p$.
+This situation occurs routinely in kernel methods, for example \citep{williams2006gaussian}.
+It can then be useful to compute gradients $\nabla_\theta x_\theta$, but automatic differentiation through linear solvers can be non-trivial, for instance when logical termination criteria are used.
+To address this point, we employ calculus to see that
+\begin{align}
+\nabla_\theta x_\theta = - A_\theta^{-1} (\nabla_\theta A_\theta) A_\theta^{-1} b_\theta + A_\theta^{-1} (\nabla_\theta b_\theta) \label{eq: calculus}
+\end{align}
+which can be recursively computed with three distinct calls to \texttt{autonugget}.
+This calculation is implemented as a custom forward differentiation rule for \texttt{JAX} within \texttt{autonugget}.
+This enables automatic selection of appropriate nuggets independently for each of the three linear systems in \eqref{eq: calculus} that must be numerically solved, in contrast to na\"{i}ve differentiation through \texttt{autonugget} for which no such protection would be provided.
+
+\section{Empirical Assessment}
+\label{sec: experiments}
+This section presents an empirical assessment of \texttt{autonugget}, reporting results across a spectrum of linear systems from well-conditioned to ill-conditioned.
+Our baselines and assessment protocol are laid out in \Cref{sec: baselines}.
+The accuracy of approximations to both the solution (\Cref{sec: solver acc}) and derivatives of the solution (\Cref{sec: der acc}) are examined, and the practical benefit of \texttt{autonugget} is demonstrated in \Cref{sec: appl}.
+
+
+\subsection{Baselines}
+\label{sec: baselines}
+
+Since our use-case is rapid prototyping, we do \emph{not} compare against numerical methods that are optimised for specific tasks where additional problem structure can be exploited.
+Rather, we compare \texttt{autonugget} 
+with the following generic baselines (which do not employ extrapolation):
+\begin{itemize}
+\item \texttt{LU}: The standard \texttt{numpy} solver \eqref{eq: np}, which is based on LU decomposition, with no nugget.
+\item \texttt{LU-fix}: As \texttt{LU} but with (arbitrary) fixed nugget at single precision; $\sigma = \epsilon_{\mathrm{sing}} = 10^{-8}$.
+\item \texttt{LU-cond}: As \texttt{LU} but with a nugget $\nugget$ chosen just large enough that $\kappa(A + \nugget I) < \epsilon_{\mathrm{sing}}^{-1} = 10^8$.
+\item \texttt{LU-adapt}: As \texttt{LU} but with a nugget $\nugget = \nugget_\star$ as in \Cref{sec: select h}. 
+\item \texttt{CG}: The conjugate gradient method \citep{hestenes1952methods} with \texttt{scipy} implementation, with default relative tolerance of $10^{-5}$.  
+\item \texttt{LSTSQ}: Least squares solution (i.e. pseudo-inverse), implemented using \texttt{numpy}.
+\item \texttt{SVD}: Solution using Singular Value Decomposition, implemented using \texttt{numpy}.
+\item \texttt{TSVD}: Solution using truncated SVD, where singular values are truncated such that all of them are greater than $10^{-8}$, modified from \texttt{numpy}-SVD.
+\end{itemize}
+
+
+
+\texttt{JAX} versions of \texttt{LU}, \texttt{LU-fix}, \texttt{CG}, \texttt{LSTSQ}, \texttt{SVD}, \texttt{TSVD} are used for derivate computations and are implemented on CPU. 
+
+As discussed in \Cref{sec: introduction}, Tikhonov regularisation helps address two separate concerns -- regularisation and ill-conditioning. While some of the regularisation-based methods listed above (e.g., \texttt{LU-fix}, \texttt{LU-cond}, \texttt{LU-adapt}, \texttt{LSTSQ}, \texttt{TSVD}) are also helpful for the former purpose, here we strictly test their performance in solving ill-conditioned positive-definite matrices as compared to \texttt{autonugget}.
+
+To automatically generate a set of test problems we consider Gram matrices $A$ associated to a positive definite kernel $k : \mathbb{R} \times \mathbb{R} \rightarrow \mathbb{R}$ and a (fixed) collection of uniformly spaced distinct nodes $\{z_i\}_{i=1}^d \subset \mathbb{R}$, so that $A_{i,j} = k(z_i,z_j)$ for all $i,j \in \{1 , \dots , d\}$.
+Specifically, we take $k(z,z') = \exp( -(z-z')^2 / \ell^2)$, unless specified otherwise, since for this kernel changes in the length-scale $\ell$ strongly affect the condition of $A$ (larger $\ell$ is associated with larger $\kappa(A)$).
+Again, we emphasise that for any particular set of test problem one can design bespoke numerical methods \citep[indeed, numerical methods for kernel matrices are well-studied, see Section 1.2 of][for a recent review]{schafer2021compression}; our interest is specifically in generic methods which are agnostic to any special structure present in $A$. 
+
+
+\subsection{Solver Accuracy}
+\label{sec: solver acc}
+
+To test solver accuracy we fix the solution vector $x$ to be the vector $1$ whose entries are each $1$, and set $b = A x$. 
+Given an approximate solution $\hat{x}$ produced by a numerical method, the error is quantified as $\|\hat{x} - x\|_2$.
+
+\begin{figure*}[t!]
+% \centering
+% \includegraphics[width = \textwidth,clip,trim = 0cm 28cm 0cm 22cm]{figures/cartoons.pdf}
+\includegraphics[width = \textwidth]{Fig3.pdf}
+\caption{Solver accuracy assessment.  
+Here we compared \texttt{autonugget} to our baselines, varying the dimension $d$ of the matrix and the length-scale $\ell$ of the kernel.
+The logarithm of the error relative to \texttt{autonugget} is reported; blue indicates that \texttt{autonugget} out-performed the baseline method.
+[Alternative versions of this figure are included in the Supplement for (a) a different choice of kernel (\cref{fig: error_mtk}), and (b) different polynomial orders for extrapolation (\cref{fig: error_poly}).]} 
+\label{fig: error_sqexp}
+\end{figure*}
+
+\Cref{fig: error_sqexp} shows log of relative error with respect to \texttt{autonugget}, computed as the ratio of error of the method to the error in \texttt{autonugget}. Absolute errors are presented in the appendix in \cref{fig: error_abs}.
+The positive values (in blue) indicate that \texttt{autonugget} out-performed the baseline method. 
+It can be seen that \texttt{autonugget} performs far better than \texttt{LU} and \texttt{SVD} for most of the linear systems considered, especially the ill-conditioned systems (i.e. large length-scale $\ell$). 
+\texttt{autonugget} also out-performed \texttt{CG} (with the default tolerance used), \texttt{LSTSQ}, \texttt{TSVD} albeit to a lesser extent. However, we note that the absolute error of \texttt{autonugget} is still low even for the cases where it is slightly outperformed by one of the other methods.
+More importantly, we observe that \texttt{LU-fix} performed worse than \texttt{autonugget} on both well-conditioned systems (where the nugget is too large, introducing a bias) and ill-conditioned systems (where the nugget is too small, meaning that insufficient regularisation is provided); this clearly illustrates the need for \emph{adaptive} selection of a nugget.
+However, the \texttt{LU-adapt} baseline was also out-performed by \texttt{autonugget}; this demonstrates the additional accuracy that comes from the extrapolation functionality of \texttt{autonugget}. 
+
+For the experiments we report in the main text we employed extrapolation based on $n = 2$ linear solves (i.e. linear extrapolation) as a default within \texttt{autonugget}. 
+As ablation studies, this experiment was repeated for (a) a different choice of kernel (\cref{fig: error_mtk}), (b) set of non-kernel type matrices (\cref{fig: error_nk}) and (c) different numbers of data $n$ for extrapolation (\cref{fig: error_poly}), with results contained in the Supplement.
+Improved accuracy was observed in some cases with $n > 2$, but we found the benefit was not substantial enough to merit the additional computational cost as a default. To show randomised eigenvalue approximation did not affect conclusions, we show \cref{fig: error_sqexp} computed with a different seed in \cref{fig: error_sqexp2}. A table of mean and standard deviation of mean absolute errors (across different seeds, with randomly spaced $\{z_i\}$) is listed in \cref{tab: errors_quarter} and \cref{tab: errors_full}.
+
+
+\subsection{Derivative Accuracy}
+\label{sec: der acc}
+
+For the second set of experiments we sought to evaluate the accuracy with which the derivative of the solution of the linear system was computed.
+For this purpose we consider a parametrised linear system $A \equiv A_\theta$, $b \equiv b_\theta$, where to enable an analytically tractable gold-standard we employed a simple dependence on the parameter $\theta$ as $A  = \theta \tilde{A}$ and $b  = \tilde{b}$ for a fixed $\tilde{A}$ and $\tilde{b}$. 
+As such, the true derivative is $\nabla_\theta x_\theta = -\frac{x}{\theta}$.
+Given a numerical approximation $\nabla \hat{x}_\theta$ to the derivative $\nabla{x}_\theta$, the error was quantified using $\|\nabla{\hat{x}}_\theta - \nabla{x}_\theta\|_2/d$, where we have normalised for the dimension $d$ to make comparison more straightforward.
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width = \textwidth]{Fig4.pdf}
+\caption{Derivative accuracy assessment. 
+Here we compare \texttt{autonugget} to the derivative computed using \texttt{JAX} applied to the baselines \texttt{LU} and \texttt{LU-fix},  varying the dimension $d$ of the matrix and the length-scale $\ell$ of the kernel.
+The logarithm of the (dimension normalised) error relative to \texttt{autonugget} is reported; blue indicates that \texttt{autonugget} out-performed the baseline method.
+}
+\label{fig: error_der}
+\end{figure*}
+
+\Cref{fig: error_der} compares the accuracy of derivatives obtained from \texttt{autonugget} to automatic differentiation through other baselines using \texttt{JAX}. 
+It can be seen that \texttt{LU} performed worst; we attribute this to the absence of any appropriate regularisation during the three linear system solves that are required when automatic differentiation is performed. 
+\texttt{LU-cond} and \texttt{LU-adapt} performed much better than \texttt{LU}, but were still out-performed by \texttt{autonugget} when the length-scale is large and the linear-system is severely ill-conditioned. \texttt{autonugget} also performed better than the other baselines, as similar to the solvers in the previous section, with the difference being more pronounced due to multiple linear solves involved in the derivative calculation. Interestingly, \texttt{LSTSQ}, \texttt{SVD} and \texttt{TSVD} failed to reach finite values for ill-conditioned systems, rendering them impractical for multiple systems. This highlights the advantage of using our custom auto differentiation provided by \texttt{autonugget} that enables efficient derivate computation involving multiple separate \texttt{autonugget} calls.
+
+
+\subsection{Application to GP Regression}
+\label{sec: appl}
+
+Finally, we test \texttt{autonugget} in a quasi-realistic setting where rapid prototyping might be required; a hyperparameter optimisation problem for a Gaussian process (GP) regression task. 
+As both a model and a data-generating process we took a centred GP with the squared exponential kernel and generated (noiseless) data on a regular grid of $5 \times 5$ points in $[0,1]^2$.
+For data generation we used a kernel with length-scale $\ell = 50$.
+The task is to infer a suitable length-scale $\ell$ from the dataset by using leave one out cross-validation based on the predictive root-mean squared error. 
+Since the true length-scale is much larger than the domain on which data were generated, such optimisation requires working with kernel matrices which, despite being small, are severely ill-conditioned \citep{lin2024improving}.
+For optimisation we consider a gradient-descent method with adaptive step-sizes computed from backtracking line-search \citep{nocedal_numerical_2006}. 
+Taking the gradient of the cross-validation loss requires differentiating the solution of a linear system involving the kernel matrix; as in \Cref{sec: der acc} we compare \texttt{autonugget} to automatic differentiation through either \texttt{LU} or \texttt{LU-fix} using \texttt{JAX}. 
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width = \textwidth]{Fig5.pdf}
+\caption{Application to a Gaussian process regression task. 
+A gradient-based optimiser was applied to the cross-validation loss function described in \Cref{sec: appl}, with evaluations of the loss function and its gradients performed using either \texttt{autonugget} or one of the baselines described in \Cref{sec: baselines}.}
+\label{fig: rmse_opt}
+\end{figure*}
+
+
+\Cref{fig: rmse_opt} shows a clear advantage to using \texttt{autonugget} in this setting. 
+Indeed, the loss function computed using \texttt{autonugget} has a clear minimum around the true length-scale $\ell = 50$, and the accurate gradient calculation ensures rapid convergence of the optimisation method.
+In contrast, the loss functions computed using \texttt{LU} and \texttt{SVD} are non-smooth (due to the lack of any Tikhonov regularisation) and the optimiser diverges to a pathologically large value of $\ell$. \texttt{LSTSQ} and \texttt{TSVD} also lead non-smooth loss functions, and the optimiser barely moves and converges to the initial point.
+\texttt{LU-fix} (i.e. the use of a fixed-size nugget across all length-scales, a common approach in rapid prototyping) confers stable optimisation, but the optimiser converges to a value for the length-scale that is far too small. 
+This occurs due to the bias introduced by the nugget, which encourages the data to be (incorrectly) explained as ``noise'' instead of signal. 
+While \texttt{LU-cond} and \texttt{LU-adapt} managed to converge to appropriate length-scales in this experiment, it can be seen that their computed cross-validation loss increases as the length-scale is increased; this is incorrect, because the cross validation loss should become constant as $\ell \rightarrow \infty$.
+This increase is an artefact of an increasing amount of regularisation being applied in \texttt{LU-cond} and \texttt{LU-adapt} as the increasing length-scale $\ell$ increases the condition number of the associated linear systems.
+In contrast, the constant tail behaviour of the cross-validation loss is correctly captured by \texttt{autonugget}. 
+
+
+
+
+
+\section{Discussion}
+Numerical linear algebra is critical to accelerating computations in machine learning, for instance in kernel methods \citep{rudi2017falkon}, GPs \citep{chen2025sparse}, and deep learning \citep{sato2024scaled}.
+Yet sophisticated numerical methods are not the first port-of-call during methodological development.
+Motivated by the lack of a tuning-free, automatic differentiation-compatible routine to solve ill-conditioned linear systems of equations, we introduced \texttt{autonugget}.
+A distinguishing feature of \texttt{autonugget} is its use of extrapolation to gain accuracy beyond the critical value of $\nugget$ at which explosive behaviour is encountered in solution using a direct method.
+An empirical assessment supported the use of \texttt{autonugget} as a general-purpose tool for solving linear systems of equations specified by symmetric positive definite matrices, which are widely encountered in machine learning. 
+
+\texttt{autonugget} is currently limited to symmetric positive definite matrices, and a future direction would be extend our theoretical framework to non-SPD matrices. A particularly interesting case would be the behaviour of extrapolated solution as $\nugget \rightarrow 0$ in the cases where a unique solution does not exist, e.g., when $A$ is symmetric positive semidefinite. While \texttt{autonugget} performs better than standard methods for ill-conditioned methods, it also incurs higher computational cost. A more efficient low-level implementation of \texttt{autonugget} can potentially address this concern. Additionally, as a low-cost alternative, we plan explore an SVD-centric approach that would use a single SVD computation with extrapolation in the span of SVD-basis, and the corresponding error analysis. 
+The use cases of \texttt{autonugget} are limited to matrices that can be stored in memory, but for prototyping applications this is often sufficient.
+Another possible direction for future work is to incorporate probabilistic error bars for the extrapolated solution, for instance by replacing polynomial extrapolation with a statistical regression model \citep{oates2025probabilistic}.
+
+
+% \subsubsection*{Acknowledgements}
+% CJO was supported by EPSRC EP/W019590/1 and a Philip Leverhulme Prize PLP-2023-004. 
+
+\bibliographystyle{plainnat}
+\bibliography{references.bib}
+
+
+\newpage
+\appendix
+
+\section*{Appendices}
+\thispagestyle{empty}
+
+\Cref{app: proofs} contains proofs for all theoretical results appearing in the main text.
+\Cref{app: documents} contains documentation for \texttt{autonugget}.
+\Cref{app: extra} reports additional experimental results, along with full details for the experiment that were performed.
+
+\section{Proofs}
+\label{app: proofs}
+\Cref{app: preliminary} contains preliminary results which will be required to prove \Cref{cor: extrap error} and \Cref{thm: num er}.
+\Cref{cor: extrap error} is proven in \Cref{app: proof extrap error}, while \Cref{thm: num er} is proven in \Cref{app: numerical proof}.
+
+
+\subsection{Preliminary Results}
+\label{app: preliminary}
+
+For convenience we introduce the shorthand $\|f\|_{\infty,\nugget_{\max}} := \|f\|_{\infty,[0,\nugget_{\max}]} = \sup_{\nugget \in [0,\nugget_{\max}]} |f(\nugget)|$ on $C^0([0,\nugget_{\max}],\mathbb{R})$.
+Further, following the same notation used in \Cref{subsec: select lambda} of the main text, let
+\begin{align*}
+\Pi_\Sigma : C^0([0,\nugget_{\max}],\mathbb{R}) & \rightarrow \mathbb{R} \\
+f & \mapsto f_n(\mathbf{0})
+\end{align*}
+where $f_n$ denotes the interpolating polynomial (in $\mathcal{P}$) of $f$ on $\Sigma$.
+
+\begin{proposition}[Polynomial extrapolation error]
+\label{thm: leb}
+Let $f \in C^0([0,\nugget_{\max}],\mathbb{R})$.
+Let $\Sigma$ be $\mathcal{P}$-unisolvent and let $f_n \in \mathcal{P}^d$ interpolate $f$ on $\Sigma$.
+Then 
+\begin{align*}
+| f(0) - f_n(0) | \leq (1 + \lambda(0 ; \Sigma)) \inf_{p \in \mathcal{P}} \| f - p \|_{\infty,\nugget_{\max}} .
+\end{align*}
+\end{proposition}
+\begin{proof}[Proof of \Cref{thm: leb}]
+Let $p_\star$ attain the infimum.
+Then by the triangle inequality, and the fact that $\Pi_\Sigma$ is a projection,
+\begin{align*}
+| f(0) - f_n(0) | & \leq | f(0) - p_\star(0) | + | p_\star(0) - f_n(0) |\\
+& =  | f(0) - p_\star(0) | + | \Pi_\Sigma( p_\star ) - \Pi_\Sigma ( f ) | \\
+& =  | f(0) - p_\star(0) | + | \Pi_\Sigma( p_\star - f ) | \\
+& \leq  \| p_\star - f \|_{\infty , \nugget_{\max}} + \|\Pi_\Sigma\|_{\mathrm{op}}  \| p_\star - f \|_{\infty ,\nugget_{\max}}
+= (1 + \|\Pi_\Sigma\|_{\mathrm{op}} ) \| p_\star - f \|_{\infty , \nugget_{\max}}
+\end{align*}
+and the result follows from 
+\begin{align}
+\|\Pi_\Sigma\|_{\mathrm{op}} = \sup_{g \neq 0} \frac{|\Pi_\Sigma(g)|}{\|g\|_{\infty,\nugget_{\max}}} 
+= \sup_{g \neq 0} \frac{| \sum_{i=1}^n g(\sigma_i) \ell_i(0;\Sigma) |}{\|g\|_{\infty,\nugget_{\max}}}    \label{eq: op proj norm}
+\end{align}
+since the right hand side of \eqref{eq: op proj norm} is at most $\lambda(0 ; \Sigma)$.
+\end{proof}
+
+
+
+The following result establishes convergence acceleration for Richardson extrapolation:
+
+\begin{proposition}[Convergence acceleration in general]
+\label{thm: conv acc}
+Let $f \in C^0([0,\nugget_{\max}],\mathbb{R})$ and assume that there exist coefficients $\beta_i$ for which the residual
+\begin{align}
+R(\sigma) = f(\sigma) - \sum_{ i = 1 }^m \beta_i p_i( \sigma )  \label{eq: error}
+\end{align}
+vanishes as $\sigma \rightarrow 0$.
+Let $\Sigma_{\mathrm{ref}}$ be $\mathcal{P}$-unisolvent.
+Let $\Sigma_h = \{ h \sigma_i\}_{i=1}^n$ for $h \in (0,1]$. 
+Let $f_n^h \in \mathcal{P}^d$ interpolate $f$ on $\Sigma_h$.
+Then 
+\begin{align*}
+\underbrace{ |  f_n^h(0) - f(0) | }_{\text{\normalfont extrapolation error}} \leq \underbrace{ ( 1 + \lambda(0; \Sigma_{\mathrm{ref}}) ) }_{\text{\normalfont constant in $h$}} \; \; \| R \|_{\infty, h \nugget_{\max}} .
+\end{align*}
+\end{proposition}
+
+\noindent In other words, if $f$ admits a Taylor expansion at $\sigma = 0$ and $\mathcal{P}$ contains more than just the leading constant term in this Taylor expansion, then $f_n^h(0)$ converges faster than the original $f(\sigma)$, for any $\sigma \in \Sigma_h$, as $h \rightarrow 0$.
+\begin{proof}[Proof of \Cref{thm: conv acc}]
+Note that $f_n^h$ exists and is unique by the assumption that $\Sigma_{\mathrm{ref}}$ is $\mathcal{P}$-unisolvent, which implies also that $\Sigma_h$ is $\mathcal{P}$-unisolvent.
+
+From \Cref{thm: leb},
+\begin{align*}
+| f(0) - f_n^h(0) | \leq (1 + \lambda(0; \Sigma_h)) \inf_{p \in \mathcal{P}} \| f - p \|_{\infty , h\nugget_{\max} } .
+\end{align*}
+Since $\lambda(0; \Sigma_h) = \lambda (0; \Sigma_{\mathrm{ref}})$ for all $h > 0$, we have that
+\begin{align*}
+| f(0) - f_n^h(0) | \leq (1 + \lambda(0; \Sigma_{\mathrm{ref}})) \inf_{p \in \mathcal{P}} \| f - p \|_{\infty , h\nugget_{\max} } .
+\end{align*}
+The first term is constant in $h$.
+For the second term,
+\begin{align*}
+\inf_{p \in \mathcal{P}} \| f - p \|_{\infty , h\nugget_{\max} }  & \leq \left\| f - \sum_{i=1}^m \beta_i p_i \right\|_{\infty,h \nugget_{\max} } = \| R \|_{\infty,h \nugget_{\max} } ,
+\end{align*}
+completing the argument.
+\end{proof}
+
+
+
+\subsection{Proof of \Cref{cor: extrap error}}
+\label{app: proof extrap error}
+
+\begin{proof}[Proof of \Cref{cor: extrap error}]
+Let $f_i$ denote the $i$th coordinate of $f$.
+Since $f_i \in C^\infty([0,\sigma_{\max}],\mathbb{R})$, from the mean value theorem the Taylor expansion of $f_i$ at $\sigma = 0$ with residual
+$$
+R_i(\sigma) = f_i(\sigma) - \sum_{ i = 1 }^n \beta_i \sigma^{i-1} 
+$$
+satisfies 
+$$
+|R_i(\sigma)| \leq \frac{\sigma^{n}}{n!} \sup_{\tilde{\sigma} \in [0,\sigma]} | f_i^{(n)}(\tilde{\sigma}) |  .
+$$
+From calculus
+\begin{align*}
+    f_i^{(n)}(\sigma) = (-1)^n (n!) [ (A + \sigma I)^{-(n+1)} b ]_i ,
+\end{align*}
+so, using a spectral bound,
+\begin{align*}
+| R_i(\sigma) | & \leq \sigma^{n} \sup_{ \tilde{\sigma} \in [0,\sigma]} |  [ (A + \tilde{\sigma} I)^{-(n+1)} b ]_i | \\
+& \leq \sigma^n \sup_{ \tilde{\sigma} \in [0,\sigma]} \lambda_{\min}(A + \tilde{\sigma} I)^{-(n+1)}  \|b\|_2 \\
+\implies \| R(\sigma) \|_\infty & \leq \sigma^n \sup_{ \tilde{\sigma} \in [0,\sigma]} \lambda_{\min}(A + \tilde{\sigma} I)^{-(n+1)} \|b\|_2 .
+\end{align*}
+Since $A \prec A + \sigma I$, we have $\lambda_{\min}(A) \leq \lambda_{\min}(A + \sigma I)$, and
+\begin{align*}
+\| R(\sigma) \|_\infty & \leq \sigma^n \lambda_{\min}(A)^{-(n+1)} \|b\|_2 .
+\end{align*}
+Finally,
+\begin{align*}
+\sup_{\sigma \in [0,h\sigma_{\max}]} \|R(\sigma)\|_\infty & \leq (h \sigma_{\max})^n \lambda_{\min}(A)^{-(n+1)} \|b\|_2  .
+\end{align*}
+From \Cref{thm: conv acc} we have the result.
+\end{proof}
+
+
+
+\subsection{Proof of \Cref{thm: num er}}
+\label{app: numerical proof}
+
+\begin{proof}[Proof of \Cref{thm: num er}]
+From the definition of the operator norm in \eqref{eq: op norm},
+\begin{align}
+\| \Pi_{\Sigma_h}[g] - \Pi_{\Sigma_h}[\hat{g}] \|_\infty  \leq \| \Pi_{\Sigma_h} \|_{\mathrm{op}} \|g - \hat{g}\|_{\infty}  \label{eq: op norm bd}
+\end{align}
+for all $g , \hat{g} \in C^0([0,\nugget_{\max}],\mathbb{R})$.
+Since $\Pi_{\nuggets_h}[f]$ and $\Pi_{\nuggets_h}[\hat{f}]$ depend on $f$ and $\hat{f}$ only at the inputs $\nuggets_h$, we can take an infimum on both sides of \eqref{eq: op norm bd} over all continuous $g$ (resp. $\hat{g}$) that agree with $f(\nugget)$ (resp. $\hat{f}(\nugget)$) for all $\nugget \in \nuggets_h$, to obtain
+\begin{align*}
+\| \Pi_{\Sigma_h}[f] - \Pi_{\Sigma_h}[\hat{f}] \|_\infty  \leq \| \Pi_{\Sigma_h} \|_{\mathrm{op}} \|f - \hat{f}\|_{\infty, \Sigma_h} .
+\end{align*}
+Recall that $\nugget_{\max} := \max\{\nugget_i\}_{i=1}^n$.
+Using the shorthand introduced in \Cref{app: preliminary}, the result follows from the same argument used to establish \eqref{eq: op proj norm}:
+\begin{align*}
+\|\Pi_{\Sigma_h}\|_{\mathrm{op}} := \sup_{g \neq 0} \frac{|\Pi_{\Sigma_h}(g)|}{\|g\|_{\infty,\nugget_{\max}}} 
+= \sup_{g \neq 0} \frac{| \sum_{i=1}^n g(\sigma_i) \ell_i(0;\Sigma_h) |}{\|g\|_{\infty,\nugget_{\max}}}  
+\end{align*}
+and the fact that the right hand side of \eqref{eq: op proj norm} is at most $\lambda(0 ; \Sigma_h)$ which in turn is equal to $\lambda(0;\Sigma_{\mathrm{ref}})$.
+\end{proof}
+
+
+
+\section{Documentation for \texttt{autonugget}}
+\label{app: documents}
+\label{app: package}
+
+The \texttt{autonugget} package can be installed from Github\footnote{\url{https://github.com/hegdedisha/autonugget}}. This mainly implements the function \texttt{autonugget} as described below:
+% \textcolor{blue}{Here we describe the options for autonugget, such as
+% $$
+% \texttt{x = autonugget(A,b,m)} 
+% $$
+% where \texttt{m} is the desired polynomial degree (defaults to $\texttt{m} = 1$).
+% }
+
+\texttt{autonugget(A, b, m=1, mode = `adapt', extrap = True, JAX\_enabled = False, sigma\_star = None, Sigma\_ref = None)}
+
+This function computes the solution of the system $Ax=b$ using \texttt{autonugget}. This function is compatible with differentiation using \texttt{JAX}.
+
+\textbf{Parameters}
+
+\texttt{A}: array like, shape $(d,d)$ \newline
+\hspace*{1cm}  $d \times d$ matrix \\
+\texttt{b}: array like, shape $\{(d,), ( d, k)\}$ \\
+\hspace*{1cm}    $d$ dimensional vector \\
+\texttt{m}: int; optional \\
+\hspace*{1cm}      desired degree of the polynomial \\
+\texttt{mode}: str; default: \texttt{`adapt'} \\
+\hspace*{1cm}      method to choose the nugget; should be one of \texttt{`adapt'} or \texttt{`cond'}\\
+\texttt{extrap}: bool; default: \texttt{True}\\
+\hspace*{1cm}      use extrapolation to calculate the approximate solution\\
+\texttt{JAX\_enabled}: bool; default: \texttt{False}\\
+\hspace*{1cm}      switch to \texttt{True} to use custom forward differentiation from \texttt{JAX}\\
+\texttt{sigma\_star}: float; optional\\
+\hspace*{1cm}      value of the nugget\\
+\texttt{Sigma\_ref}: list; optional\\
+\hspace*{1cm}     reference design to choose \texttt{sigma\_star}
+
+\textbf{Returns}
+
+\texttt{x}: array like, shape  $\{(d,), ( d, k)\}$\\
+\hspace*{1cm}      approximate solution to the system $Ax = b$. Returned shape is same as shape of $b$.
+
+\section{Additional Experimental Results}
+\label{app: extra}
+\subsection{Additional results from \cref{sec: experiments}}
+
+\begin{table} [t!]
+\caption{Mean and standard deviation of absolute error across multiple runs (with different seeds and randomly spaced $\{z_i\}$) averaged over the 100 ill-conditioned matrices in the bottom-right quarter for the experiment in \cref{sec: solver acc}. Apart from  \texttt{TSVD}, various versions of \texttt{autonugget}, with and without extrapolation have the best performance compared to other baselines. \texttt{autonugget-cond} (as described in \cref{sec: autonugget_cond}) has the least mean absolute error after \texttt{TSVD}, followed by \texttt{autonugget}.}
+\centering
+\begin{tabular}{c|c|c} \label{tab: errors_quarter}
+& Mean & Standard Deviation \\
+\midrule
+\texttt{autonugget} &1.80e-04 & 1.71e-05 \\
+\texttt{autonugget-cond} & \textbf{1.41e-04} & 2.91e-07 \\
+\texttt{LU} & 2.52e+06 & 3.72e+06 \\
+\texttt{LU-fixed} & 5.73e-04 & 2.90e-06 \\
+\texttt{LU-adapt} & 2.31e-04 & 1.61e-05 \\
+\texttt{LU-cond} & 1.95e-04 & 1.23e-06 \\
+\texttt{CG} & 4.84e-04 & 9.87e-06 \\
+\texttt{LSTSQ} &5.00e-04 & 9.57e-05 \\
+\texttt{SVD} & 2.56e+02 & 5.60e+00\\
+\texttt{TSVD} & \textbf{7.12e-06} & 6.37e-07 \\
+\end{tabular}
+\end{table}
+
+
+\begin{table} [t!]
+\caption{Mean and standard deviation of error across multiple runs averaged over all 900 matrices for the experiment in \cref{sec: solver acc}. For this larger set of matrices, extrapolated versions of \texttt{autonugget} -- \texttt{autonugget} and \texttt{autonugget-cond} perform well after \texttt{TSVD}. }
+% \color{red}{JC: What are the rows? This seems to tell the story that CG is better, but doesn't this contradict the story from the plots...?}
+\centering
+\begin{tabular}{c|c|c} \label{tab: errors_full}
+& Mean & Standard Deviation \\
+\midrule
+\texttt{autonugget} & 2.41e-04 & 7.68e-06  \\
+\texttt{autonugget-cond} & \textbf{1.20e-04} & 9.98e-07 \\
+\texttt{LU} & 5.50e+15 & 1.86e+16 \\
+\texttt{LU-fixed} & 2.27e-04 & 9.18e-07 \\
+\texttt{LU-adapt} & 3.89e-04 & 1.34e-05 \\
+\texttt{LU-cond} & 1.82e-04 & 1.18e-06 \\
+\texttt{CG} & 2.30e-02 & 4.73e-04 \\
+\texttt{LSTSQ} & 2.02e-03 & 2.31e-04 \\
+\texttt{SVD} & 3.79e+02 & 2.11e+02 \\
+\texttt{TSVD} & \textbf{9.37e-06} & 2.05e-07 \\
+
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width = \textwidth]{Fig13.pdf}
+\caption{Absolute errors of all methods for the experiment in \cref{fig: error_sqexp}.}
+\label{fig: error_abs}
+\end{figure*}
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width = \textwidth]{Fig6.pdf}
+\caption{Results on the Mat\'ern kernel matrices.  Here we compare \texttt{autonugget} to our baselines, varying the dimension $d$ of the matrix and the length-scale $\ell$ of the kernel.}
+\label{fig: error_mtk}
+\end{figure*}
+
+\begin{figure*}[t!]
+% \centering
+% \includegraphics[width = \textwidth,clip,trim = 0cm 28cm 0cm 22cm]{figures/cartoons.pdf}
+\includegraphics[width = \textwidth]{Fig7.pdf}
+\caption{Results on non-kernel type matrices.  
+Here we compared \texttt{autonugget} to our baselines, for a set of positive definite matrices generated as a product of $UDU^\top$, where $U$ is an orthogonal matrix drawn from a Haar measure, and $D$ is a diagonal matrix of eigenvalues drawn randomly from 
+$\mathcal{U}(0.01, \text{maximum eigenvalues})$. This ensures that the matrices are ill-conditioned as the maximum eigenvalue increases. We can see that \texttt{autonugget} performs almost the same as \texttt{LU}, due to the matrices still being well-conditioned, even for an condition number of $\approx 10^{10}$. \texttt{autonugget} performs better than \texttt{LU-fix} for better conditioned matrices, due to the fixed nugget being too large. \texttt{autonugget} performs much better than \texttt{CG} as well, possibly due to the default tolerance being too high for such matrices.} 
+\label{fig: error_nk}
+\end{figure*}
+
+\begin{figure}
+\centering
+\includegraphics[width = \textwidth]{Fig8.png}
+\caption{Results on the squared exponential kernel matrices, comparing solutions with no extrapolation and extrapolation using different degree polynomials. All the relative errors are with respect to \texttt{autonugget} with the default choice of extrapolation using 2 linear solves. 
+% \textcolor{blue}{[CJO:  Can we use $n$ to denote the number of linear solves that comprise the dataset, as in the main text?]}
+}
+\label{fig: error_poly}
+\end{figure}
+
+\begin{figure}
+% \centering
+% \includegraphics[width = \textwidth,clip,trim = 0cm 28cm 0cm 22cm]{figures/cartoons.pdf}
+\includegraphics[width = \textwidth]{Fig9.pdf}
+\caption{\cref{fig: error_sqexp} computed with a different seed. This shows that the results are robust to stochasticity in the minimum eigenvalue computation.} 
+\label{fig: error_sqexp2}
+\end{figure}
+
+\subsection{\texttt{autonugget-cond}} \label{sec: autonugget_cond}
+Along with the strategy explained in \cref{sec: select h}, the \texttt{autonugget} package provides an alternative strategy to choose $\sigma_\star$ - by choosing the smallest $\sigma$ such that the condition number of $(A + \sigma I)$ does not exceed $10^{8}$ --- as a computationally cheaper alternative which only involves the calculation of condition numbers and avoids the stochastic minimum eigenvalue computations. \cref{fig: errors_cond,fig: rmse_opt_cond} reproduce the results of \cref{fig: error_sqexp,fig: error_mtk,fig: error_poly,fig: error_der,fig: rmse_opt} using \texttt{autonugget-cond} in place of \texttt{autonugget}.
+
+\cref{fig: errors_cond} suggests that \texttt{autonugget-cond} performs slightly better than \texttt{autonugget} for better conditioned linear systems, but \texttt{autonugget} outperforms \texttt{autonugget-cond} in highly ill-conditioned matrices, leading us to favour \texttt{autonugget}. \cref{fig: rmse_opt_cond} shows \texttt{autonugget-cond} results in a smoother loss function, but both the methods converge to very close optimum $\ell$.
+
+
+\begin{figure*}[t!]
+% \centering
+% \includegraphics[width = \textwidth,clip,trim = 0cm 28cm 0cm 22cm]{figures/cartoons.pdf}
+\includegraphics[width = \textwidth]{fig10.pdf}
+\caption{Accuracy assessment of \texttt{autonugget-cond}.   
+Here we compared \texttt{autonugget-cond} to \texttt{autonugget}, in the settings described in \cref{sec: solver acc,sec: der acc}.
+The logarithm of the error relative to \texttt{autonugget} is reported.}
+\label{fig: errors_cond}
+\end{figure*}
+
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width = \textwidth]{fig3b.pdf}
+\caption{Comparison of \texttt{autonugget-cond} with \texttt{autonugget} for the problem in \cref{sec: appl}.}
+\label{fig: rmse_opt_cond}
+\end{figure*}
+
+\subsection{Wall Times}
+
+\cref{fig: times} shows the total time taken by each of the methods in \cref{sec: solver acc}, as a function of the size of the matrix.
+
+While \texttt{autonugget} has the same scaling as solving the linear system (i.e., it scales cubically with dimension), in terms of FLOPS, it involves solving additional linear systems (for the extrapolation) and performing additional SVDs (to identify the nugget). Therefore, as we see in \cref{fig: times}, \texttt{autonugget} does have a higher cost, but it is higher by a constant factor. For our recommended settings (extrapolation with a linear polynomial), only one additional linear solve is required, and so the additional cost is dominated by the search procedure used to identify a nugget.
+
+
+To mitigate the cost of \texttt{autonugget}, when the dimension of the matrix is large we suggest the use of lower-cost alternative \texttt{autonugget-cond}, which also provides a comparable performance to \texttt{autonugget} (\cref{fig: errors_cond}). 
+We re-emphasise that our method has not been fully optimised for speed, so there are likely significant gains to be made here. Furthermore, the goal of our method is to provide a solver that is (possibly slow but) reliable, tuning-free and compatible with JAX, for prototyping and thus the higher cost of our method is a secondary concern.
+
+
+
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width = 0.5\textwidth]{Fig12.png}
+\caption{Comparison of wall time \texttt{autonugget} with other methods for the experiment in \cref{sec: solver acc}.}
+\label{fig: times}
+\end{figure*}
+
+\end{document}
+
+
+\typeout{get arXiv to do 4 passes: Label(s) may have changed. Rerun}
