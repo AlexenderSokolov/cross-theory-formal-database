@@ -1,8 +1,8 @@
 # 题库总清单 / Corpus index
 
-- 生成时间：2026-10-06T19:56:46+0800
-- 条目数：**3505**
-- 权威 master：`/disks/sata1/yupeng/human-proof-corpus/operations/corpusctl/batches/batch-3447-3505-r002/merge/package/manifest.json`
+- 生成时间：2026-10-06T20:12:47+0800
+- 条目数：**3563**
+- 权威 master：`/disks/sata1/yupeng/human-proof-corpus/operations/corpusctl/batches/batch-3505-3563-r002/merge/package/manifest.json`
 - 机器可读：`catalog.json` / `catalog.csv`
 
 | id | arXiv | 版本 | 标题 | 计数命题 | 难度 | 许可证 | item 哈希(前12) |
@@ -1255,6 +1255,7 @@
 | 106377 | 2012.14647 | v2 | Generalized Thomas--Yau Uniqueness Theorems | arxiv:2012.14647:lem | H2 | CC BY 4.0 | `06a977ade23c` |
 | 107371 | 2101.10315 | v3 | $2$-generated axial algebras of Monster type | arxiv:2101.10315:free | H2 | CC BY 4.0 | `500f431c988d` |
 | 110359 | 2104.07507 | v3 | Regularity estimates for fractional orthotropic $p$-Laplacians of mixe | arxiv:2104.07507:lem:iteration | H3 | CC BY 4.0 | `eaeb36fe6f22` |
+| 111327 | 2105.05015 | v3 | Graphical functions in even dimensions | arxiv:2105.05015:thm2a | H2 | CC BY 4.0 | `495cdec2c4bc` |
 | 111967 | 2105.13612 | v2 | The concentration-compactness principle for the nonlocal anisotropic $ | arxiv:2105.13612:thm:unit_norm | H2 | CC BY 4.0 | `03953779c581` |
 | 112429 | 2106.04706 | v2 | The Zero Set of an Electric Field from a Finite Number of Point Charge | arxiv:2106.04706:countable | H3 | CC BY 4.0 | `4143e160c7bf` |
 | 113755 | 2107.06043 | v2 | Local regularity for nonlocal equations with variable exponents | arxiv:2107.06043:thm:holder | H3 | CC BY 4.0 | `dc26ef39d1bf` |
@@ -1268,6 +1269,7 @@
 | 118918 | 2111.13625 | v1 | Fixed Points Theorems in Hausdorff M-distance Spaces | arxiv:2111.13625:th::m-kcontraction | H2 | CC BY 4.0 | `580231901467` |
 | 119651 | 2112.07573 | v3 | Simplicial approximation to CW complexes with spherical Delaunay trian | arxiv:2112.07573:lem:decreasecoveringrad | H2 | CC BY 4.0 | `0a958ff830cb` |
 | 119891 | 2112.10385 | v3 | Nearby Special Lagrangians | arxiv:2112.10385:lem | H2 | CC BY 4.0 | `59c7fe127c39` |
+| 120050 | 2112.12434 | v3 | Moduli Space of Sheaves and Categorified Commutator of Functors | arxiv:2112.12434:lcor | H2 | CC BY 4.0 | `b89e5f90957e` |
 | 121873 | 2202.04571 | v1 | Harnack inequality for nonlocal problems with non-standard growth | arxiv:2202.04571:lem:fprimeinvadd | H2 | CC BY 4.0 | `510f12ab0458` |
 | 123264 | 2203.07875 | v1 | Regret Bounds for Expected Improvement Algorithms in Gaussian Process  | arxiv:2203.07875:lem3.5 | H2 | CC BY 4.0 | `7d45680c4e80` |
 | 123875 | 2203.15940 | v3 | Detrended Fluctuation Analysis for Continuous Real Variable Functions | arxiv:2203.15940:potef | H2 | CC BY 4.0 | `f34f7883d374` |
@@ -1297,10 +1299,12 @@
 | 134549 | 2212.03121 | v1 | On the Size of Chromatic Delaunay Mosaics | arxiv:2212.03121:thm:overlay_size_for_de | H2 | CC BY 4.0 | `440f2dabfa69` |
 | 134648 | 2212.04466 | v25 | A Regularized Finite-Difference Approximation of Surface-restricted Em | arxiv:2212.04466:lemma:extraction | H2 | CC BY 4.0 | `0dd4fbe0dfcd` |
 | 134761 | 2212.05910 | v2 | \bf Self-dual matroids from canonical curves | arxiv:2212.05910:prop:containment1 | H2 | CC BY 4.0 | `76c2bfa92e51` |
+| 135211 | 2212.11371 | v2 | On the graph of the dimension function of the Lagrange and Markov spec | arxiv:2212.11371:l.plateaux | H2 | CC BY 4.0 | `1ee2719c29aa` |
 | 135531 | 2212.14734 | v10 | A Set-theoretic Approach to Regularity of 3D Decaying Turbulence | arxiv:2212.14734:prop | H2 | CC BY 4.0 | `4c96b07d61b3` |
 | 136072 | 2301.05700 | v2 | Applications of representation theory and of explicit units to Leopold | arxiv:2301.05700:prop:infinitepol | H2 | CC BY 4.0 | `3b36765b2853` |
 | 136346 | 2301.08706 | v2 | A series of Nash resolutions of a singular foliation | arxiv:2301.08706:lemma:dimensions | H2 | CC BY 4.0 | `7f2b50e0b678` |
 | 136696 | 2301.12933 | v3 | Constructing edge-disjoint Steiner trees in Cartesian product networks | arxiv:2301.12933:lem2-1 | H3 | CC BY 4.0 | `46bba0650e28` |
+| 137109 | 2302.04014 | v2 | Extension of Hodge norms at infinity | arxiv:2302.04014:t:descent | H2 | CC BY 4.0 | `935a6ab0aa4e` |
 | 137145 | 2302.04353 | v4 | Solving the Scattering Problem for Open Wave-Guide Networks, I\\Fundam | arxiv:2302.04353:prop2.94 | H3 | CC BY 4.0 | `ddac80738b3e` |
 | 137729 | 2302.11425 | v4 | Sums of squares in function fields over a henselian valued field | arxiv:2302.11425:inequality-p' | H2 | CC BY 4.0 | `ddf2437d3fff` |
 | 137912 | 2302.13787 | v6 | \bf On image ideals of nice and quasi-nice derivations on $R[X_1,X_2]$ | arxiv:2302.13787:top-degree-ideal | H2 | CC BY 4.0 | `dbf44eec8aac` |
@@ -1316,6 +1320,7 @@
 | 142091 | 2305.16901 | v5 | Generalizing Adam To Manifolds For Efficiently Training Transformers | arxiv:2305.16901:theorem | H2 | CC BY 4.0 | `1d6ce0d829d3` |
 | 142892 | 2306.08160 | v3 | Degenerate homoclinic bifurcations in complex dimension 2 | arxiv:2306.08160:lem:elementary_analysis | H2 | CC BY 4.0 | `04e8a4b5b022` |
 | 143109 | 2306.11153 | v2 | On the mod $2$ cohomology algebra of oriented Grassmannians | arxiv:2306.11153:kercapker2 | H2 | CC BY 4.0 | `56d527dfa066` |
+| 144160 | 2307.05762 | v1 | Approximating the Value of Energy-Parity Objectives in Simple Stochast | arxiv:2307.05762:lemma | H2 | CC BY 4.0 | `71df71d47976` |
 | 144800 | 2307.13935 | v2 | The difference variational bicomplex and multisymplectic systems | arxiv:2307.13935:thm | H2 | CC BY 4.0 | `a2a054acbacf` |
 | 146455 | 2309.00963 | v2 | Quantitative observability for one-dimensional Schr\"odinger equations | arxiv:2309.00963:le:technical | H3 | CC BY 4.0 | `ed963e7c059a` |
 | 146921 | 2309.06349 | v2 | Generalized Regret Analysis of Thompson Sampling using Fractional Post | arxiv:2309.06349:lem:post | H3 | CC BY 4.0 | `96e1540ab2fd` |
@@ -1349,6 +1354,7 @@
 | 153637 | 2401.15719 | v5 | Rates of Convergence in the Central Limit Theorem for Markov Chains, w | arxiv:2401.15719:thm:-martingale-clt | H3 | CC BY 4.0 | `5c9966705df9` |
 | 154720 | 2402.11200 | v5 | Tight Bounds for Linear and Non-Linear Contraction of Divergences via  | arxiv:2402.11200:thm:psinormscontraction | H2 | CC BY 4.0 | `2db67c825bc3` |
 | 154733 | 2402.11284 | v2 | Fragment-wise differentiable structures | arxiv:2402.11284:lem-lim-star-ug-weak | H2 | CC BY 4.0 | `f79f9a90497a` |
+| 154757 | 2402.11616 | v3 | Conservation of Ramsey's theorem for pairs\\ and well-foundedness | arxiv:2402.11616:lemma | H2 | CC BY 4.0 | `7105b6349362` |
 | 154785 | 2402.12056 | v2 | Malliavin Calculus for rough stochastic differential equations | arxiv:2402.12056:prop:-uniqueness-truly- | H2 | CC BY 4.0 | `b05d8f6776c6` |
 | 155106 | 2402.16169 | v2 | Arc-distinguishing of orientations of graphs | arxiv:2402.16169:thm:-bipartite_bounds | H2 | CC BY 4.0 | `657cc8b01aa5` |
 | 155794 | 2403.05481 | v3 | The Zilber--Pink conjecture for products of curves with highly degener | arxiv:2403.05481:prop1 | H2 | CC BY 4.0 | `8e196057920e` |
@@ -1365,6 +1371,8 @@
 | 158330 | 2404.18744 | v1 | Differential Inclusions involving the curl operator | arxiv:2404.18744:ilem2 | H2 | CC BY 4.0 | `d32d386b6bdd` |
 | 158369 | 2404.19210 | v2 | Character Sheaves on Reductive Lie Algebras in Positive Characteristic | arxiv:2404.19210:lem_form_of_ss | H2 | CC BY 4.0 | `a114f68912a5` |
 | 158805 | 2405.04422 | v1 | Homotopy braid groups are torsion-free | arxiv:2405.04422:lemnofixptswelded | H2 | CC BY 4.0 | `497ea2ab34aa` |
+| 158865 | 2405.05249 | v2 | Effective correlation and decorrelation for newforms, and weak subconv | arxiv:2405.05249:thm:1 | H2 | CC BY 4.0 | `0dc2df696b8a` |
+| 159181 | 2405.09099 | v2 | Local strong magnetic fields and the Little-Parks effect | arxiv:2405.09099:prop:conv-min | H2 | CC BY 4.0 | `d75b71420ae6` |
 | 160309 | 2406.03050 | v3 | On a parity result for the symmetric square of modular forms with cong | arxiv:2406.03050:thm-prop-lambda | H2 | CC BY 4.0 | `86e68ab2608d` |
 | 160383 | 2406.03981 | v2 | Quadrature error estimates on non--matching grids\\in a fictitious dom | arxiv:2406.03981:prop:l2grad_estimate | H3 | CC BY 4.0 | `7711fed13be7` |
 | 160526 | 2406.05960 | v4 | On Conjecture of Binomial Edge Ideals of Linear Type | arxiv:2406.05960:prop.p-mon | H2 | CC BY 4.0 | `e5239998f4d6` |
@@ -1376,10 +1384,12 @@
 | 161371 | 2406.17738 | v2 | Average signature and 4-genus of 2-bridge knots | arxiv:2406.17738:prop.jbound | H3 | CC BY 4.0 | `5686ae68d440` |
 | 161438 | 2406.18855 | v2 | Limiting partition function for the Mallows model: a conjecture and pa | arxiv:2406.18855:lemma | H3 | CC BY 4.0 | `d1fef3244f5c` |
 | 161628 | 2407.01236 | v2 | The reverse mathematics of the pigeonhole hierarchy | arxiv:2407.01236:proposition | H2 | CC BY 4.0 | `ba3f3fc4c219` |
+| 161638 | 2407.01377 | v3 | On Rankin-Selberg integral structures and Euler systems for $\mathrm{G | arxiv:2407.01377:lem-identification-of-l | H2 | CC BY 4.0 | `da7c6e4085b7` |
 | 161679 | 2407.02022 | v3 | Upper semicontinuity of algebraic dimension | arxiv:2407.02022:lem:revised-global-comp | H2 | CC BY 4.0 | `d10d2553c248` |
 | 161743 | 2407.02771 | v2 | Examining the impact of forcing function inputs on structural identifi | arxiv:2407.02771:infsafe | H2 | CC BY 4.0 | `a95a6e4af479` |
 | 161778 | 2407.03270 | v3 | Lattices, Gates, and Curves: GKP codes as a Rosetta stone | arxiv:2407.03270:prop:distance | H2 | CC BY 4.0 | `da2e7548fb01` |
 | 161886 | 2407.04850 | v3 | On the modified Zakharov--Kuznetsov equation on the cylinder: A trilin | arxiv:2407.04850:lem:homogeneous-linear- | H2 | CC BY 4.0 | `f38a0de11081` |
+| 162003 | 2407.06442 | v3 | Elementary Brezis--Browder type results and Representation formulae fo | arxiv:2407.06442:l_p | H2 | CC BY 4.0 | `02bf8a3c761b` |
 | 162089 | 2407.07310 | v3 | Optimal Sensor and Actuator Selection for Factored Markov Decision Pro | arxiv:2407.07310:prop:1 | H2 | CC BY 4.0 | `8df9bf6757ba` |
 | 162165 | 2407.08364 | v3 | Scalar Function Topology Divergence: Comparing Topology of 3D Objects | arxiv:2407.08364:proposition | H2 | CC BY 4.0 | `f11cc6eae5f1` |
 | 162187 | 2407.08577 | v3 | On the structure of the $d$-indivisible noncrossing partition posets | arxiv:2407.08577:equation_c_and_c* | H3 | CC BY 4.0 | `d9346bec86b0` |
@@ -1826,6 +1836,7 @@
 | 193258 | 2601.16758 | v2 | \LARGE \bf Noise Resilience and Robust Convergence Guarantees for the  | arxiv:2601.16758:lemma | H2 | CC BY 4.0 | `7228a655f41a` |
 | 193280 | 2601.16945 | v2 | A new class of colored Gaussian graphical models with explicit normali | arxiv:2601.16945:theorem-6-1-rdag-symmet | H2 | CC BY 4.0 | `1c8bba6f9e94` |
 | 193296 | 2601.17171 | v2 | A Unified Kantorovich Duality for Multimarginal Optimal Transport: the | arxiv:2601.17171:theorem-1-compact-multi | H2 | CC BY 4.0 | `588861b1687d` |
+| 193310 | 2601.17358 | v5 | Generalizations of the Squircle-Lemniscate Relation and Keplerian Dyna | arxiv:2601.17358:fundamental_integral_th | H2 | CC BY 4.0 | `f45a735ed6a9` |
 | 193311 | 2601.17380 | v3 | Fixed Point Theorems for Set-Valued Maps with Contractive Orbits | arxiv:2601.17380:t=>p | H2 | CC BY 4.0 | `a355f2995713` |
 | 193320 | 2601.17519 | v2 | The optimal polynomial lower bound on the edge-isoperimetric number of | arxiv:2601.17519:thm:lowerbound_G2 | H2 | CC BY 4.0 | `8e9c8b2f0203` |
 | 193342 | 2601.17765 | v4 | Jacobian rings and the infinitesimal Torelli Theorem | arxiv:2601.17765:lemma | H2 | CC BY 4.0 | `99fb553ca1f4` |
@@ -1839,6 +1850,7 @@
 | 193620 | 2601.21888 | v2 | Synchronization points: growth, asymptotics, congruences, and the sync | arxiv:2601.21888:theorem-30-synchronizat | H3 | CC BY 4.0 | `26f35fbb5a54` |
 | 193627 | 2601.22005 | v2 | Hierarchy of discriminative power and complexity in learning quantum e | arxiv:2601.22005:theorem-a-3-k-equals-N- | H2 | CC BY 4.0 | `1351dab943e9` |
 | 193683 | 2601.23101 | v3 | Bipartite Graphs Are Not Well-Quasi-Ordered by Bipartite Minors: the t | arxiv:2601.23101:theorem-1-tadpole-bipar | H2 | CC BY 4.0 | `96b8a754c8ba` |
+| 193709 | 2602.00274 | v2 | The singular Hitchin fibration, cameral data, and representation theor | arxiv:2602.00274:cameralhomprp | H2 | CC BY 4.0 | `cc24d0111149` |
 | 193726 | 2602.00530 | v2 | On the Hamiltonicity, traceability, and toughness of complements of li | arxiv:2602.00530:t:main | H3 | CC BY 4.0 | `2f869740dd70` |
 | 193769 | 2602.01178 | v2 | From subtractive ideals of semirings to deductive and inductive sets i | arxiv:2602.01178:detthmlatticeuniversalr | H3 | CC BY 4.0 | `ff4bb6527d8a` |
 | 193809 | 2602.01803 | v2 | Polynomial Interpolation of a Vector Field on a Convex Polyhedral Doma | arxiv:2602.01803:proposition-6-2-piecewi | H2 | CC BY 4.0 | `5fb2d0653688` |
@@ -1928,6 +1940,7 @@
 | 196710 | 2603.18646 | v2 | Constructing orientable and negative orientable sequences with asympto | arxiv:2603.18646:lemma:nega_circuit_no_n | H2 | CC BY 4.0 | `2694c454d85d` |
 | 196810 | 2603.19900 | v3 | Bounds on the determinant \\ of an exponential matrix | arxiv:2603.19900:lem:reductionupper | H2 | CC BY 4.0 | `fc5145a7046a` |
 | 196897 | 2603.20947 | v2 | Block Structure and Spectrum of Zero-Divisor Graphs of Lipschitz Quate | arxiv:2603.20947:thm:fullreducedspectrum | H2 | CC BY 4.0 | `861a9561d52f` |
+| 196963 | 2603.21625 | v2 | Permutations with a fixed number of occurrences of a pattern: a case g | arxiv:2603.21625:theorem | H2 | CC BY 4.0 | `579cb132c550` |
 | 196999 | 2603.22134 | v2 | Pansu pullback and spectral complexes | arxiv:2603.22134:prop:triangularity-clas | H3 | CC BY 4.0 | `351b116c75ae` |
 | 197017 | 2603.22431 | v3 | Korn's inequality from the viewpoint of calculus of variations | arxiv:2603.22431:prop:lowerbound2 | H3 | CC BY 4.0 | `23ef131fb54b` |
 | 197022 | 2603.22514 | v2 | Communication-Efficient Approximate Gradient Coding | arxiv:2603.22514:lemma:cost_hadamard_con | H3 | CC BY 4.0 | `9f586bbd754e` |
@@ -2003,13 +2016,17 @@
 | 198918 | 2604.20250 | v2 | Higher rank Gelfand-Kapranov-Zelevinsky fans | arxiv:2604.20250:thm:gkz:complete | H2 | CC BY 4.0 | `65907b2fad76` |
 | 198922 | 2604.20294 | v2 | Lattice-ordered algebras admitting a polynomial growth continuous func | arxiv:2604.20294:corollary-3-7-polynomia | H2 | CC BY 4.0 | `47b67f4707a7` |
 | 198928 | 2604.20387 | v2 | A sharp $p$-subadditive bound for the $\ell_p$ Hausdorff distance from | arxiv:2604.20387:lemma:parallelogram_red | H2 | CC BY 4.0 | `019c12c64ff6` |
+| 199005 | 2604.21201 | v1 | Cannon--Thurston maps for Anosov foliations | arxiv:2604.21201:lem:linf_ray | H2 | CC BY 4.0 | `017ce9609482` |
 | 199033 | 2604.21582 | v2 | Quantum Mixing for Schr\"odinger eigenfunctions in Benjamini-Schramm l | arxiv:2604.21582:le:free_hs_est_exponent | H3 | CC BY 4.0 | `e51ad2d3f220` |
 | 199061 | 2604.21949 | v1 | A note on the sum-product problem for fractal sets | arxiv:2604.21949:lem.sumlowerbounds | H3 | CC BY 4.0 | `0209d5478c83` |
 | 199063 | 2604.21998 | v3 | Minimax Robust Designs for M-Estimated Models — Lemma 3 | arxiv:2604.21998:lemma-3-uniform-converg | H2 | CC BY 4.0 | `4c739a83424c` |
 | 199066 | 2604.22055 | v1 | \bf A Replica Exchange Markov Chain Monte Carlo Method for Disconnecte | arxiv:2604.22055:thm:jacobian_gram | H3 | CC BY 4.0 | `a33bd499bf22` |
 | 199067 | 2604.22058 | v1 | A link between error terms when counting smooth and rough numbers | arxiv:2604.22058:lemrq | H2 | CC BY 4.0 | `27dbab0a8dfb` |
+| 199072 | 2604.22106 | v1 | Stable 2--systole bounds in positive scalar curvature | arxiv:2604.22106:thm:txs2 | H2 | CC BY 4.0 | `daf5b2f00147` |
 | 199073 | 2604.22138 | v2 | \LARGE \bf Training Dynamics and Induced Preconditioning \\ of ReLU Po | arxiv:2604.22138:lemma_j_geometry | H2 | CC BY 4.0 | `dcfea2cf32a9` |
 | 199076 | 2604.22197 | v1 | Trace estimates and improved pointwise bounds for joint Eigenfunctions | arxiv:2604.22197:lwl-2 | H3 | CC BY 4.0 | `8eccc11fc951` |
+| 199078 | 2604.22211 | v1 | A data-driven model reduction approach for backward fractional diffusi | arxiv:2604.22211:error-adj | H2 | CC BY 4.0 | `3b8b44dead9d` |
+| 199080 | 2604.22279 | v1 | Finite-Approximate Solvability of Linear Operator Equations | arxiv:2604.22279:theorem | H3 | CC BY 4.0 | `2a506ebb7a19` |
 | 199083 | 2604.22362 | v1 | Convergence of Timed-Metric Spaces and Causality | arxiv:2604.22362:prop-null-distance-is-g | H2 | CC BY 4.0 | `29dcaf13f38a` |
 | 199084 | 2604.22366 | v2 | Statistical Estimation of Monge Transport Maps via Brenier Potentials | arxiv:2604.22366:lemma | H2 | CC BY 4.0 | `779a2f5fbd24` |
 | 199086 | 2604.22373 | v1 | On simple compact Lie Skew Braces | arxiv:2604.22373:prop:integration-morphi | H3 | CC BY 4.0 | `a5e79375a5c2` |
@@ -2025,6 +2042,8 @@
 | 199110 | 2604.22609 | v1 | DEGENERATION ORDER OF $3\times 3$ NILPOTENT MATRIX TUPLES | arxiv:2604.22609:lemma:s,t,m | H2 | CC BY 4.0 | `797a5561d319` |
 | 199112 | 2604.22630 | v2 | Upper bounds on the running time of bootstrap percolation | arxiv:2604.22630:thm:main | H3 | CC BY 4.0 | `d032ada05a1c` |
 | 199114 | 2604.22635 | v1 | Decent actions of groups on restricted products | arxiv:2604.22635:inf-orb-fix-pt | H2 | CC BY 4.0 | `c3c296d1a083` |
+| 199118 | 2604.22705 | v1 | Planar 1-ended graphs can be periodically coloured | arxiv:2604.22705:lem:wallpaper | H2 | CC BY 4.0 | `0d04d4a89985` |
+| 199123 | 2604.22735 | v1 | Non-linear geometry of multiple zeta values | arxiv:2604.22735:lem | H2 | CC BY 4.0 | `0fe155d136e5` |
 | 199140 | 2604.23104 | v1 | Rank One Completion for Higher Order Tensors | arxiv:2604.23104:thm:mx_null_perturb | H3 | CC BY 4.0 | `ba33351dc34b` |
 | 199146 | 2604.23212 | v1 | Learning Curves and Benign Overfitting of Spectral Algorithms in Large | arxiv:2604.23212:lemma-trans-in-v2 | H2 | CC BY 4.0 | `8442de064bdb` |
 | 199148 | 2604.23220 | v1 | On the Third Hankel Determinant for Inverse Coefficients of Starlike F | arxiv:2604.23220:thm:2.1 | H3 | CC BY 4.0 | `d55dfa4dbaa2` |
@@ -2038,6 +2057,7 @@
 | 199181 | 2604.23690 | v1 | Nonlinear maps preserving the polynomial | arxiv:2604.23690:thm:homogenphipsi | H3 | CC BY 4.0 | `833731c928a8` |
 | 199188 | 2604.23766 | v2 | Revisiting the Hales--Jewett Theorem | arxiv:2604.23766:theorem | H3 | CC BY 4.0 | `aec13d866386` |
 | 199284 | 2604.25228 | v4 | Linear continuous operators with bounded supports | arxiv:2604.25228:lem | H2 | CC BY 4.0 | `febd1f1e56fe` |
+| 199290 | 2604.25250 | v2 | Triangle packings in randomly perturbed graphs | arxiv:2604.25250:lem:regularity | H2 | CC BY 4.0 | `2a00d421b055` |
 | 199293 | 2604.25280 | v1 | When the optimal betting wealth growth rate equals $\KLinf$ | arxiv:2604.25280:prop:eprocess-rate | H2 | CC BY 4.0 | `4ff8363b1790` |
 | 199296 | 2604.25341 | v1 | Maximum ratio of (graph) irregularities | arxiv:2604.25341:thm:conj25_elegant | H2 | CC BY 4.0 | `58dc06be44e4` |
 | 199309 | 2604.25513 | v1 | Contraction of hypersurfaces with positive sectional curvature in hype | arxiv:2604.25513:s4.lem-pinc | H3 | CC BY 4.0 | `30ff4ced89eb` |
@@ -2075,12 +2095,14 @@
 | 200393 | 2605.11950 | v2 | Weil-Moore anima | arxiv:2605.11950:localtate | H2 | CC BY 4.0 | `2532618932f9` |
 | 200421 | 2605.12410 | v2 | Model-based Bootstrap of Controlled Markov Chains | arxiv:2605.12410:lem:ref-chain | H2 | CC BY 4.0 | `f406a2ca78d6` |
 | 200471 | 2605.13014 | v2 | A note on unitary invariance of Connes spectral distances of quantum s | arxiv:2605.13014:theorem | H2 | CC BY 4.0 | `0401104aab72` |
+| 200492 | 2605.13300 | v1 | Tautological Modular Forms of Level Two\\ and Degree Two | arxiv:2605.13300:proposition | H2 | CC BY 4.0 | `ae7329d161c6` |
 | 200560 | 2605.14159 | v3 | Boundary dynamics, triple transitivity, and mixed identities in weakly | arxiv:2605.14159:gromov-product-is-bound | H2 | CC BY 4.0 | `938a0ca701f6` |
 | 200607 | 2605.14732 | v3 | Compact Embedding Theorem Associated with Classical Weight Functions i | arxiv:2605.14732:dderiv | H2 | CC BY 4.0 | `5c8882231938` |
 | 200617 | 2605.14846 | v2 | Successive~Convex~Optimization for Transformer~Encoder~Model~Predictiv | arxiv:2605.14846:eq:softmax_bnds | H2 | CC BY 4.0 | `7b522d9eb012` |
 | 200786 | 2605.17331 | v2 | On the Minimax Bifurcation Formula | arxiv:2605.17331:lem:ps-application | H3 | CC BY 4.0 | `aebcafdaec1a` |
 | 200788 | 2605.17338 | v2 | At Most Two Infinite Blue Clusters in the CMR Representation of the Ed | arxiv:2605.17338:lem:resample | H2 | CC BY 4.0 | `9a8cb8962b25` |
 | 200800 | 2605.17501 | v2 | The $(n-2,2)$-Spectrum of a Graph | arxiv:2605.17501:proposition | H2 | CC BY 4.0 | `65108f21e9b4` |
+| 200896 | 2605.19143 | v2 | Weak cosmic censorship for the circularly symmetric \\ Einstein-scalar | arxiv:2605.19143:blueshift-lemma-bound-1 | H3 | CC BY 4.0 | `342271c1aa91` |
 | 200897 | 2605.19164 | v3 | Weak Convergence and Gaussian Limits for a General-Dimensional Origin- | arxiv:2605.19164:thm:op-self-adjoint | H2 | CC BY 4.0 | `20cd4215c923` |
 | 200936 | 2605.19706 | v5 | Finite-Precision Quantum Mechanics: Quantum Parcels, Information and G | arxiv:2605.19706:thm:volcontraction_qubi | H2 | CC BY 4.0 | `4583479531b1` |
 | 201046 | 2605.21170 | v2 | Model Comparison Games for Generalized Quantifiers | arxiv:2605.21170:lem:model-game-sound | H2 | CC BY 4.0 | `ecfa8ece8037` |
@@ -2105,11 +2127,38 @@
 | 202274 | 2606.07785 | v3 | Explicit bounds for Dickman's function | arxiv:2606.07785:lemalpha | H2 | CC BY 4.0 | `e7b1e70ee17e` |
 | 202293 | 2606.07959 | v2 | On the sequence $\gcd(a^n-1,b^n-1)$ | arxiv:2606.07959:thm:common-factor | H2 | CC BY 4.0 | `602471554761` |
 | 202337 | 2606.08556 | v2 | From generalized Poincar\'e to Poincar\'e-Sobolev inequalities via sel | arxiv:2606.08556:thm-ps-4 | H3 | CC BY 4.0 | `38c09b569014` |
+| 202348 | 2606.08651 | v2 | The Four-Point Picard Theorem for Quaternionic Slice Regular Functions | arxiv:2606.08651:cor:finite-order-q-data | H2 | CC BY 4.0 | `150676441f18` |
+| 202396 | 2606.09321 | v2 | Proof of Conjecture 19 of Ballantine, Beck, Merca, and Sagan on Elemen | arxiv:2606.09321:lem:b2-max | H2 | CC BY 4.0 | `c272bbcf8877` |
 | 202416 | 2606.09673 | v2 | Uniformly recurrent subalgebras in finite von Neumann algebras | arxiv:2606.09673:lemclosedlineprojection | H3 | CC BY 4.0 | `a841b98fd724` |
 | 202431 | 2606.09807 | v2 | A pathological de Branges--Rovnyak space | arxiv:2606.09807:l:deltavcalc | H3 | CC BY 4.0 | `a934e9f2f08c` |
+| 202530 | 2606.11222 | v1 | A Geometric Profile of Semantic Information in Text:\\ Frame-Condition | arxiv:2606.11222:thm:dpp-breadth | H2 | CC BY 4.0 | `09629321ccbc` |
+| 202538 | 2606.11301 | v1 | Spectral Factorization and Hypergeometric Representations of the Alexa | arxiv:2606.11301:thm:spectral_fact | H2 | CC BY 4.0 | `c98ede8bcfa6` |
+| 202548 | 2606.11410 | v1 | On Balance, To What Degree is Burr's Conjecture True? | arxiv:2606.11410:commonlem | H3 | CC BY 4.0 | `179bf0508bbb` |
+| 202552 | 2606.11475 | v1 | Linear Combination of Hamiltonian Simulation with Commutator Scaling | arxiv:2606.11475:trap-budget | H2 | CC BY 4.0 | `e701b3d9d5d3` |
+| 202555 | 2606.11498 | v1 | Generic dc-automorphisms of two-sorted ultrametric spaces | arxiv:2606.11498:thm:unique_onepoint_ext | H2 | CC BY 4.0 | `ef6b97959897` |
 | 202556 | 2606.11511 | v2 | Convergence of a Critical Multitype Branching Particle System with Mix | arxiv:2606.11511:thm:mixed-renewal | H3 | CC BY 4.0 | `afbe73586c6d` |
+| 202566 | 2606.11677 | v1 | Feynman--Kac formula for the heat equation with a one-center point int | arxiv:2606.11677:lem:i1estimate | H2 | CC BY 4.0 | `a3b5d6665eba` |
+| 202568 | 2606.11694 | v1 | The stability of Margulis space-times with parabolic holonomy elements | arxiv:2606.11694:lem:deformnop | H2 | CC BY 4.0 | `72cc5abc23eb` |
+| 202569 | 2606.11706 | v1 | Multivariate Period Rings | arxiv:2606.11706:proposition | H2 | CC BY 4.0 | `0c687ad5c8b8` |
+| 202570 | 2606.11720 | v1 | Strict 2.5D Shadows for One-Component Navier--Stokes Regularity | arxiv:2606.11720:pi:lem:localized-qual-r | H3 | CC BY 4.0 | `73175544d748` |
+| 202578 | 2606.11847 | v1 | \bf Degree of tensor train varieties \\ via integral geometry | arxiv:2606.11847:prop:recursive_coarea_f | H2 | CC BY 4.0 | `495bb2ad2c69` |
 | 202579 | 2606.11852 | v2 | The relaxation complexity of the standard simplex is logarithmic | arxiv:2606.11852:lemfreejoinrelaxation | H2 | CC BY 4.0 | `5e778061d187` |
+| 202581 | 2606.11899 | v1 | Full Mealy automata, complete square complexes, and anti-tori | arxiv:2606.11899:prop:planes | H2 | CC BY 4.0 | `d8e21cef44c0` |
+| 202582 | 2606.11902 | v1 | Delta-Epsilon-Common Knowledge and Quantitative Agreement Theorems | arxiv:2606.11902:lemma:delta_to_p | H2 | CC BY 4.0 | `c3c111f1ed51` |
+| 202585 | 2606.11932 | v1 | On $S$-prime and $S$-primary elements in multiplicative lattices | arxiv:2606.11932:thm | H2 | CC BY 4.0 | `a39ba578ba14` |
+| 202586 | 2606.11943 | v1 | Continuum-wise hyperbolicity is exactly the pseudo-Anosov dynamics wit | arxiv:2606.11943:lem:drho | H3 | CC BY 4.0 | `a08f60f1fc3c` |
+| 202588 | 2606.11958 | v1 | On determinantal formulas for hermitian random matrices | arxiv:2606.11958:lk | H3 | CC BY 4.0 | `90004c506f29` |
+| 202589 | 2606.11960 | v1 | Hartee-type heat equation associated to fractional anharmonic oscillat | arxiv:2606.11960:welposedness2 | H3 | CC BY 4.0 | `c937177074ce` |
+| 202592 | 2606.11979 | v1 | Algebraic Varieties and Ideal Theory\\ in Combinatorial Click-Reaction | arxiv:2606.11979:prop:omega5 | H2 | CC BY 4.0 | `03dbd888716c` |
+| 202596 | 2606.12009 | v1 | Dirichlet--Neumann duality for the Basic Spectrum of Riemannian Submer | arxiv:2606.12009:dirichletneumannproblem | H2 | CC BY 4.0 | `1dc067132e95` |
+| 202599 | 2606.12102 | v1 | Holomorphic Interpolation of Multivariate Completely Monotone Function | arxiv:2606.12102:th:lap-conv | H3 | CC BY 4.0 | `24efb1aa98d2` |
+| 202601 | 2606.12135 | v1 | Mean-field theory via dissociated arrays for particle systems interact | arxiv:2606.12135:estlambda | H3 | CC BY 4.0 | `19fbe24fcd37` |
+| 202606 | 2606.12185 | v1 | \bf Pivotal and identification-robust \\nonparametric inference in lin | arxiv:2606.12185:lem:lip | H2 | CC BY 4.0 | `f582554699d9` |
+| 202608 | 2606.12197 | v1 | On Brouwer's Laplacian conjecture | arxiv:2606.12197:lem:projectionreduction | H2 | CC BY 4.0 | `472f8d32cfb8` |
+| 202609 | 2606.12202 | v1 | Sparse metric spaces and sparse ends | arxiv:2606.12202:aendinvariance | H2 | CC BY 4.0 | `61a86fe9d680` |
 | 202616 | 2606.12331 | v2 | Asymptotics of the Meandering Number of a Cyclic Permutation | arxiv:2606.12331:lem:estimate_prob | H2 | CC BY 4.0 | `753a406f3783` |
+| 202619 | 2606.12359 | v1 | Capparelli's partition theorem as part of an infinite hierarchy:\\ Com | arxiv:2606.12359:corollary | H2 | CC BY 4.0 | `94faf043f6e6` |
+| 202622 | 2606.12410 | v1 | Arrangements of Consecutive Numbers in Mallows Permutations | arxiv:2606.12410:thm:qk:value | H3 | CC BY 4.0 | `938903aba6e6` |
 | 202647 | 2606.12773 | v1 | Near-Trinions: Complete Classification of\\ Unital Three-Dimensional R | arxiv:2606.12773:prop:maxideals | H2 | CC BY 4.0 | `59ccddd659a9` |
 | 202683 | 2606.13199 | v1 | On a local variant of the 12th Delfino problem---the $\Sigma$-side | arxiv:2606.13199:mn-regularity | H2 | CC BY 4.0 | `a2eba30ebf67` |
 | 202684 | 2606.13210 | v1 | On a local variant of the 12th Delfino problem --- the $\Pi$-side | arxiv:2606.13210:lem:rho-allowable-produ | H3 | CC BY 4.0 | `4f21bf3c10fd` |
@@ -2153,6 +2202,15 @@
 | 203882 | 2606.28825 | v2 | \sf Deformation maps on quasi-twilled Lie conformal algebras | arxiv:2606.28825:eq:induced-bracket-ii | H2 | CC BY 4.0 | `b08df4673e5c` |
 | 203910 | 2606.29183 | v2 | No involutions in the missing Moore graph | arxiv:2606.29183:thm:local | H2 | CC BY 4.0 | `84c6fd5839d5` |
 | 203923 | 2606.29292 | v6 | Gaussian Operator Algebras:\\ Observability, Reconstruction, and Micro | arxiv:2606.29292:thm:arity | H2 | CC BY 4.0 | `f7d73d1c88b8` |
+| 204001 | 2606.30230 | v1 | A Distributionally Robust Framework for Learned Reconstructions in Inv | arxiv:2606.30230:lemma:fenchel-requireme | H2 | CC BY 4.0 | `72d8b0251c15` |
+| 204008 | 2606.30287 | v1 | On the Probability a Weighted Bernoulli Sum Exceeds Its Mean | arxiv:2606.30287:prop:counterexample | H2 | CC BY 4.0 | `377a8ba4ced4` |
+| 204009 | 2606.30289 | v1 | Structural functional identifiability and model discovery in \\ differ | arxiv:2606.30289:prop:diffalg_one_parame | H2 | CC BY 4.0 | `15ff49ecfaa7` |
+| 204011 | 2606.30325 | v1 | Thermodynamic Limits of Stochastic Chemical Reaction Networks with Pho | arxiv:2606.30325:m2exfp | H3 | CC BY 4.0 | `302a37d19ab5` |
+| 204012 | 2606.30328 | v1 | Extrapolating from Regularised Solutions for Solving Ill-Conditioned L | arxiv:2606.30328:cor:-extrap-error | H2 | CC BY 4.0 | `2a5f56d202df` |
+| 204016 | 2606.30392 | v1 | \bf Convergence of the PML method for scattering problems in poroelast | arxiv:2606.30392:pmlhd | H2 | CC BY 4.0 | `06c83412c40c` |
+| 204017 | 2606.30400 | v1 | What to Expect When You're Expecting | arxiv:2606.30400:lem:finex | H3 | CC BY 4.0 | `316e1a753ca6` |
+| 204023 | 2606.30478 | v1 | Orbits on a product of two flags and a line and the Bruhat order, II | arxiv:2606.30478:l:compare | H2 | CC BY 4.0 | `a940fd049c89` |
+| 204024 | 2606.30486 | v1 | An entropic analogue of the MMS conjecture | arxiv:2606.30486:last_lemma | H3 | CC BY 4.0 | `899448971480` |
 | 204062 | 2606.30954 | v2 | Perimetric Contractions and Their Iterates in Complete $b$-Metric Spac | arxiv:2606.30954:prop:continuity | H2 | CC BY 4.0 | `34fdc8621c78` |
 | 204163 | 2607.00311 | v2 | Thermal Concentration and Poisson--Dirichlet Edge Statistics for Rando | arxiv:2607.00311:prop:local-critical-the | H3 | CC BY 4.0 | `473fa74b88fb` |
 | 204182 | 2607.00637 | v2 | \LARGE \bf Iterative graph lifting for automatic design of path-comple | arxiv:2607.00637:thm:relaxation_forward | H2 | CC BY 4.0 | `d154fd9d4586` |
