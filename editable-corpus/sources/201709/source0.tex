@@ -1,0 +1,1456 @@
+% concatenated from main.tex
+\pdfoutput=1
+
+\documentclass{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{nicefrac}
+
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+
+\usepackage[preprint]{icml2026}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage{bm}
+
+\usepackage[capitalize,noabbrev]{cleveref}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\usepackage{xcolor}
+\definecolor{cbblue}{RGB}{0,114,178}
+\definecolor{cborange}{RGB}{230,159,0}
+\definecolor{cbteal}{RGB}{0,158,115}
+\definecolor{plotblue}{RGB}{65,105,225}
+\definecolor{plotred}{RGB}{220,20,60}
+\definecolor{plotgreen}{RGB}{34,139,34}
+\newcommand{\termaccum}[1]{\textcolor{cbblue}{#1}}
+\newcommand{\termflux}[1]{\textcolor{cborange}{#1}}
+\newcommand{\termsource}[1]{\textcolor{cbteal}{#1}}
+
+\newcommand{\TODO}[1]{}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Rn}{\mathbb{R}^N}
+\newcommand{\Rnn}{\mathbb{R}^{N \times N}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\GP}{\mathcal{GP}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\bv}{\mathbf{v}}
+\newcommand{\bmu}{\boldsymbol{\mu}}
+\newcommand{\bSigma}{\boldsymbol{\Sigma}}
+
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\KL}{KL}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+\newcommand{\fnorm}[1]{\lVert #1 \rVert_{\mathrm{F}}}
+\newcommand{\opnorm}[1]{\lVert #1 \rVert_{\mathrm{op}}}
+
+\icmltitlerunning{Scalable Bayesian Inference for Nonlinear Conservation Laws}
+
+\begin{document}
+
+\twocolumn[
+  \icmltitle{Scalable Bayesian Inference for Nonlinear Conservation Laws}
+
+  \begin{icmlauthorlist}
+    \icmlauthor{Tim Weiland}{tue}
+    \icmlauthor{Philipp Hennig}{tue}
+    \icmlcorrespondingauthor{Tim Weiland}{tim.weiland@uni-tuebingen.de}
+  \end{icmlauthorlist}
+
+  \icmlaffiliation{tue}{Tübingen AI Center, University of Tübingen, Tübingen, Germany}
+
+  \icmlkeywords{Gaussian processes, finite volume methods, sparse approximation, uncertainty quantification, PDEs}
+
+  \vskip 0.3in
+]
+
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+  Nonlinear conservation laws are at the heart of many of the most important dynamical systems in science and engineering.
+  In practical applications, such systems are often subject to various sources of uncertainty, e.g.\ due to sparse or noisy measurements.
+  Inferring physical quantities and fields of interest then becomes an ill-posed problem which both classical numerical methods and modern deep learning-based methods struggle to treat appropriately.
+  Recent work has framed classical numerical methods as Bayesian inference under Gaussian process priors, resulting in a physics-aware treatment of uncertainties.
+  Following this line of work, we develop a novel numerically conservative method for uncertainty-aware simulations of nonlinear conservation laws.
+  We use recent sparse approximation techniques to scale up to large-scale forward and inverse problems.
+  For forward simulation, we inherit the accuracy of classical solvers while providing structured uncertainty quantification.
+  On inverse problems, we recover posteriors over nonparametric source fields in seconds --- outperforming neural baselines that take minutes to produce a less accurate point estimate.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Conservation laws are a subclass of partial differential equations (PDEs) with applications ranging from weather prediction \citep{lauritzenNumericalTechniquesGlobal2011} and aerodynamics \citep{vosNavierStokesSolvers2002} to flood modeling \citep{kurganovFinitevolumeSchemesShallowwater2018} and subsurface contaminant transport \citep{bearDynamicsFluidsPorous1988}.
+They take the general form
+\begin{equation}
+  \frac{\partial u}{\partial t} + \nabla \cdot F(u) = s,
+  \label{eq:conservation-law-general}
+\end{equation}
+where $u$ denotes the conserved quantity, $F(u)$ the (in general nonlinear) flux operator, and $s$ the source term.
+
+\textbf{Real-world applications incur uncertainty.} In the classical \textit{forward problem}, $u$ is the object of interest: Under initial and boundary conditions, it is inferred from the known flux and source terms.
+Practical applications however often operate in settings that lack information:
+Sensors measuring relevant quantities are noisy and often only available at sparse locations for cost reasons.
+Worse, in many applications the source itself is unknown—a contamination event must be localized, or an emission field reconstructed, from sparse measurements of $u$. These \textit{inverse problems} admit multiple solutions consistent with the data.
+Orthogonal to these issues, any solver used to approach these problems may only produce an approximate solution.
+Together, these factors demand methods that quantify uncertainty -- whether epistemic, computational, or otherwise -- to help practitioners make informed decisions.
+
+\textbf{In the machine learning community}, neural approaches such as physics-informed neural networks \citep{raissiPhysicsinformedNeuralNetworks2019} and neural operators \citep{kovachkiNeuralOperatorLearning2024} have gained popularity for PDE solving.
+While powerful, they are point estimators by design.
+Ensembles or Bayesian variants may quantify uncertainty, but at significant computational cost and often with poor calibration \citep{podinaConformalizedPhysicsInformedNeural2024}.
+
+\textbf{Probabilistic numerical methods} frame numerical methods as Bayesian inference, thereby treating uncertainty naturally while matching the accuracy of classical methods in the mean \citep{hennigProbabilisticNumericsComputation2022a}.
+Recent work has developed such methods for the solution of PDEs by imposing a Gaussian process (GP) prior over the object(s) of interest and conditioning on physical information \citep{cockayneBayesianProbabilisticNumerical2019b, pfortnerPhysicsInformedGaussianProcess2024}.
+While this is principled, GP inference naively scales cubically in the discretization resolution.
+These approaches are mostly based on \textit{collocation}, which corresponds to a pointwise discretization of the PDE.
+
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/source_identification.pdf}
+  \caption{\textbf{Source identification from sparse sensor measurements.} Top row: concentration field. Bottom row: inferred source field. Our GP-FVM method (right) recovers the source locations with quantified uncertainty, while a PINN baseline produces a point estimate with artifacts. Our method solves this nonparametric problem in seconds; the PINN requires minutes.}
+  \label{fig:source-identification}
+\end{figure*}
+
+
+\textbf{Numerical conservation.} Conservation laws derive their name from a defining property: quantities such as mass or energy are neither created nor destroyed.
+Numerical methods that fail to preserve this can produce unphysical solutions that drift over time.
+The \textit{finite volume method} (FVM) \citep{eymardFiniteVolumeMethods2000} enforces conservation by construction, discretizing the integral balance rather than the PDE pointwise --- making it the standard in computational fluid dynamics.
+Expressing FVM as a scalable probabilistic numerical scheme has remained an open problem.
+
+\textbf{Recent work} has begun addressing scalability for GP-based PDE solvers. \citet{chenSparseCholeskyFactorization2025} apply a Vecchia approximation to solve nonlinear PDEs, but via collocation.
+\citet{weilandScalingProbabilisticPDE2024} develop a probabilistic FVM, but their method is restricted to linear PDEs and their low-rank approximation does not yield reliable UQ at large scales.
+
+\textbf{Our contributions.}
+We present a scalable method for Bayesian inference on nonlinear conservation laws.
+We formulate the finite volume method as inference under a Gaussian process prior --- extending prior work on linear PDEs to nonlinear flux operators through iterative conditioning.
+To achieve scalability, we extend Vecchia approximations to integral observations and introduce a sparsity-preserving time-stepping scheme.
+Our framework can solve forward and inverse problems alike, while propagating uncertainties and explicitly embedding prior knowledge.
+
+On a source identification inverse problem (\cref{fig:source-identification}), our method recovers nonparametric source fields with quantified uncertainty in seconds, outperforming a physics-informed neural network baseline that requires minutes for a less accurate point estimate.
+\cref{sec:fvm-probabilistic} develops the high-level method, \cref{sec:sparse-inference} addresses scalability, and \cref{sec:experiments} presents experiments.
+
+\section{Probabilistic Conservation Schemes}
+\label{sec:fvm-probabilistic}
+
+Our key insight is that the gold standard discretization for conservation laws, namely the finite volume method (FVM), may be expressed as Bayesian inference under a GP prior.
+We first review how GPs interact with linear functionals (\cref{sec:gp-background}), then recall the classical FVM discretization (\cref{sec:fvm-discretization}), and finally show how to unify them into a coherent Bayesian framework (\cref{sec:gp-fvm}).
+
+
+\subsection{Gaussian Processes and Linear Functionals}
+\label{sec:gp-background}
+
+We model our prior knowledge about the solution function $u$ in \cref{eq:conservation-law-general} through a Gaussian process (GP) prior with mean function $\mu$ and kernel function $k$:
+\begin{equation}
+  u \sim \GP(\mu, k).
+  \label{eq:gp-prior}
+\end{equation}
+In the following, we discuss how to express the simulation of conservation laws as Bayesian inference under this prior.
+
+We leverage that linear transformations of Gaussian processes remain Gaussian:
+If $\ell$ is a bounded linear functional acting on $u$, then $\ell(u)$ is a Gaussian random variable with
+\begin{equation}
+  \ell(u) \sim \Normal\bigl(\ell \mu, \, \ell k \ell^\prime \bigr),
+  \label{eq:single-functional}
+\end{equation}
+where $\ell \mu := \ell[\mu(\cdot)]$ denotes the functional applied to the mean, and $\ell_1 k \ell_2^\prime := \ell_1[x \mapsto \ell_2[k(x, \cdot)]]$ denotes the functionals applied to each argument of the kernel.
+More generally, given a collection of linear functionals $\ell_1, \ldots, \ell_n$, the vector $[\ell_1(u), \ldots, \ell_n(u)]^\top$ is jointly Gaussian:
+\begin{equation}
+  \begin{bmatrix} \ell_1(u) \\ \vdots \\ \ell_n(u) \end{bmatrix}
+  \sim \Normal\left(
+  \begin{bmatrix} \ell_1 \mu \\ \vdots \\ \ell_n \mu \end{bmatrix},
+  \begin{bmatrix}
+      \ell_1 k \ell_1^\prime & \cdots & \ell_1 k \ell_n^\prime \\
+      \vdots                 & \ddots & \vdots                 \\
+      \ell_n k \ell_1^\prime & \cdots & \ell_n k \ell_n^\prime
+    \end{bmatrix}
+  \right).
+  \label{eq:joint-functional}
+\end{equation}
+As a concrete example, consider a GP prior over functions $u: [0, 1] \to \R$.
+We can define an evaluation functional $\ell_1[u] := u(0.5)$ that extracts the function value at the midpoint, and a second-derivative functional $\ell_2[u] := u''(0.5)$ that extracts the curvature.
+Applying \cref{eq:joint-functional}, the pair $\bm{s}_{\text{example}} := (u(0.5), u''(0.5))^\top$ is jointly Gaussian.
+
+Since Gaussians are closed under linear conditioning, we can incorporate observations in closed form.
+Let $\bm{s} \in \Rn$ be Gaussian with mean $\bmu \in \Rn$ and precision matrix $\bm{Q} \in \Rnn$, i.e.\ $\bm{s} \sim \Normal(\bmu, \bm{Q}^{-1})$. Here $N$ denotes the dimension of the joint state $\bm{s}$.
+Given a matrix $\bm{A} \in \R^{M \times N}$ and noisy observations $\bm{A} \bm{s} \sim \Normal(\bm{b}, \sigma^2 \bm{I})$, define $\bm{\hat{Q}} := \bm{Q} + \sigma^{-2} \bm{A}^\top \bm{A}$. The posterior $\bm{s}^* := (\bm{s} \mid \bm{A}\bm{s} = \bm{b})$ is
+\begin{equation}
+  \bm{s}^* \sim \Normal\bigl(\bm{\hat{Q}}^{-1}(\bm{Q} \bmu + \sigma^{-2} \bm{A}^\top \bm{b}), \;\; \bm{\hat{Q}}^{-1}\bigr).
+  \label{eq:gaussian-conditioning-general}
+\end{equation}
+
+Returning to our example:
+We can e.g.\ set $\bm{A} = \begin{bmatrix}0 & 1\end{bmatrix}$ (the row vector selecting $u''(0.5)$ from $\bm{s}_{\text{example}}$) and $\bm{b} = 0$ in \cref{eq:gaussian-conditioning-general} to obtain a posterior of $\bm{s}_{\text{example}}$ that reflects $u''(0.5) \approx 0$.
+We could extend our state by many more, spread-out points at which we evaluate the second derivative (so-called \textit{collocation points}), which would allow us to approximate a solution to the 1D Laplace equation
+\begin{equation}
+  u''(x) = 0. \quad (x \in (0, 1))
+\end{equation}
+Physics-informed GP regression \citep{pfortnerPhysicsInformedGaussianProcess2024} develops this idea systematically: boundary conditions, PDE discretizations and sensor measurements are all just sources of information (in the sense of \citet{cockayneBayesianProbabilisticNumerical2019b}), and conditioning yields a posterior that unifies them.
+
+\subsection{Finite Volume Discretization}
+\label{sec:fvm-discretization}
+The Finite Volume Method (FVM) discretizes \cref{eq:conservation-law-general} by integrating over control volumes $\Omega_1, \dots, \Omega_N$:
+\begin{equation}
+  \frac{\partial}{\partial t} \int_{\Omega_i} u \, dV + \int_{\Omega_i} \nabla \cdot F(u)  \, dV = \int_{\Omega_i} s \, dV .
+  \label{eq:conservation-law-integrated}
+\end{equation}
+The divergence theorem yields:
+\begin{equation}
+  \frac{\partial}{\partial t} \termaccum{\int_{\Omega_i} u \, dV} + \termflux{\oint_{\partial\Omega_i} F(u) \cdot \mathbf{n} \, dS} = \termsource{\int_{\Omega_i} s \, dV} .
+  \label{eq:conservation-law}
+\end{equation}
+
+\textbf{Classical numerical FVM} schemes represent the solution in terms of one or multiple nodes per cell, and then approximate these integrals numerically.
+In the simplest setting, a piecewise constant representation is used.
+The compute nodes of FVM then are the cell midpoints $\bar{u}_i$, and the \termaccum{integral over each cell} is approximated by the midpoint rule
+\begin{equation}
+  \termaccum{\int_{\Omega_i} u \, dV} \approx \lvert \Omega_i \rvert \bar{u}_i .
+\end{equation}
+\termsource{The integral of the source function $s$} as well as the \termflux{surface integral of the flux $F$} are similarly approximated through numerical quadrature.
+The latter requires a scheme to extrapolate or interpolate $F$ at the cell surface from the compute nodes, for which many different \textit{flux schemes} exist.
+
+From the discretization of \cref{eq:conservation-law-general} to the use of quadrature and flux schemes, FVM makes various approximations.
+Next, we will derive a GP-based FVM approach that naturally expresses these approximation errors as uncertainty.
+
+\subsection{FVM as Bayesian Inference}
+\label{sec:gp-fvm}
+
+In the following, we express the components in \cref{eq:conservation-law} in terms of linear functionals.
+We then obtain a joint Gaussian prior through the push-forward of GP priors under these linear functionals.
+Then fulfilling \cref{eq:conservation-law} reduces to (non-)linear conditioning of this prior.
+
+\textbf{Integration is linear.} Recall that integration is a linear operation, and thus $\termaccum{\ell_{vol_i}[u] := \int_{\Omega_i} u \, dV}$ is a linear functional.
+One might similarly define $\termflux{\ell_{\text{flux}_i}[u] := \oint_{\partial\Omega_i} F(u) \cdot \mathbf{n} \, dS}$, as done by \citet{weilandScalingProbabilisticPDE2024}.
+But this is only a \textit{linear} functional if $F$ is linear, which is not the case for nonlinear PDEs.
+Thus, the flux term warrants a different approach.
+
+\textbf{Flux term.} Consider as example the flux for the inviscid Burgers' equation: $F_{\text{Burgers}}(u) = \frac{1}{2} u^2$.
+In \emph{one} spatial dimension, the cells are intervals $\Omega_i = [b_i, b_{i+1}]$, and so
+\begin{equation*}
+  \termflux{\oint_{\partial\Omega_i} F(u) \cdot \mathbf{n} \, dS} = F(b_{i+1}) - F(b_i) .
+\end{equation*}
+Thus, we only need linear functionals for the components that make up $F$ at the cell boundaries.
+Concretely, for $F_{\text{Burgers}}$, we may use $\ell_{\text{boundary}_i}[u] = u(b_i)$.
+
+In 2D and 3D, we need to compute actual line and surface integrals of the flux.
+We propose a two-stage approach to this.
+First, we model the flux field with its own prior $F(u) \sim \mathcal{GP}(\mu_F, k_F)$, treated initially as a quantity independent of $u$.
+The deterministic relationship $F = F(u)$ imposed by the PDE is then enforced through nonlinear conditioning of pointwise evaluations of $F$ on pointwise evaluations of $u$ (detailed below), yielding a posterior that respects the actual flux--solution coupling.
+Afterwards, the flux term is directly a linear functional in $F(u)$: $\termflux{\tilde{\ell}_{\text{flux}_i}[F(u)] := \oint_{\partial\Omega_i} F(u) \cdot \mathbf{n} \, dS}$.
+This amounts to per-cell Bayesian quadrature \citep{ohaganBayesHermiteQuadrature1991}.
+
+
+\textbf{Source term.}
+Some commonly presented conservation laws have constant (often zero) source functions, in which case the treatment of the \termsource{source term} in \cref{eq:conservation-law} is trivial.
+If the source function is non-constant (or even unknown), we may employ the same method as for the flux term:
+Model the source with a GP prior $s \sim \GP(\mu_s, k_s)$, incorporate point observations of the source (if available), and finally define linear functionals $\termsource{\ell_{\text{source}_i}[s] := \int_{\Omega_i} s \, dV}$.
+
+\textbf{Additional linear functionals} are used to embed information on top of the FVM constraints:
+\begin{itemize}[nosep]
+  \item Initial and boundary conditions provide point observations of the solution $u$.
+  \item Point observations of the flux may be indirectly obtained through observations of $u$.
+  \item Point observations of the source are either available or the object of interest (in an inverse problem setting).
+\end{itemize}
+We add these linear functionals to the joint state.
+For notational simplicity, we write $\bm{\ell}_u : U \rightarrow \R^{N + M_u}$ for the vector-valued functional stacking the $N$ FVM cell-integral functionals $\ell_{vol_i}$ together with the $M_u$ functionals encoding additional information about $u$; the stacked flux functional $\bm{\ell}_F$ (collecting the per-cell $\tilde{\ell}_{\text{flux}_i}$) and stacked source functional $\bm{\ell}_s$ (collecting $\ell_{\text{source}_i}$) are defined analogously.
+
+\textbf{Putting it all together.}
+We have independent GP priors for the solution, flux, and source.
+This results in the joint state
+\begin{equation}
+  \bm{s} := \begin{bmatrix} \termaccum{\bm{\ell}_u[u]} \\ \termflux{\bm{\ell}_F[F(u)]} \\ \termsource{\bm{\ell}_s[s]} \end{bmatrix}
+  \sim \Normal\left(
+  \begin{bmatrix} \termaccum{\bmu_u} \\ \termflux{\bmu_F} \\ \termsource{\bmu_s} \end{bmatrix},
+  \begin{bmatrix}
+      \termaccum{\bSigma_u} &                      &                        \\
+                            & \termflux{\bSigma_F} &                        \\
+                            &                      & \termsource{\bSigma_s}
+    \end{bmatrix}
+  \right),
+  \label{eq:joint-state}
+\end{equation}
+where each block is given by \cref{eq:joint-functional}.
+
+Now, we can express our various sources of information in terms of conditioning.
+Initial and boundary conditions, source observations, and even the FVM constraints in \cref{eq:conservation-law} are all linear combinations of state components.
+We obtain a posterior conditioned on these observations through one application of \cref{eq:gaussian-conditioning-general}.
+Though their priors are independent, this conditioning couples all three quantities in the posterior.
+
+The only possible source of nonlinearity is the flux $F(u)$: although $F$ has its own GP prior, the flux--solution map $F = F(u)$ itself is a deterministic nonlinear relationship that still needs to be enforced.
+Concretely, the joint state contains pointwise evaluations of both $F(u)$ and $u$ at points $\bm{x} := (x_1, \dots, x_k)^\top$.
+We want to enforce a nonlinear relationship $f(u(\bm{x}), F(u)(\bm{x})) = \bm{0}$.
+To do so, we find the maximum a posteriori (MAP) estimate of the joint state $\bm{s}$ (with the constraint locations $\bm{x}$ fixed) under the likelihood
+\begin{equation}
+  \bm{y} \mid \bm{s} \sim \mathcal{N}(f(u(\bm{x}), F(u)(\bm{x})), \sigma^2 \bm{I}),
+\end{equation}
+with observations $\bm{y} = 0$.
+Gaussian likelihoods on zero-valued observations of this form have appeared in related probabilistic modeling contexts as \emph{virtual likelihoods} or \emph{virtual observables} for softly enforcing physical constraints \citep{kaltenbachIncorporatingPhysicalConstraints2020}.
+We find the MAP estimate via Gauss-Newton optimization and then use a Laplace approximation to obtain a Gaussian posterior.
+
+\subsection{Implications}
+\label{sec:implications}
+
+\textbf{Unified inference.}
+Our method forms a joint prior over solution, flux and source.
+This enables us to unify different sources of information (i.e.~conservation law, boundary conditions, sensor measurements) in one common language.
+In addition, we clearly express our structural assumptions about each term through the prior.
+The result is a framework that handles both forward and inverse problems natively by simply changing what is observed vs.\ inferred:
+\begin{center}
+  \begin{tabular}{lcc}
+    \toprule
+    Problem               & Observed & Inferred \\
+    \midrule
+    Forward               & $s$, $F$ & $u$      \\
+    Source identification & $u$, $F$ & $s$      \\
+    Flux identification   & $u$, $s$ & $F$      \\
+    \bottomrule
+  \end{tabular}
+\end{center}
+The FVM constraints create coupling between the three quantities that propagate the different information sources.
+This concept of maintaining a joint distribution over the solution trajectory and latent force(s) has been explored in the context of ODE solvers by \citet{schmidtProbabilisticStateSpace2021}.
+
+\textbf{Differences to classical FVM.}
+Where classical FVM uses numerical quadrature, we implicitly employ Bayesian quadrature and thus propagate quadrature error to the joint uncertainty.
+For classical FVM, there are schemes to achieve higher convergence orders for suitable problems.
+In our framework, as will be demonstrated in \cref{sec:convergence}, this may be tweaked effortlessly through the smoothness of the kernel.
+For classical FVM, there is a whole zoo of flux schemes to arrive at the flux values from the solution function values.
+In our method, there is no \textit{separate} flux scheme: The flux term is automatically derived from conditioning the flux prior on observations of the solution.
+
+\textbf{Computational bottleneck.} The key challenge of our method is that it quickly produces a large total state dimension $N$, and Gaussian inference naively scales as $\mathcal{O}(N^3)$ compute.
+Hence, \cref{sec:sparse-inference} will explore in detail techniques to implement our conceptual framework efficiently.
+
+
+
+
+
+
+
+\section{Scalable Inference}
+\label{sec:sparse-inference}
+
+For a scalable implementation of the concepts explored in \cref{sec:fvm-probabilistic}, we propose an approach based on a structured prior (\cref{sec:structured-prior}), sparse inference algorithms (\cref{sec:sparse-information,sec:kl-cholesky}) and a careful treatment of time (\cref{sec:time}).
+
+\subsection{A Structured Prior}
+\label{sec:structured-prior}
+
+We employ a separable prior with tensor product structure.
+For the spatial dimensions, we use a tensor product of Mat\'ern kernels:
+\begin{equation}
+  k_{\text{space}}(\bm{x}, \bm{x}') = \prod_{i=1}^{d} k_{\text{Mat}}^{(\nu_i, \lambda_i)}(x_i, x_i'),
+  \label{eq:kernel-space}
+\end{equation}
+where $k_{\text{Mat}}^{(\nu, \lambda)}$ denotes the Mat\'ern kernel with smoothness $\nu$ and lengthscale $\lambda$.
+This structure enables closed-form evaluation of integrals \citep{briolDictionaryClosedFormKernel2025} and partial derivatives needed for \cref{eq:joint-functional}, and allows independent control of smoothness in each coordinate.
+To obtain closed-form kernel integrals, we use rectangular FVM cells.
+We deliberately use Mat\'ern rather than e.g.\ squared-exponential (SE) kernels: the sparse Cholesky approximation in \cref{sec:kl-cholesky} relies on the screening effect, which holds for finitely smooth kernels but is known to degrade for the infinite smoothness of the SE kernel \citep{schaferSparseCholeskyFactorization2021a}.
+
+For the temporal dimension, we use an Integrated Wiener Process (IWP) of order $q$ \citep{schoberProbabilisticModelNumerical2019}.
+The IWP encodes that the $q$-th time derivative is Brownian motion, naturally capturing temporal evolution.
+A side effect is that the time derivative $\frac{\partial}{\partial t}$ needed for \cref{eq:conservation-law} is built into the state representation.
+Importantly, the IWP is non-stationary, so conservation properties are determined entirely by the FVM constraints.
+A stationary prior (e.g., temporal Mat\'ern) reverts toward its mean, which cancels the numerical conservation of energy of FVM.
+
+With this, the full spacetime kernel is
+\begin{equation}
+  k\bigl((t, \bm{x}), (t', \bm{x}')\bigr) = k_{\text{IWP}}^{(q)}(t, t') \cdot k_{\text{space}}(\bm{x}, \bm{x}').
+  \label{eq:kernel-spacetime}
+\end{equation}
+Note that separability is a property of the \emph{prior}, not of the posterior.
+The FVM constraints in \cref{eq:conservation-law} couple space and time through conditioning, so the posterior is generally non-separable --- reflecting the actual spacetime structure imposed by the PDE.
+A similar assumption is made in high-dimensional probabilistic ODE solvers \citep{kramerProbabilisticODESolutions2022}, where a Kronecker-structured (i.e.\ separable) prior across state dimensions is coupled through conditioning on ODE residuals.
+
+\subsection{Sparse Information Form Inference}
+\label{sec:sparse-information}
+
+Inference in our framework repeatedly applies \cref{eq:gaussian-conditioning-general}.
+Naively, this involves $\mathcal{O}(N^2)$ memory and $\mathcal{O}(N^3)$ compute.
+Recently, approaches based on sparse precision matrices have successfully alleviated this issue \citep{chenSparseCholeskyFactorization2025, weilandFlexibleEfficientProbabilistic2025a}.
+
+Assume we discretize $T$ into $\tilde{T} := [t_1, \dots, t_{N_t}]$ and use the same spatial state $s$ across all time points.
+Then from \cref{eq:kernel-spacetime} the precision matrix of the joint distribution across all spacetime components factorizes into
+\begin{equation}
+  \bm{Q_{\tilde{T}, s}} = \bm{Q_{\tilde{T}}} \otimes \bm{Q_{s}},
+  \label{eq:spacetime-precision}
+\end{equation}
+with temporal precision $\bm{Q_{\tilde{T}}}$ and spatial precision $\bm{Q_s}$.
+$\bm{Q_{\tilde{T}}}$ is naturally sparse since the IWP is Markovian (\cref{app:iwp}).
+\cref{sec:kl-cholesky} covers a sparse approximation to $\bm{Q_s}$.
+
+Once we have a sparse approximation to \cref{eq:spacetime-precision}, we use sparse Cholesky factorizations for mean updates, sampling and to compute marginal variances.
+Memory and compute requirements depend on the sparsity pattern but generally scale much more favorably than dense equivalents.
+\citet{weilandFlexibleEfficientProbabilistic2025a} discuss this inference scheme in detail.
+
+\subsection{Sparse Cholesky Approximation}
+\label{sec:kl-cholesky}
+
+Approximating $\bm{Q_s}$ with a sparse matrix $\bm{\tilde{Q}_s}$ is known in the literature as a Vecchia approximation \citep{katzfussGeneralFrameworkVecchia2021a}.
+\citet{schaferSparseCholeskyFactorization2021a} frame the problem as finding a sparse Cholesky factor $\bm{\tilde{L}}$ such that the Kullback-Leibler (KL) divergence between $\mathcal{N}(\bm{0}, \bm{Q_s}^{-1})$ and $\mathcal{N}(\bm{0}, \bm{\tilde{L}}^{-\top} \bm{\tilde{L}}^{-1})$ is minimal.
+They find a closed-form expression for the optimal $\bm{\tilde{L}}$, where each column can be computed in parallel at cost that depends cubically on the sparsity pattern of the column.
+Thus, there is an inherent tradeoff for the sparsity pattern between accuracy and computational efficiency.
+
+To motivate this idea, one can show that for $\bm{x} \sim \mathcal{N}(\bm{0}, \bm{L}^{-\top} \bm{L}^{-1})$, it holds:
+\begin{equation}
+  \E[x_i \mid x_{i+1}, \dots, x_N] = \mu_i - \sum_{j > i} \frac{L_{ji}}{L_{ii}} (x_j - \mu_j)
+  \label{eq:conditional-regression}
+\end{equation}
+The key insight is that the $L_{ji}$ ($j > i$) form regression coefficients.
+For strategic node orderings and kernels with suitable properties, this results in so-called \textbf{screening effects} \citep{steinWhenDoesScreening2011}.
+This means that close points ``screen out'' distant points, causing their regression coefficients (and thus the $L_{ji}$) in \cref{eq:conditional-regression} to be close to zero.
+In this setting, Vecchia approximations achieve high accuracy.
+
+\textbf{Node ordering.} Achieving strong screening effects requires a good ordering of the nodes $x_i$.
+In a pure regression setting, \citet{schaferSparseCholeskyFactorization2021a} propose an optimal reverse maximin ordering.
+In a setting that mixes point evaluations with derivative evaluations, \citet{chenSparseCholeskyFactorization2025} observe that ordering point evaluations before derivative evaluations results in stronger screening effects.
+Following this intuition of ordering ``coarse'' nodes before ``fine nodes'', we propose to order integrals before point evaluations, and point evaluations before derivatives.
+Within each category, we employ a reverse maximin ordering.
+See \cref{app:node-ordering} for details and empirical validation.
+
+\begin{algorithm}[tb]
+  \caption{Joint Spatial Vecchia Approximation}
+  \begin{algorithmic}
+    \STATE {\bfseries Input:} Kernel $k_{\text{space}}$, functionals $\{\ell_i\}$, sparsity $\rho$
+    \STATE Classify functionals by type (integral, evaluation, derivative)
+    \STATE Order within each type using maximin ordering
+    \STATE Concatenate: integrals $\rightarrow$ evaluations $\rightarrow$ derivatives
+    \STATE Compute sparsity pattern $S$ from ordering and $\rho$
+    \STATE Compute sparse Cholesky factor $\bm{\tilde{L}}$ via KL minimization
+    \STATE {\bfseries Output:} Sparse precision matrix $\bm{\tilde{Q}_s} = \bm{\tilde{L}} \bm{\tilde{L}}^\top$
+  \end{algorithmic}
+  \label{alg:joint-vecchia}
+\end{algorithm}
+
+\cref{alg:joint-vecchia} summarizes our approach based on the KL-minimizing sparse Cholesky factorization \citep{schaferSparseCholeskyFactorization2021a}.
+Their algorithm includes a parameter $\rho \in \R^+$ which tunes the sparsity, allowing for an explicit tradeoff between accuracy and computation time.
+As in the original work, we use supernodes to benefit from BLAS-3 and LAPACK calls.
+Additionally, due to the block diagonal structure in \cref{eq:joint-state}, we may apply this approximation to each block instead of the entire matrix at once.
+
+
+\subsection{An Alternative Treatment of Time}
+\label{sec:time}
+
+Working with a big joint distribution over all spacetime observations via \cref{eq:spacetime-precision} is principled, but expensive.
+For inference, we need to compute sparse Cholesky factors of updated precision matrices, which induce numerical fill-in that quickly renders this approach prohibitively expensive.
+In the following, we discuss alternative strategies.
+
+\textbf{Filtering and smoothing.}
+Probabilistic ODE solvers \citep{tronarpProbabilisticSolutionsOrdinary2019b} use Kalman filter and smoother methods to achieve linear-in-time runtime complexity.
+Unfortunately, the Kalman filter prediction step produces a dense precision matrix even from a sparse prior.
+As such, it again induces a prohibitive cubic scaling in the spatial dimension.
+
+\textbf{Marginal Moment-Matching.}
+We propose an alternative that approximates the filtering distributions by matching the marginal moments.
+
+Given a current state distribution $\bm{s}_t \sim \mathcal{N}(\bm{\mu}_t, \bm{\Sigma}_t)$ and transition distribution $\bm{s}_{t+1} \mid \bm{s}_t \sim \mathcal{N}(\bm{A} \bm{s}_t, \bm{\Sigma}_{\varepsilon})$, the joint distribution is $(\bm{s}_t, \bm{s}_{t+1})^\top \sim \mathcal{N}(\bm{\mu}, \bm{\Sigma})$ with mean $\bm{\mu} = (\bm{\mu}_t, \bm{A}\bm{\mu}_t)^\top$ and
+\begin{equation}
+\bm{\Sigma}^{-1} = \begin{pmatrix}
+\bm{\Sigma}_t^{-1} + \bm{A}^\top \bm{\Sigma}_\varepsilon^{-1} \bm{A} & -\bm{A}^\top \bm{\Sigma}_\varepsilon^{-1} \\
+-\bm{\Sigma}_\varepsilon^{-1} \bm{A} & \bm{\Sigma}_\varepsilon^{-1}
+\end{pmatrix}.
+\end{equation}
+In our setting, $\bm{\Sigma}_t^{-1}$ is the current sparse precision matrix, and $\bm{A}$ and $\bm{\Sigma}_\varepsilon^{-1}$ result from the state-space representation of \cref{eq:kernel-spacetime} together with the sparse approximation $\bm{\tilde{Q}_s}$.
+Thus, $\bm{\Sigma}^{-1}$ is sparse as a composition of sparse matrices.
+This enables us to efficiently perform inference on this two-step joint distribution.
+
+From the conditioned joint distribution, we extract the mean $\bm{\tilde{\mu}}_{t+1}$ and marginal variances $\bm{\tilde{\sigma}}_{t+1}^2$ of the next state $\bm{s}_{t+1}$ via selected inversion \citep{linSelInvAnAlgorithmSelected2011}.
+We then construct the approximate filtering distribution for the next time step as
+\begin{equation}
+    \bm{s}_{t+1} \sim \mathcal{N}\left(\bm{\tilde{\mu}}_{t+1}, \left(\bm{\tilde{Q}}_s + \mathrm{diag}(\bm{\tilde{\sigma}}_{t+1}^{-2})\right)^{-1}\right).
+\end{equation}
+This preserves the marginal means exactly while combining the prior precision structure with the inverse marginal variances.
+We repeat this procedure for each time step.
+In practice, we use a Crank-Nicolson discretization for the FVM constraints (\cref{app:crank-nicolson}); the single Gauss--Newton step used for nonlinear constraints there is validated empirically in \cref{app:gn-ablation}.
+
+This approach is linear in time and leaves the spatial sparsity pattern unchanged.
+However, it only provides an approximation to the true filtering distributions; we give a formal error analysis in \cref{app:moment-matching-error}.
+
+\subsection{Complexity}
+\label{sec:complexity}
+
+The sparse Cholesky approximation of \citet{schaferSparseCholeskyFactorization2021a} achieves near-linear complexity: $\mathcal{O}(N \log(N/\varepsilon)^d)$ space and $\mathcal{O}(N \log(N/\varepsilon)^{2d})$ time for $\varepsilon$-accuracy in $d$ dimensions.
+However, this requires access to covariance entries, which are cheap for the prior (kernel evaluations) but expensive for the posterior (requires inverting the precision).
+Thus, we use the sparse Cholesky approximation to obtain a sparse \emph{prior} precision, but subsequent conditioning and inference use standard sparse Cholesky factorization \citep{chenAlgorithm887CHOLMOD2008}, where fill-in is governed by the sparsity pattern.
+For 2D grids with nested dissection ordering, this yields $\mathcal{O}(N^{3/2})$ factorization time and $\mathcal{O}(N \log N)$ memory \citep{liptonNestedDissection1979}.
+We validate this scaling empirically in \cref{app:scalability} on the source-identification problem of \cref{sec:source-identification}.
+We emphasize that the functional ordering of \cref{alg:joint-vecchia} (integrals $\rightarrow$ evaluations $\rightarrow$ derivatives) and the nested-dissection ordering serve distinct purposes: the former is a node ordering for the KL-minimizing sparse approximation that \emph{produces} $\bm{\tilde{Q}_s}$, whereas nested dissection is a fill-reducing permutation for \emph{factorizing} the resulting sparse matrix.
+The $\mathcal{O}(N^{3/2})$ bound depends on the bounded-degree planar structure of $\bm{\tilde{Q}_s}$ on a 2D mesh, not on the functional ordering used to construct it.
+Time-stepping via marginal moment-matching (\cref{sec:time}) is linear in $N_t$, giving overall complexity $\mathcal{O}(N_t \cdot N_s^{3/2})$ for 2D problems.
+
+\section{Experiments}
+\label{sec:experiments}
+
+We evaluate four questions: Can our method solve ill-posed inverse problems with meaningful uncertainty estimates? Does it match classical FVM accuracy on forward problems? What is its convergence order? Does it scale to complex systems?
+
+Our implementation is in Julia.\footnote{Code: \url{https://github.com/timweiland/GPFiniteVolume.jl}}
+Hardware details and additional experimental parameters are provided in \cref{app:experiments}.
+
+\subsection{Source Identification in Advection-Diffusion}
+\label{sec:source-identification}
+
+In this experiment, we model the transport of contaminants in groundwater:
+A contaminant enters an aquifer and is spread downstream via the flow of water.
+In steady-state, this may be modeled by the advection-diffusion equation
+\begin{equation}
+  \nabla \cdot (\bv c - D \nabla c) = s,
+  \label{eq:advection-diffusion}
+\end{equation}
+where $c$ is the contaminant concentration, $s$ is the contaminant source field, $\mathbf{v}$ the velocity field, and $D$ the dispersion coefficient.
+The inverse problem in this setting is source identification:
+Given measurements of the concentration $c(x, y)$ at sparse monitoring wells, recover the source field $s(x, y)$.
+This problem is ill-posed:
+Distinct source field configurations can yield similar downstream observations.
+
+\cref{fig:source-identification} depicts the concrete setup.
+The ground-truth source $s$ (\cref{fig:source-identification}e) consists of two bell-shaped regions where the contaminant enters.
+The contaminant then flows towards the right ($\bm{v} = (1 \, 0)^{\top}$) and diffuses ($D = 0.05$), resulting in a steady-state concentration $c$ (\cref{fig:source-identification}a).
+This concentration is measured at 12 monitoring wells with additive Gaussian noise ($\sigma = 0.01$).
+For further details, refer to \cref{app:source-identification}.
+
+Our method approaches this task through a joint distribution over concentration, source, and flux, as in \cref{eq:joint-state}.
+As this is a steady-state problem (i.e.\  $\nicefrac{\partial c}{\partial t} = 0$), we use purely spatial priors.
+The FVM constraints then automatically introduce coupling between the source and the concentration measurements.
+Posterior samples correspond to inferred possible forms of the source, while marginal means and variances yield a point estimate and confidence intervals.
+
+\textbf{Baseline.}
+We compare against a physics-informed neural network \citep{raissiPhysicsinformedNeuralNetworks2019} baseline.
+It uses a dual-network architecture with separate MLPs for the concentration (4 layers × 128 units) and source field (2 layers × 64 units), trained jointly on PDE residuals, boundary conditions, and observation data.
+For a fair comparison, we follow state-of-the-art training practices \citep{wangExpertsGuideTraining2023a}, including Fourier feature embeddings and learning rate scheduling.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/posterior_adaptation.pdf}
+  \caption{\textbf{Posterior samples adapt to observations.} Each column shows a posterior sample of the source field using the same random seed. Top row: 12 observations ($\circ$). Bottom row: 15 observations (3 additional shown as {\color{cyan!60}$\blacklozenge$}). The added observations correctly inform the posterior about the weakness of the source in the top left corner, causing all samples to shift mass away from that region.}
+  \label{fig:posterior-adaptation}
+\end{figure}
+
+\textbf{Point estimates.}
+\cref{fig:source-identification} shows qualitative results of both methods.
+The posterior mean of our method correctly reconstructs the overall shape of both $c$ and $s$ (\cref{fig:source-identification}c, g) and achieves a source RMSE of 0.44.
+By contrast, the PINN solution exhibits noticeable artifacts at a source RMSE of 0.76.
+\textbf{Our method recovers the source field in 2 seconds, while the PINN baseline requires approximately 5 minutes --- a 150x speedup.}
+
+\textbf{Marginal variances.}
+Our method provides uncertainty quantification on top of the point estimate --- \cref{fig:source-identification}d and \cref{fig:source-identification}h show the marginal standard deviations.
+For both $s$ and $c$, the uncertainty shrinks near the measurements.
+In addition, the uncertainty correctly reflects the fact that our measurements provide more information about $c$ --- indeed, the uncertainty about $s$ is smeared due to the flow of water.
+The concentration uncertainty further collapses at the left boundary, which prescribes $c = 0$ (\cref{fig:source-identification}d).
+
+\textbf{Samples.}
+Our method's posterior not only provides marginal statistics, but also enables us to sample possible solution pairs of $(s, c)$.
+The top row of \cref{fig:posterior-adaptation} shows four samples of $s$ for our experiment.
+To further highlight that these samples are indeed physically meaningful, we repeat our experiment with three added observations and sample again using the same seeds.
+This is shown in the bottom row of \cref{fig:posterior-adaptation}.
+The result is that for all samples, the top left corner indeed adapts and shifts the source mass, matching the ground-truth more closely.
+
+\textbf{Takeaway.}
+The ill-posedness of source identification makes any estimate dependent on prior assumptions.
+Our method makes these explicit through the kernel; the PINN encodes them implicitly in the architecture and training procedure.
+In this case, a Mat\'ern prior results in a better point estimate, and we \textit{additionally} obtain confidence intervals and samples.
+We achieve all of this at a fraction of the cost of a PINN due to our proximity to classical numerical methods.
+We study the calibration of the posterior on this source identification problem in \cref{app:calibration}, and \cref{app:burgers-source-id} extends the same framework to a genuinely nonlinear inverse problem (Burgers source identification with a softplus link).
+
+
+\subsection{Accuracy and Runtime on Forward Problems}
+\label{sec:scalability}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\columnwidth]{figures/benchmark_comparison.pdf}
+  \caption{\textbf{Accuracy and runtime comparison on 2D Burgers equation.} (a)~$L^2$ error vs grid size. Classical FVM achieves the best accuracy; GP-FVM (minimal) is within 2--3$\times$; GP-Collocation is $\sim$10$\times$ worse. (b)~Runtime per timestep. Classical methods are orders of magnitude faster, but GP-FVM provides uncertainty quantification. Faint markers show individual seeds; lines show means.}
+  \label{fig:benchmark-comparison}
+\end{figure}
+
+
+We benchmark our method on a forward problem: the 2D viscous Burgers' equation with bell-shaped initial conditions.
+We compare four methods: classical Crank-Nicolson FVM, a collocation-based sparse GP approach as in \citet{chenSparseCholeskyFactorization2025}, and our GP-FVM in both full and minimal state configurations.
+The minimal configuration uses 8 state components per cell (values, derivatives, integrals), while the full configuration additionally tracks flux quantities.
+For scalability in the time dimension, all GP approaches use our moment-matching technique.
+For each method, we vary the grid resolution $N \in \{8, 12, 16, 20, 24\}$ and average results over 5 random problem instances.
+
+\cref{fig:benchmark-comparison} shows the results.
+Our GP-FVM (minimal) achieves accuracy within a factor of 2--3 of the classical method while providing uncertainty quantification.
+GP-Collocation, despite similar computational cost, performs an order of magnitude worse --- highlighting the importance of conservative discretization.
+The full GP-FVM configuration achieves similar accuracy to the minimal variant but at substantially higher computational cost due to the larger state dimension.
+Full experimental specifications (problem setup, reference solver, kernel and lengthscale choices) are given in \cref{app:burgers-benchmark}.
+
+\subsection{Convergence with Kernel Smoothness}
+\label{sec:convergence}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\columnwidth]{figures/poisson_convergence.pdf}
+  \caption{\textbf{Kernel smoothness dictates convergence order.} {\textcolor{plotblue}{$\bullet$}}~Mat\'ern-3/2, {\textcolor{plotred}{$\blacksquare$}}~Mat\'ern-5/2, {\textcolor{plotgreen}{$\blacklozenge$}}~Mat\'ern-7/2. Dashed lines show theoretical rates. (a)~Dense GP-FVM achieves higher-order convergence. (b)~Sparse approximation ($\rho=5$, 16\% fill) preserves convergence for Mat\'ern-3/2; smoother kernels plateau at fine resolutions.}
+  \label{fig:poisson-convergence}
+\end{figure}
+
+\begin{figure*}[t!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/shallow_water_evolution.png}
+  \caption{\textbf{Nonlinear shallow water simulation.} Evolution of the posterior mean over the surface elevation $\eta$ over a domain with spatially varying bathymetry (bottom surface). The method handles this system of three coupled conservation laws, demonstrating scalability to complex nonlinear problems.}
+  \label{fig:shallow-water}
+\end{figure*}
+
+
+
+In classical FVM, higher-order polynomial reconstructions yield faster convergence rates.
+In our method, the analogous mechanism is kernel smoothness: Mat\'ern-$\nu$ kernels with higher $\nu$ yield smoother GP samples and faster convergence.
+
+\Cref{fig:poisson-convergence} demonstrates this on a 1D Poisson problem (\cref{app:poisson}).
+Panel~(a) shows dense GP-FVM achieving rates close to the theoretical rate for Mat\'ern-based kernel interpolation $\mathcal{O}(h^{\nu+\nicefrac{1}{2}})$ \citep{wendlandScatteredDataApproximation2004}.
+Panel~(b) shows sparse GP-FVM with fixed $\rho=5$ (16\% fill at $N=160$).
+Mat\'ern-3/2 maintains its convergence rate perfectly.
+For smoother kernels, errors plateau or increase at fine resolutions, where screening effects weaken and sparse approximation struggles to capture long-range correlations.
+Note however that this occurs in a regime of already low $L^2$ error.
+
+\subsection{2D Shallow Water Equations}
+\label{sec:nonlinear-sw}
+
+To demonstrate scalability to complex nonlinear systems, we simulate tsunami propagation using the shallow water equations (\cref{app:swe}).
+This is a system of three coupled conservation laws governing water height $h$ and momentum $(hu, hv)$, with nonlinear flux terms that are quadratic in the conserved variables.
+The domain is 100\,km $\times$ 100\,km with sloping bathymetry varying from 50\,m depth at the shore to 500\,m offshore, discretized on a $31 \times 31$ grid.
+The spatially varying bathymetry introduces source terms coupling the momentum equations to the bottom topography.
+
+\Cref{fig:shallow-water} shows the evolution of surface elevation $\eta = h - b$ as a tsunami wave propagates toward shore.
+The method correctly captures wave propagation and shoaling---the steepening of waves as they enter shallow water---demonstrating physically plausible behavior without requiring problem-specific numerical treatment.
+This experiment shows that our framework extends naturally from scalar PDEs to complex systems of equations.
+
+The joint state dimension per timestep is 28{,}566, comprising cell integrals, boundary values, and derivatives for all three conserved quantities.
+Our moment-matching scheme (\cref{sec:time}) requires approximately 80 seconds per timestep, of which roughly 60 seconds is spent computing marginal variances via selected inversion.
+While slower than classical solvers, this cost enables uncertainty propagation through the nonlinear dynamics within a Bayesian framework.
+
+\section{Related Work}
+\label{sec:related-work}
+
+\textbf{GP-based PDE simulators.}
+Probabilistic numerical methods cast numerical computation as Bayesian inference, providing a coherent probabilistic treatment of numerical uncertainty \citep{cockayneBayesianProbabilisticNumerical2019b}.
+For PDEs, \citet{pfortnerPhysicsInformedGaussianProcess2024} show that physics-informed GP regression strictly generalizes classical methods of weighted residuals, including collocation, finite volume, and Galerkin methods.
+\citet{weilandScalingProbabilisticPDE2024} develop a probabilistic FVM using integral functionals, but their method is restricted to linear PDEs and their low-rank approach struggles to accurately quantify uncertainties for large-scale problems.
+
+\textbf{Scalable inference.}
+\citet{chenSparseCholeskyFactorization2025} apply sparse KL-minimizing Cholesky factorizations to solve nonlinear PDEs via collocation.
+\citet{weilandFlexibleEfficientProbabilistic2025a} obtain scalability through the SPDE representation of Mat\'ern priors in a Finite Element Method approach.
+By contrast, our work focuses on FVM, which is of central interest in computational fluid dynamics due to its conservative properties.
+By extending sparse KL-minimizing Cholesky to integral functionals, we frame FVM through a scalable Bayesian inference mechanism.
+Neither of these related works provides a practical answer to scalability along the time dimension.
+
+
+\section{Discussion}
+\label{sec:discussion}
+
+We frame the finite volume method as nonlinear conditioning under a structured GP prior.
+An extension of Vecchia approximations to integrals, as well as a novel moment-matching approach to time propagation, enables our method to circumvent the prohibitive cubic scaling of GPs.
+As a result, our method solves inverse problems quickly and under uncertainty and it scales to high-dimensional nonlinear simulations, while inheriting the accuracy and order-of-accuracy structure of classical FVM --- with kernel smoothness playing the role of polynomial reconstruction order.
+
+At the same time, our moment-matching approach incurs substantial fill-in in the temporal propagation step, which slows the underlying linear algebra and restricts practical scalability to 2D problems.
+The spatial sparse Cholesky scales well ($\mathcal{O}(N_s^{3/2})$ in 2D, $\mathcal{O}(N_s^{2})$ in 3D), so the bottleneck lies in how time is handled rather than in the spatial machinery.
+This points toward future work on filtering approaches that preserve sparsity across time --- for which our scalable spatial framework is precisely the substrate needed.
+
+A second limitation concerns the expressiveness of the prior.
+For inverse problems with positivity-enforcing link functions (e.g.\ the softplus prior $s = \log(1 + e^g)$ on the source field), a stationary Mat\'ern prior on the latent $g$ has constant marginal variance, and the saturating link compresses negative values of $g$ to near-zero $s$.
+In regions the posterior identifies as ``no source present'' ($g \ll 0$), the saturating link collapses the marginal variance of $s$, so the model underestimates its uncertainty about whether a weak source might be present.  This is the locally overconfident source posterior visible where the softplus saturates in our Burgers experiment (\cref{app:burgers-source-id}).
+Non-stationary kernels and sparsity-promoting priors (e.g.\ horseshoe-type) would relax this constraint; both remain compatible with the sparse Cholesky framework underlying our method.
+
+Finally, our method relies on spatial Mat\'ern priors and hyperrectangular FVM cells for closed-form computations of kernel integrals.
+Numerical integration would likely lift these restrictions, though we leave a thorough evaluation to future work.
+
+\paragraph{Scope and outlook.}
+Our contribution is twofold: a scalable methodology for FVM-based probabilistic inference under structured GP priors, and empirical evidence --- forward accuracy on benchmark PDEs, $\mathcal{O}(N_s^{3/2})$ runtime scaling, and posterior coverage ranging from near-nominal to conservative in a calibration study --- that the resulting posteriors are quantitatively meaningful.
+The Laplace approximation underlying our nonlinear inversion is of course only Gaussian-around-the-MAP; where richer non-Gaussian uncertainty is required, our scalable posterior provides a natural starting point and preconditioner for downstream samplers (e.g.\ as the initial state and mass matrix for Hamiltonian Monte Carlo, or as a proposal distribution), and therefore complements rather than competes with Markov chain Monte Carlo-based approaches.
+Beyond the engineering value of accelerated inference, the broader case for probabilistic numerical methods is that they place numerical and inferential uncertainty on a single footing: the same posterior that quantifies measurement noise and prior assumptions also quantifies discretization uncertainty, enabling coherent fusion of sparse data with mechanistic knowledge.
+Making this combination computationally practical for nonlinear conservation laws --- the dominant PDE class in the sciences --- is what our method delivers.
+
+\section*{Acknowledgements}
+The authors gratefully acknowledge co-funding by the European Union (ERC, ANUBIS, 101123955).
+Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council.
+Neither the European Union nor the granting authority can be held responsible for them.
+PH is supported by the DFG through Project HE 7114/6-1 in SPP2298/2.
+PH is a member of the Machine Learning Cluster of Excellence, funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) under Germany’s Excellence Strategy – EXC number 2064/1 – Project number 390727645.
+The authors also gratefully acknowledge the German Federal Ministry of Education and Research (BMBF) through the Tübingen AI Center (FKZ:01IS18039A); and funds from the Ministry of Science, Research and Arts of the State of Baden-Württemberg.
+The authors thank the International Max Planck Research School for Intelligent Systems (IMPRS-IS) for supporting TW.
+
+
+\section*{Impact Statement}
+
+This paper develops scalable Bayesian inference for nonlinear conservation laws, with the explicit goal of providing uncertainty quantification alongside numerical PDE solutions.
+The intended downstream uses include scientific decision-making under uncertainty --- environmental monitoring, geophysical inversion, contaminant transport, and similar settings.
+A specific risk we wish to flag: the calibration of our posterior depends on prior choices (e.g.\ the lengthscale, smoothness, and stationarity of the spatial kernel) that encode modeling assumptions which may not hold for a given real-world problem.
+Our calibration study in \cref{app:calibration} demonstrates broadly reasonable calibration --- near-nominal to conservative --- on a synthetic benchmark, but we caution against treating posterior uncertainty as automatically trustworthy in high-stakes settings (e.g.\ safety-critical or regulatory applications) without independent validation.
+We view the method as one source of evidence to be combined with domain expertise, sensitivity analyses, and corroborating data.
+
+
+\bibliography{references}
+\bibliographystyle{icml2026}
+
+
+\newpage
+\appendix
+\onecolumn
+
+\section{Theoretical Details}
+\label{app:theory}
+
+\subsection{Integrated Wiener Process and Temporal Precision}
+\label{app:iwp}
+
+The Integrated Wiener Process (IWP) of order $q$ is a Gauss-Markov process whose $q$-th derivative is Brownian motion.
+This Markov property induces a block tridiagonal structure in the joint precision matrix over discrete time points.
+
+\paragraph{State-space formulation.}
+The IWP($q$) can be written as a linear stochastic differential equation (SDE).
+Define the state vector $\bm{x}(t) := [u(t), u'(t), \ldots, u^{(q-1)}(t)]^\top \in \R^q$, collecting the function value and its first $q-1$ derivatives.
+The SDE is
+\begin{equation}
+  d\bm{x}(t) = \bm{F} \bm{x}(t) \, dt + \bm{B} \, dW(t),
+  \label{eq:iwp-sde}
+\end{equation}
+where $W(t)$ is a Wiener process, $\bm{F} \in \R^{q \times q}$ is the shift matrix with ones on the superdiagonal and zeros elsewhere, and $\bm{B} = [0, \ldots, 0, \sigma]^\top \in \R^q$ drives only the highest derivative.
+
+\paragraph{Discretization.}
+Discretizing \cref{eq:iwp-sde} at time points $t_1, \ldots, t_{N_t}$ with step size $h = t_{i+1} - t_i$ yields the transition
+\begin{equation}
+  \bm{x}_{i+1} = \bm{A} \bm{x}_i + \bm{\eta}_i, \quad \bm{\eta}_i \sim \Normal(\bm{0}, \bm{\Sigma}_\eta),
+  \label{eq:iwp-transition}
+\end{equation}
+where $\bm{A} = \exp(\bm{F} h)$ is the state transition matrix.
+We have the closed forms \citep{schoberProbabilisticModelNumerical2019}:
+\begin{align}
+  A_{ij}             & = \frac{h^{j-i}}{(j-i)!} \quad \text{for } j \geq i, \quad A_{ij} = 0 \quad \text{otherwise}, \\
+  (\Sigma_\eta)_{ij} & = \frac{\sigma^2 h^{2q+1-i-j}}{(q-i)!(q-j)!(2q+1-i-j)}.
+\end{align}
+
+\paragraph{Block tridiagonal precision.}
+The Markov property in \cref{eq:iwp-transition} implies that the joint distribution $p(\bm{x}_1, \ldots, \bm{x}_{N_t})$ factorizes as
+\begin{equation}
+  p(\bm{x}_1, \ldots, \bm{x}_{N_t}) = p(\bm{x}_1) \prod_{i=1}^{N_t - 1} p(\bm{x}_{i+1} \mid \bm{x}_i).
+\end{equation}
+Each transition density is Gaussian:
+\begin{equation}
+  p(\bm{x}_{i+1} \mid \bm{x}_i) \propto \exp\!\left( -\tfrac{1}{2} (\bm{x}_{i+1} - \bm{A} \bm{x}_i)^\top \bm{\Pi} (\bm{x}_{i+1} - \bm{A} \bm{x}_i) \right),
+\end{equation}
+where $\bm{\Pi} := \bm{\Sigma}_\eta^{-1}$ is the precision of the process noise.
+Expanding and collecting quadratic terms across all time steps, the joint precision matrix takes the block tridiagonal form
+\begin{equation}
+  \bm{Q}_{\tilde{T}} = \begin{bmatrix}
+    \bm{\Pi}_0 + \bm{A}^\top \bm{\Pi} \bm{A} & -\bm{A}^\top \bm{\Pi}                  &                       &          \\
+    -\bm{\Pi} \bm{A}                         & \bm{\Pi} + \bm{A}^\top \bm{\Pi} \bm{A} & -\bm{A}^\top \bm{\Pi} &          \\
+                                             & \ddots                                 & \ddots                & \ddots   \\
+                                             &                                        & -\bm{\Pi} \bm{A}      & \bm{\Pi}
+  \end{bmatrix},
+  \label{eq:iwp-precision}
+\end{equation}
+where $\bm{\Pi}_0$ is the precision of the initial state $\bm{x}_1$.
+Each block is $q \times q$, so for $N_t$ time steps the full matrix is $q N_t \times q N_t$ with only $\mathcal{O}(q^2 N_t)$ nonzero entries.
+This sparsity is what enables efficient temporal inference.
+
+\subsection{Crank-Nicolson Time Discretization}
+\label{app:crank-nicolson}
+
+For time-dependent problems, we enforce the FVM constraints using Crank-Nicolson discretization, which is second-order accurate in time and unconditionally stable for linear advection-diffusion problems.
+
+\paragraph{Two-step joint distribution.}
+At each time step, we form the joint distribution over consecutive states $(\bm{s}_{t-1}, \bm{s}_t)$ as described in \cref{sec:time}.
+This joint distribution incorporates both the temporal prior (IWP transition) and the current spatial precision.
+
+\paragraph{Crank-Nicolson constraint.}
+The FVM constraint \cref{eq:conservation-law} is enforced by averaging all quantities at consecutive time levels:
+\begin{equation}\label{eq:cn_averaged}
+  \frac{1}{2}\left( \dot{\bar{u}}_i^{(t-1)} + \dot{\bar{u}}_i^{(t)} \right) + \frac{1}{2}\left( \mathcal{F}_i^{(t-1)} + \mathcal{F}_i^{(t)} \right) = \frac{1}{2}\left( s_i^{(t-1)} + s_i^{(t)} \right),
+\end{equation}
+where $\dot{\bar{u}}_i$ denotes the time derivative of the cell integral (which is explicitly available in the IWP state), $\mathcal{F}_i$ the net flux through cell boundaries, and $s_i$ the source integral.
+
+\paragraph{Conditioning.}
+We enforce this constraint on the joint distribution $(\bm{s}_{t-1}, \bm{s}_t)$ via the nonlinear conditioning procedure in \cref{sec:gp-fvm}.
+For linear PDEs, this reduces to a single linear constraint.
+For nonlinear PDEs, inspired by the Extended Kalman Filter (EKF), we take a \emph{single} Gauss-Newton step rather than iterating to convergence.
+This is justified by the small time step assumption: with sufficiently small $\Delta t$, the nonlinearity within one step is mild, making a single linearization accurate.
+Any residual linearization error is corrected at subsequent time steps rather than accumulating, and the computational savings are substantial; we validate this empirically in \cref{app:gn-ablation}.
+After conditioning, we extract the marginal distribution of $\bm{s}_t$ and propagate to the next step.
+
+\paragraph{Laplace approximation error.}
+The Laplace approximation used in the per-step conditioning is exact for linear constraints and approximate for nonlinear ones.
+Combining the averaged conservation law \eqref{eq:cn_averaged} with the cell-wise PDE $\dot{\bar{u}}_i = s_i - \mathcal{F}_i$ and rearranging implicitly for $\bm{s}_t$, the constraint function has the structure
+\begin{equation}\label{eq:cn_constraint_struct}
+g(\bm{s}_t) = \bm{s}_t - \tfrac{\Delta t}{2}\, f(\bm{s}_t) - (\text{known from } \bm{s}_{t-1}),
+\end{equation}
+i.e.\ identity plus an $O(\Delta t)$ nonlinear term.
+A short computation shows that all derivatives of $g$ beyond the first inherit the $\Delta t/2$ prefactor: $D^k g = O(\Delta t)$ for $k \geq 2$, whenever the flux $f$ is sufficiently smooth.
+Heuristically, a perturbative (Edgeworth-style) expansion of the negative log-posterior around the MAP then gives the following per-step rate.
+
+\begin{remark}[Heuristic per-step Laplace rate]
+\label{prop:laplace_cn}
+Suppose the flux $f$ in \eqref{eq:cn_constraint_struct} is sufficiently smooth in a neighborhood of the MAP, the prior precision is bounded above and below, and the virtual-observation noise $\sigma$ is held fixed.
+A perturbative argument (informally summarized below) then indicates that the per-step KL divergence between the true posterior $p_t$ and the Laplace approximation $\hat{p}_t$ scales as
+\begin{equation}\label{eq:laplace_cn_rate}
+\KL(p_t \,\|\, \hat{p}_t) = O(\Delta t^2).
+\end{equation}
+A rigorous treatment, tracking the dependence on the local Hessian condition number and on higher-order remainders, is left to future work.
+\end{remark}
+
+\begin{remark}[Informal justification]
+The standardized higher-order corrections to a Laplace approximation scale with the third and higher derivatives of the negative log-posterior, evaluated at the MAP and rescaled by the local curvature.
+Since the negative log-likelihood under Gaussian virtual observations is $\tfrac{1}{2\sigma^2}\|g\|^2$ and the prior contributes only quadratic terms, all derivatives of the negative log-posterior of order $k\geq 3$ inherit the $\Delta t$ prefactor from $g$.
+The standardized non-Gaussian corrections are therefore $O(\Delta t)$ and the resulting KL error is $O(\Delta t^2)$.
+This is the Bayesian analogue of the standard observation that Crank-Nicolson is second-order accurate when the flux is smooth.
+\end{remark}
+
+\begin{remark}[Limitation: shocks]
+The argument requires $f$ to have bounded derivatives near the MAP.
+For shock-dominated problems where the flux develops near-discontinuities, the higher-order derivatives blow up and the Laplace approximation can fail catastrophically.
+The same limitation applies to classical Crank-Nicolson schemes, which are known to require shock-capturing modifications in such regimes; addressing this within our framework is left to future work.
+\end{remark}
+
+\subsection{Node Ordering for Mixed Functionals}
+\label{app:node-ordering}
+
+When the state vector contains multiple types of linear functionals (point evaluations, derivatives, integrals), the sparse Cholesky approximation quality depends on how these blocks are ordered.
+We propose ordering functionals from finest to coarsest scale, placing integrals in the rightmost columns of the Cholesky factor.
+
+\paragraph{Functional classification.}
+We classify linear functionals into a hierarchy based on the spatial scale they capture:
+\begin{itemize}[nosep]
+    \item \textbf{Integrals} (coarsest): Cell averages $\iint f \, dx\,dy$ capture global, smoothed behavior
+    \item \textbf{Face integrals}: Mixed tensor products such as $\int f(x, \cdot) \, dy$ at fixed $x$
+    \item \textbf{Evaluations}: Point values $f(x_i)$ capture local behavior
+    \item \textbf{Derivatives} (finest): Local slopes $\partial f / \partial x$ capture fine-scale variation
+\end{itemize}
+Our Julia implementation automatically classifies linear functionals via multiple dispatch on their types.
+
+\paragraph{Ordering algorithm.}
+We order functional blocks from finest to coarsest (derivatives $\to$ evaluations $\to$ integrals), placing the coarsest observations in the rightmost columns of the Cholesky factor.
+Within each block, we apply the reverse maximin ordering of \citet{schaferSparseCholeskyFactorization2021a}.
+
+\paragraph{Why integrals should be coarsest.}
+In the sparse Cholesky factorization, each row $i$ conditions on a subset of later rows $j > i$.
+The screening effect~\citep{schaferSparseCholeskyFactorization2021a} implies that coarse-scale measurements effectively ``screen out'' correlations, reducing the conditioning set sizes needed for accurate approximation.
+
+Integrals are smoothing operators that average over spatial regions, making them natural coarse-scale measurements.
+When integrals occupy the rightmost (coarsest) positions, all finer-scale functionals to their left benefit from this strong screening effect, requiring smaller conditioning sets to achieve the same approximation quality.
+
+Additionally, there is a geometric asymmetry: point evaluations are more densely packed than integral cells covering the same domain.
+When integrals (in the middle) condition on evaluations (coarsest), each integral's neighborhood contains many evaluation points, leading to large conditioning sets.
+Conversely, when evaluations condition on integrals, each evaluation finds fewer integral neighbors.
+This asymmetry means that for the same sparsity parameter $\rho$, placing integrals coarsest yields lower fill-in.
+
+\paragraph{Empirical validation.}
+We compare two orderings on a 2D test problem: a $35 \times 35$ grid with point evaluations, derivative sums ($\partial_x + \partial_y$), and cell integrals under a Mat\'ern-3/2 kernel.
+For each ordering, we sweep the sparsity parameter $\rho \in \{1, 1.5, 2, \ldots, 10\}$ and measure the KL divergence from the exact posterior.
+
+\cref{fig:ordering-comparison} shows that the ``integrals first'' ordering Pareto-dominates ``evaluations first'': for comparable fill-in levels, it achieves lower approximation error.
+This validates placing integrals as the coarsest block: both the screening effect and the geometric asymmetry favor this ordering.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figures/sparsity_accuracy_tradeoff.pdf}
+    \caption{\textbf{Ordering comparison for sparse Cholesky approximation.} (a)~Fill-in percentage vs sparsity parameter $\rho$. (b)~KL divergence vs $\rho$. (c)~Pareto frontier showing KL divergence vs fill-in. The ``integrals first'' ordering (red) achieves lower error at every sparsity level, demonstrating Pareto dominance over ``evaluations first'' (blue).}
+    \label{fig:ordering-comparison}
+\end{figure}
+
+\paragraph{Visualizing the exact Cholesky factor.}
+\cref{fig:cholesky-sparsity} shows the exact precision Cholesky factor $\bm{L}$ (where $\bm{\Theta} = \bm{L}\bm{L}^\top$) for a smaller $12 \times 12$ grid.
+The color scale shows $\log_{10}|L_{ij}|$, revealing that many remote entries are already close to zero in the exact factorization.
+This decay justifies the sparse approximation: entries below a threshold can be dropped with minimal loss in accuracy.
+The dashed lines mark boundaries between functional blocks (derivatives, evaluations and integrals).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figures/cholesky_sparsity_2d.pdf}
+    \caption{\textbf{Exact precision Cholesky factor for 2D mixed functionals.} Log-magnitude of entries in the lower triangular factor $\bm{L}$ for a $12 \times 12$ grid ($409 \times 409$ matrix). (a)~Integrals-coarsest ordering places integrals in the bottom-right block. (b)~Evaluations-coarsest ordering. Both show rapid decay of remote entries (dark blue regions), justifying sparse approximation. Dashed lines indicate block boundaries.}
+    \label{fig:cholesky-sparsity}
+\end{figure}
+
+\section{Experimental Details}
+\label{app:experiments}
+
+All GP-based experiments were run on an Apple M1 Max with 32\,GB RAM.
+The PINN baseline was run on an NVIDIA GeForce RTX 2080 Ti.
+
+Our Julia implementation builds on \texttt{GaussianMarkovRandomFields.jl} \citep{weilandGMRFs2025} for information form inference.
+This in turn builds on sparse linear algebra routines from SuiteSparse, specifically CHOLMOD \citep{chenAlgorithm887CHOLMOD2008}.
+The sparse Jacobians required for Gauss-Newton steps are computed via sparse automatic differentiation, as in \citet{hillSparserBetterFaster2025}.
+
+
+\subsection{Source Identification in Advection-Diffusion}
+\label{app:source-identification}
+
+This section provides implementation details for the source identification experiment in \cref{sec:source-identification}.
+
+\paragraph{Problem specification.}
+The domain is the unit square $[0,1]^2$ discretized on a uniform $36 \times 36$ node grid (35 $\times$ 35 cells).
+The ground-truth source field consists of two Gaussian sources:
+\begin{align}
+  s_1(x,y) & = 4.0 \cdot \exp\!\left( -\frac{(x - 0.25)^2 + (y - 0.3)^2}{2 \cdot 0.10^2} \right), \\
+  s_2(x,y) & = 3.0 \cdot \exp\!\left( -\frac{(x - 0.35)^2 + (y - 0.7)^2}{2 \cdot 0.12^2} \right).
+\end{align}
+The physics parameters are velocity $\bm{v} = (1, 0)^\top$ and diffusion coefficient $D = 0.05$, yielding a P\'eclet number of $\text{Pe} = v_x L / D = 20$ (advection-dominated).
+Boundary conditions are: Dirichlet $c = 0$ at the left boundary (clean inflow), homogeneous Neumann at the right boundary (free outflow), and homogeneous Neumann at the top and bottom boundaries (impermeable walls).
+
+Ground-truth concentration data is generated via a forward FVM solve with upwind advection.
+Observations are taken at 12 monitoring well locations spread across the domain (\cref{tab:observation-locations}), with additive Gaussian noise $\sigma = 0.01$.
+
+\begin{table}[h]
+  \centering
+  \caption{Observation locations for the source identification experiment.}
+  \label{tab:observation-locations}
+  \begin{tabular}{l*{12}{c}}
+    \toprule
+    $x$ & 0.50 & 0.50 & 0.60 & 0.70 & 0.70 & 0.80 & 0.80 & 0.90 & 0.40 & 0.40 & 0.50 & 0.60 \\
+    $y$ & 0.30 & 0.70 & 0.50 & 0.30 & 0.70 & 0.40 & 0.60 & 0.50 & 0.40 & 0.60 & 0.50 & 0.30 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{GP-FVM implementation.}
+We use Mat\'ern-5/2 kernels ($\nu = 2$) with 2D tensor product structure.
+The lengthscale is set to $\ell = 5 \Delta x \approx 0.14$, chosen to resolve approximately 5 grid cells.
+The sparsity parameter is $\rho = 2.0$ for the concentration field and $\rho = 4.0$ for the source field.
+The joint state vector comprises:
+\begin{itemize}[nosep]
+  \item \textbf{Concentration:} point evaluations $c(x_i, y_j)$, vertical face integrals $\int c \, dy$, horizontal face integrals $\int c \, dx$, derivative face integrals $\int \partial_x c \, dy$ and $\int \partial_y c \, dx$
+  \item \textbf{Source:} point evaluations $s(x_i, y_j)$ and cell integrals $\iint_{\text{cell}} s \, dx\,dy$
+\end{itemize}
+All kernel integrals are computed in closed form using the Mat\'ern polynomial structure (no quadrature).
+FVM and boundary condition constraints are enforced with precision $1/\sigma_{\text{constraint}}^2$ where $\sigma_{\text{constraint}} = 10^{-5}$.
+
+\paragraph{PINN baseline.}
+We implement the PINN baseline using the JAX-based \texttt{jaxpi} framework \citep{wangExpertsGuideTraining2023a}.
+The architecture uses two separate MLPs:
+\begin{itemize}[nosep]
+  \item \textbf{Concentration network:} 4 layers $\times$ 128 units, tanh activation, with Fourier feature embeddings (scale $= 1.0$, dimension $= 128$)
+  \item \textbf{Source network:} 2 layers $\times$ 64 units, tanh activation, no Fourier features
+\end{itemize}
+We train with the Adam optimizer ($\beta_1 = 0.9$, $\beta_2 = 0.999$, initial learning rate $10^{-3}$) using exponential decay (rate $0.9$ every 2000 steps) for 30{,}000 iterations.
+We use fixed loss weights: PDE residual $= 1.0$, boundary conditions $= 1.0$, observation data $= 1000.0$.
+We sample 4{,}096 interior collocation points and 100 boundary points per edge (400 total) at each iteration.
+All experiments use random seed 42.
+We also tested a larger source network (4 layers × 128 units with Fourier features), but found no improvement in reconstruction accuracy.
+
+\subsection{2D Burgers Benchmark}
+\label{app:burgers-benchmark}
+
+This section provides details for the accuracy and runtime comparison in \cref{sec:scalability}.
+
+\paragraph{Problem specification.}
+We solve the 2D viscous Burgers equation in conservative form on the unit square $[0,1]^2$ with periodic boundary conditions:
+\begin{equation}
+  \frac{\partial u}{\partial t} + \frac{\partial}{\partial x}\left(\frac{1}{2}u^2\right) + \frac{\partial}{\partial y}\left(\frac{1}{2}u^2\right) = \nu \left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right),
+\end{equation}
+with viscosity $\nu = 0.02$ and end time $T = 0.5$.
+Initial conditions are Gaussian bumps with randomly sampled parameters: width $\sigma \in [0.2, 0.3]$, amplitude $A \in [0.3, 0.6]$, and center $(x_0, y_0) \in [0.2, 0.5]^2$.
+
+\paragraph{Reference solution.}
+We compute ground-truth solutions using high-resolution classical FVM on a $128 \times 128$ grid with RK4 time integration and a stable CFL condition ($\Delta t = 0.25 \Delta x^2$).
+Errors are computed as $L^2$ norm against this reference, interpolated to the test grid.
+
+\paragraph{Methods compared.}
+\begin{itemize}[nosep]
+  \item \textbf{Classical Crank-Nicolson FVM:} Standard implicit scheme with $N^2$ unknowns.
+  \item \textbf{GP-Collocation:} Sparse GP approach following \citet{chenSparseCholeskyFactorization2025}, using point evaluations and derivatives. State dimension: $8N^2$.
+  \item \textbf{GP-FVM (minimal):} Our method with point evaluations, derivatives, and cell integrals. State dimension: $8N^2$.
+  \item \textbf{GP-FVM (full):} Adds flux-related quantities. State dimension: $26N^2$.
+\end{itemize}
+All methods use Crank-Nicolson time discretization (\cref{app:crank-nicolson}).
+The GP methods additionally use Mat\'ern-5/2 kernels with lengthscale $\ell = 0.3$ and our moment-matching scheme (\cref{sec:time}) for temporal propagation.
+
+\paragraph{Experimental parameters.}
+Grid sizes: $N \in \{8, 12, 16, 20, 24\}$.
+Number of time steps scales with grid size: $n_{\text{steps}} \approx 1.5 N$, so $\Delta t = T / n_{\text{steps}}$.
+We evaluate on five random problem instances.
+
+\subsection{Poisson Convergence Study}
+\label{app:poisson}
+
+This section provides details for the convergence experiment in \cref{sec:convergence}.
+
+\paragraph{Problem specification.}
+We solve the 1D Poisson equation on the unit interval:
+\begin{equation}
+  -u''(x) = f(x), \quad x \in (0, 1), \quad u(0) = u(1) = 0.
+\end{equation}
+The source is $f(x) = \sin(2\pi x)$, with exact solution $u(x) = \sin(2\pi x) / (4\pi^2)$.
+
+\paragraph{FVM formulation.}
+Integrating over cell $[x_i, x_{i+1}]$ and applying the fundamental theorem of calculus:
+\begin{equation}
+  u'(x_i) - u'(x_{i+1}) = \int_{x_i}^{x_{i+1}} f(x) \, dx.
+\end{equation}
+This links derivatives of $u$ at cell boundaries to integrals of the source $f$.
+
+\paragraph{GP-FVM implementation.}
+We place independent GP priors on $u$ and $f$, both with Mat\'ern-$\nu$ kernels and lengthscale $\ell = 0.15$.
+The joint state for $u$ includes point evaluations $u(x_i)$, derivatives $u'(x_i)$, and cell integrals $\int u \, dx$.
+The joint state for $f$ includes point evaluations $f(x_i)$ and cell integrals $\int f \, dx$.
+We prescribe the source function $f$ at grid points, enforce the FVM constraints, and apply Dirichlet boundary conditions.
+All constraints use precision $\sigma_{\text{constraint}}^{-2}$ with $\sigma_{\text{constraint}} = 10^{-6}$.
+
+\paragraph{Experimental parameters.}
+Grid sizes: $N \in \{10, 20, 40, 80, 160\}$.
+Kernel smoothness: $\nu \in \{3/2, 5/2, 7/2\}$.
+For dense GP-FVM, we use $\rho = 60$ (essentially exact).
+For sparse GP-FVM, we use fixed $\rho = 5$, yielding approximately 16\% fill-in at $N = 160$.
+
+\subsection{Shallow Water Equations}
+\label{app:swe}
+
+The nonlinear shallow water equations describe the evolution of water height $h$ and momentum $(hu, hv)$ over a domain with bathymetry $b(x,y)$:
+\begin{align}
+  \frac{\partial h}{\partial t} + \frac{\partial (hu)}{\partial x} + \frac{\partial (hv)}{\partial y}                                                                        & = 0, \label{eq:swe-mass}                                \\
+  \frac{\partial (hu)}{\partial t} + \frac{\partial}{\partial x}\left(\frac{(hu)^2}{h} + \frac{1}{2}gh^2\right) + \frac{\partial}{\partial y}\left(\frac{(hu)(hv)}{h}\right) & = -gh\frac{\partial b}{\partial x}, \label{eq:swe-xmom} \\
+  \frac{\partial (hv)}{\partial t} + \frac{\partial}{\partial x}\left(\frac{(hu)(hv)}{h}\right) + \frac{\partial}{\partial y}\left(\frac{(hv)^2}{h} + \frac{1}{2}gh^2\right) & = -gh\frac{\partial b}{\partial y}, \label{eq:swe-ymom}
+\end{align}
+where $g$ is gravitational acceleration. The right-hand side terms represent pressure forces from sloping bathymetry.
+
+\paragraph{Experimental setup.}
+We simulate tsunami propagation over a 100\,km $\times$ 100\,km domain with linearly sloping bathymetry: depth varies from 50\,m at the shore ($x=0$) to 500\,m offshore ($x=L_x$).
+The initial condition is a Gaussian perturbation of amplitude 10\,m centered at $(70\,\text{km}, 50\,\text{km})$, representing a tsunami source, with zero initial velocity.
+We do not include Coriolis forces or bottom friction.
+
+\section{Calibration Study}
+\label{app:calibration}
+
+Posterior standard deviation contracting near measurement locations is a generic property of GP regression; on its own, it does not establish that the posterior is calibrated, i.e.\ that credible intervals achieve their nominal coverage.  We assess calibration empirically via a multi-instance study on the source identification problem of \cref{sec:source-identification}.
+
+\paragraph{Data generating process.}
+We generate 200 random source identification instances.  Each instance has two Gaussian source bumps at random locations in $[0.2, 0.8]^2$ with random amplitudes in $[-3, 3]$ and widths in $[0.05, 0.15]$.  For each instance, we solve the forward advection-diffusion PDE to obtain the true concentration, sample 10 noisy observations ($\sigma = 0.1$) at fixed locations, and run the GP-FVM solver on a $31 \times 31$ grid.
+
+\paragraph{Output scale calibration.}
+The GP prior's output scale $\sigma^2$ controls the overall magnitude of the posterior uncertainty.  We calibrate it via a two-pass procedure: (i)~run 10 calibration instances with an initial $\sigma^2$, compute the mean squared marginal $z$-score $\bar{z}^2 = \mathbb{E}[(f^\dagger - \mu)^2 / \sigma_\text{post}^2]$; (ii)~set $\sigma^2_\text{cal} = \sigma^2_\text{init} \cdot \bar{z}^2$ so that $z$-scores have unit variance on average.  We calibrate the source and concentration fields independently, obtaining $\sigma^2_s = 0.154$ and $\sigma^2_c = 0.347$.
+
+\paragraph{Results.}
+\Cref{fig:calibration} shows the calibration plot (nominal vs.\ empirical coverage) across all 200 instances.  The concentration field (blue) tracks the diagonal closely across most of the range, with mild deviations at the extremes: empirical coverage is somewhat above nominal at low levels (e.g.\ $59\%$ at $50\%$ nominal) and somewhat below at high levels ($88\%$ at $95\%$ nominal).  The source field (red) is broadly conservative --- empirical coverage substantially exceeds nominal across the low and middle range (e.g.\ $80\%$ at $50\%$ nominal, $93\%$ at $90\%$ nominal) --- and crosses the diagonal near the $95\%$ level.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/calibration_plot.pdf}
+    \caption{Calibration plot over 200 random two-source instances ($31 \times 31$ grid).  Empirical coverage vs.\ nominal coverage level.  The concentration field (blue) tracks the diagonal closely with mild deviations at the extremes; the source field (red) is broadly conservative and matches the diagonal near $95\%$.}
+    \label{fig:calibration}
+\end{figure}
+
+\Cref{fig:spatial_coverage} shows the spatial coverage map at the 95\% level, averaged across all instances.  The source field achieves near-nominal coverage at the domain boundaries (where the Dirichlet BC constrains the solution) and is slightly overconfident in the interior where the source bumps are located.  This spatial pattern reflects the prior--truth mismatch: the stationary Mat\'ern prior spreads uncertainty uniformly, while the actual error is concentrated at source locations.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/spatial_coverage_95.pdf}
+    \caption{Spatial coverage map at 95\% nominal level, averaged over 200 instances.  Values near 0.95 (white) indicate well-calibrated regions.  The source field is slightly overconfident in the interior where sources are active.}
+    \label{fig:spatial_coverage}
+\end{figure}
+
+\paragraph{Discussion.}
+The remaining miscalibration has two distinct sources:
+\begin{enumerate}
+    \item \textbf{Prior--truth mismatch in the source field.}  The stationary Mat\'ern prior spreads uncertainty uniformly across the domain, while the actual reconstruction errors are concentrated at source locations.  This produces the consistent over-coverage of the source curve at low and middle nominal levels: posterior credible intervals are wider than needed across most of the domain.  Sparsity-promoting hierarchical GMRF priors (via local variance parameters with an appropriate hyperprior) or log-Gaussian priors for positivity would improve calibration while preserving the sparse Cholesky structure.
+    \item \textbf{Tail behavior of the concentration field.}  The output-scale calibration matches the mean squared $z$-score to unity, ensuring the right average posterior spread but not the full shape of the empirical error distribution.  The mild over-coverage at low nominal levels combined with mild under-coverage at high nominal levels is consistent with empirical errors that are heavier-tailed than the assumed Gaussian posterior.  Heavier-tailed likelihood models or non-Gaussian posterior approximations could address this within the same sparse Cholesky framework.
+\end{enumerate}
+Both limitations have concrete paths to improvement within the framework and do not require architectural changes.
+
+\section{Scalability Study}
+\label{app:scalability}
+
+To complement the asymptotic complexity analysis of \cref{sec:complexity}, we report wall-clock timings and reconstruction errors for the source identification problem of \cref{sec:source-identification} across a range of grid resolutions.
+
+\paragraph{Setup.}
+We run the 2D steady advection-diffusion source identification problem from \cref{sec:source-identification} at grid sizes $N = 11$ to $N = 101$ ($N \times N$ grid points, corresponding to $N_s = 782$ to $N_s = 70{,}802$ total degrees of freedom).  We use physics-motivated lengthscales ($\ell_c = 0.2 \approx \sqrt{D/v_x}$, $\ell_s = 0.12$) that are fixed across all grid sizes, and output scales $\sigma^2_s = 0.154$, $\sigma^2_c = 0.347$ taken from the calibration study (\cref{app:calibration}).  Timing is the best of 3 runs per grid size.
+
+\paragraph{Timing.}
+\Cref{fig:scaling_timing} shows wall-clock time versus total DOF ($N_s$) on a log-log scale.  The total time tracks the theoretical $\mathcal{O}(N_s^{3/2})$ reference line closely (empirical exponent $\approx 1.35$), confirming the complexity analysis in \cref{sec:complexity}.  The dominant cost at large $N_s$ is posterior statistics extraction (selected inversion on the sparse Cholesky factor).  The method solves the inverse problem with $\sim 70{,}000$ DOF in under 4~minutes on a single CPU core.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/scaling_timing_Ns.pdf}
+    \caption{Wall-clock time vs.\ total degrees of freedom $N_s$ for the source identification problem.  The dashed line shows the theoretical $\mathcal{O}(N_s^{3/2})$ scaling from nested-dissection sparse Cholesky.  The total time (black) tracks this reference closely.}
+    \label{fig:scaling_timing}
+\end{figure}
+
+\paragraph{Error.}
+\Cref{tab:scalability} shows that solution error is stable across grid sizes: source RMSE and concentration RMSE plateau beyond $N = 31$, consistent with the observation-limited regime (10 noisy measurements constrain the inverse problem, not the grid resolution).  The source location error remains below one grid cell for all $N \geq 21$.
+
+\begin{table}[t]
+\centering
+\caption{Scalability results for the source identification problem.  Error stabilizes beyond $N \approx 31$ (observation-limited); timing scales polynomially.}
+\label{tab:scalability}
+\small
+\begin{tabular}{rrrrr}
+\toprule
+$N$ & $N_s$ & Time (s) & Source RMSE & Conc.\ RMSE \\
+\midrule
+11 & 782 & 0.6 & 0.552 & 0.077 \\
+21 & 2{,}962 & 2.4 & 0.558 & 0.080 \\
+31 & 6{,}542 & 5.8 & 0.566 & 0.082 \\
+51 & 17{,}902 & 33.8 & 0.574 & 0.084 \\
+81 & 45{,}442 & 126.1 & 0.576 & 0.084 \\
+101 & 70{,}802 & 224.7 & 0.575 & 0.084 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The error plateau confirms that the method does not degrade at larger grid sizes --- the accuracy is limited by the observation information, not the discretization.  The stable fill-in percentages (decreasing from $37.5\%$ at $N = 11$ to $0.6\%$ at $N = 101$ for the concentration field) demonstrate that the sparse Cholesky approximation becomes increasingly efficient at larger scales.
+
+\section{Nonlinear Inverse Problem: Burgers Source Identification}
+\label{app:burgers-source-id}
+
+We demonstrate our framework on a genuinely nonlinear inverse problem: inferring an unknown spatial source field $s(x,y) \geq 0$ from noisy observations of the solution $u(x,y,t)$ to the 2D viscous Burgers equation,
+\begin{equation}
+    \frac{\partial u}{\partial t} + \frac{\partial}{\partial x}\!\left(\frac{u^2}{2}\right) + \frac{\partial}{\partial y}\!\left(\frac{u^2}{2}\right) = \nu \Delta u + s(x,y),
+    \label{eq:burgers_source}
+\end{equation}
+on $[0,1]^2 \times [0, 0.5]$ with $\nu = 0.01$, homogeneous Dirichlet boundary conditions, and Gaussian bump initial condition.  The source $s$ is constant in time and couples all time steps.
+
+\paragraph{Setup.}
+The source consists of two Gaussian bumps with amplitudes $\approx 1$ and $\approx 3.5$ and widths $\approx 0.12$--$0.14$.  We observe $u$ at 50 random spatial locations at 5 out of 10 time steps (250 observations total, noise $\sigma = 0.05$).  The source is never observed directly --- it must be inferred entirely through the nonlinear PDE.
+
+\paragraph{Prior and solver.}
+We place a Mat\'ern-5/2 GP prior on $u$ with IWP(1) temporal dynamics and a separate Mat\'ern-5/2 GP prior on $g$, where $s = \mathrm{softplus}(g) = \log(1 + e^g) \geq 0$.
+The softplus link enforces positivity while keeping bounded Jacobian entries (unlike $\exp$), which improves the quality of the Gauss--Newton approximation.
+The joint spacetime GMRF has $\sim 22{,}000$ degrees of freedom ($16 \times 16$ spatial grid, 11 time steps).  The Gauss--Newton iteration converges in 14 iterations (\cref{tab:gn_convergence}), with Newton decrement dropping over 10 orders of magnitude.
+
+\paragraph{Results.}
+\Cref{fig:burgers_solution} shows the solution at five time steps (IC, two unobserved, two observed).  The GP-FVM posterior mean tracks the nonlinear advection--diffusion dynamics closely.  The posterior standard deviation (bottom row) is small near observation locations (white dots) and larger between observed time steps, reflecting the expected information pattern.
+
+\Cref{fig:burgers_source} shows the inferred source field.  The posterior mean identifies both source locations and captures the dominant bump's amplitude.  The posterior standard deviation (in $g$-space, interpretable as multiplicative uncertainty) is largest where the source is active, reflecting the difficulty of the inverse problem.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/burgers_solution_snapshots.pdf}
+    \caption{Nonlinear inverse problem: 2D Burgers source identification.  \textbf{Top:} ground truth $u(x,y,t)$.  \textbf{Middle:} GP-FVM posterior mean.  \textbf{Bottom:} posterior standard deviation; white dots indicate observation locations.  The method correctly captures the nonlinear advection to the upper right while jointly inferring the unknown source.}
+    \label{fig:burgers_solution}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/burgers_source_comparison.pdf}
+    \caption{Inferred source field.  Left to right: ground truth $s(x,y)$, posterior mean $\mathrm{softplus}(\hat{g})$, absolute error, and posterior std in $g$-space.  Both source bumps are identified; the dominant source (amplitude $\approx 3.5$) is well-recovered.}
+    \label{fig:burgers_source}
+\end{figure}
+
+\paragraph{Discussion.}
+This experiment demonstrates two properties of the framework: (i)~it handles a genuinely nonlinear inverse problem (Burgers flux $F = u^2/2$), and (ii)~the Gauss--Newton iteration converges reliably to a good solution in $\sim 10$--$14$ iterations.  The softplus source prior demonstrates that nonlinear link functions (and the associated positivity constraints) integrate naturally into the GP-FVM framework --- the same machinery handles both the PDE nonlinearity and the prior nonlinearity.
+
+The remaining locally underestimated uncertainty in the source posterior (visible where the softplus is saturated) is discussed in detail in \cref{sec:discussion}.
+
+\section{Gauss--Newton Ablation}
+\label{app:gn-ablation}
+
+The sequential (EKF-style) solver of \cref{sec:time} performs a single Gauss--Newton step per time step.  This is a strong assumption, which we validate empirically in two complementary settings: a forward-simulation ablation showing that additional iterations do not improve accuracy, and a convergence study confirming that the joint solver used for inverse problems requires multiple iterations but reaches them reliably.
+
+\paragraph{Ablation: sequential solver.}
+We run the 1D viscous Burgers forward problem with the EKF sequential solver, varying the number of Gauss--Newton iterations per time step from 1 (standard EKF) to 10.  \Cref{fig:gn_ablation} shows the result across 5 initial conditions (sine and Gaussian families) at $N = 100$ grid points: additional iterations provide \textbf{no measurable improvement} in solution accuracy ($< 0.1\%$ change) while adding $\sim 10\%$ computational overhead.
+
+This validates the single-step assumption: in the small-$\Delta t$ regime, the per-step nonlinearity is a mild perturbation, and one linearization suffices.  The Gauss--Newton iteration converges in a single step because the prior from the previous time step already provides an excellent linearization point.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/gn_ablation.pdf}
+    \caption{Gauss--Newton ablation for the EKF sequential solver on 1D Burgers ($N = 100$, 5 Gaussian ICs).  Additional iterations beyond 1 provide no accuracy improvement.}
+    \label{fig:gn_ablation}
+\end{figure}
+
+\paragraph{Convergence: joint solver.}
+For the nonlinear inverse problem (\cref{app:burgers-source-id}), where we solve the full spacetime system jointly, multiple Gauss--Newton iterations \emph{are} needed --- the problem cannot be decomposed into small-$\Delta t$ steps.  The iteration converges reliably in $\sim 10$--$14$ steps (\cref{tab:gn_convergence}), with the Newton decrement dropping over 10 orders of magnitude.
+
+\begin{table}[h]
+\centering
+\caption{Gauss--Newton convergence for the Burgers source identification problem ($16 \times 16$ grid, 11 time steps, 22k DOF).}
+\label{tab:gn_convergence}
+\small
+\begin{tabular}{rrl}
+\toprule
+Iter & Newton dec.\ & $\alpha$ \\
+\midrule
+1 & $1.5 \times 10^{6}$ & 1.0 \\
+2 & $4.7 \times 10^{4}$ & 1.0 \\
+3 & $5.5 \times 10^{2}$ & 1.0 \\
+5 & $4.1 \times 10^{1}$ & 1.0 \\
+7 & $2.0 \times 10^{-1}$ & 0.31 \\
+10 & $1.1 \times 10^{2}$ & 0.86 \\
+14 & $6.4 \times 10^{-4}$ & 0.29 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Moment-Matching Error Analysis}
+\label{app:moment-matching-error}
+
+We provide a theoretical analysis of the moment-matching approximation introduced in \cref{sec:time}.
+We frame it within the assumed density filtering framework, derive a per-step projection error decomposition that explicitly accounts for the diagonal mismatch arising from the closed-form variance rule, and bound the accumulated KL divergence from the exact filter via a contraction argument.
+The analysis shows that the moment-matching error decomposes into an off-diagonal contribution that vanishes as $\Delta t \to 0$ and a diagonal mismatch floor controlled by the spatial prior's conditioning.
+
+\subsection{Setup and Notation}
+\label{app:mm-setup}
+
+\begin{definition}[Approximating family]
+Let $Q_s \succ 0$ be the sparse spatial prior precision. The approximating family is
+\begin{equation}\label{eq:family}
+\F := \bigl\{ \mathcal{N}\bigl(\mu, (Q_s + D)^{-1}\bigr) : \mu \in \R^N,\; D = \diag(d),\; d > 0 \bigr\}.
+\end{equation}
+\end{definition}
+
+\noindent\textbf{Standing notation.}
+\begin{itemize}
+\item $\Sigma_t^+$: marginal filtering covariance of $x_t$ after conditioning at step~$t$.
+\item $\Sigma_t^-$: marginal predictive covariance before conditioning.
+\item $A = A(\Delta t)$: IWP transition matrix; $\Sigma_\eta = \Sigma_\eta(\Delta t)$: process noise covariance.
+\item $\widetilde{\Sigma}_t = (Q_s + \widetilde{D}_t)^{-1}$: moment-matched covariance, with $\widetilde{D}_t = \diag(\sigma_t^{-2})$.
+\item $\sigma_{t,i}^2 := [\Sigma_t^+]_{ii}$: the true marginal variances after conditioning.
+\item $\Delta_t := G_t S_t^{-1} G_t^\top \succeq 0$: covariance removed by FVM conditioning.
+\item $\lambda_{\min}(\cdot)$, $\lambda_{\max}(\cdot)$: smallest and largest eigenvalues.
+\item $\kappa(M) := \lambda_{\max}(M)/\lambda_{\min}(M)$: condition number.
+\item $N$: state dimension; $N_s$: number of spatial cells; $m$: observation dimension per step.
+\end{itemize}
+
+\noindent\textbf{Key spectral parameters.}
+\begin{equation}\label{eq:spectral}
+\lambda_{\min}(Q_s) =: \alpha > 0, \qquad \lambda_{\max}(Q_s) =: \beta, \qquad \kappa_s := \beta/\alpha.
+\end{equation}
+The filtering precision satisfies $Q_s + \widetilde{D}_t \succeq Q_s \succeq \alpha I$, giving the covariance upper bound
+\begin{equation}\label{eq:cov_upper}
+\widetilde{\Sigma}_t \preceq Q_s^{-1} \preceq \alpha^{-1} I.
+\end{equation}
+We assume throughout that $\opnorm{\widetilde{D}_t} \leq \delta_{\max}$ uniformly in $t$ for some finite $\delta_{\max} > 0$; this is a mild filter-stability condition, satisfied whenever the moment-matched marginals are bounded away from zero. Under this assumption the covariance lower bound is
+\begin{equation}\label{eq:cov_lower}
+\widetilde{\Sigma}_t \succeq (\beta + \delta_{\max})^{-1} I.
+\end{equation}
+
+\subsection{The Diagonal Mismatch}
+\label{app:mm-diagonal}
+
+The algorithm stores $\sigma_{t,i}^2 := [\Sigma_t^+]_{ii}$ and sets $\widetilde{D}_t = \diag(1/\sigma_{t,i}^2)$. If $Q_s = 0$, then $\widetilde{\Sigma}_t = \widetilde{D}_t^{-1}$ and $[\widetilde{\Sigma}_t]_{ii} = \sigma_{t,i}^2$ exactly. But for $Q_s \neq 0$, the Schur complement formula gives
+\begin{equation}\label{eq:schur}
+[(Q_s + D)^{-1}]_{ii} = \frac{1}{d_i + [Q_s]_{ii} - \mathbf{q}_i^\top(Q_{s,-i} + D_{-i})^{-1}\mathbf{q}_i},
+\end{equation}
+where $\mathbf{q}_i$ is the $i$-th row of $Q_s$ with the diagonal removed, and $Q_{s,-i}$, $D_{-i}$ are the corresponding submatrices. The correction term $c_i := \mathbf{q}_i^\top(Q_{s,-i} + D_{-i})^{-1}\mathbf{q}_i \geq 0$ makes the actual marginal variance differ from $1/(d_i + [Q_s]_{ii})$, shifting it away from the target~$\sigma_{t,i}^2 = 1/d_i$.
+
+\begin{lemma}[Diagonal mismatch bound]
+\label{lem:diag_mismatch}
+Define the diagonal mismatch $\eta_{t,i} := [\widetilde{\Sigma}_t]_{ii} - \sigma_{t,i}^2$. Then:
+\begin{equation}\label{eq:eta_bound}
+|\eta_{t,i}| \leq \frac{\beta^2}{\alpha^2\, d_{\min,t}^2} =: \bar{\eta}_t,
+\end{equation}
+where $d_{\min,t} := \min_i [\widetilde{D}_t]_{ii} = 1/\max_i \sigma_{t,i}^2$. Moreover, the Neumann expansion gives the leading-order expression
+\begin{equation}\label{eq:eta_leading}
+\eta_{t,i} = -[Q_s]_{ii}\,\sigma_{t,i}^4 + O(\beta^2/d_{\min,t}^3).
+\end{equation}
+In particular, $\eta_{t,i} < 0$ to leading order: the closed-form rule undershoots the target variance.
+\end{lemma}
+
+\begin{proof}
+From~\eqref{eq:schur} with $d_i = 1/\sigma_{t,i}^2$:
+\[
+[\widetilde{\Sigma}_t]_{ii} = \frac{1}{1/\sigma_{t,i}^2 + [Q_s]_{ii} - c_i}, \qquad
+\eta_{t,i} = \frac{1}{1/\sigma_{t,i}^2 + [Q_s]_{ii} - c_i} - \sigma_{t,i}^2.
+\]
+Since $Q_{s,-i} + D_{-i} \succeq \alpha I$, we have $0 \leq c_i \leq \norm{\mathbf{q}_i}^2/\alpha \leq \beta^2/\alpha$ (using $\norm{\mathbf{q}_i}^2 \leq \norm{Q_s\, e_i}^2 \leq \opnorm{Q_s}^2 \leq \beta^2$). Let $r_i := [Q_s]_{ii} - c_i$. Then:
+\[
+\eta_{t,i} = \frac{1}{1/\sigma_{t,i}^2 + r_i} - \sigma_{t,i}^2 = \frac{-r_i\,\sigma_{t,i}^2}{1/\sigma_{t,i}^2 + r_i} = \frac{-r_i\,\sigma_{t,i}^4}{1 + r_i\,\sigma_{t,i}^2}.
+\]
+Since $r_i = [Q_s]_{ii} - c_i$ can be positive or negative in general, but $1/\sigma_{t,i}^2 + r_i > 0$ (the Schur complement is positive because $Q_s + D \succ 0$), we have:
+\[
+|\eta_{t,i}| = \frac{|r_i|\,\sigma_{t,i}^4}{1 + r_i\,\sigma_{t,i}^2} \leq |r_i|\,\sigma_{t,i}^4 \leq (\beta + \beta^2/\alpha)\,\sigma_{t,i}^4,
+\]
+and crudely $|\eta_{t,i}| \leq \beta^2\sigma_{t,i}^4/\alpha^2 \leq \beta^2/(\alpha^2 d_{\min,t}^2)$ since $\sigma_{t,i}^4 \leq 1/d_{\min,t}^2$.
+
+For the leading-order expression, expand $(Q_s + D)^{-1} = D^{-1} - D^{-1}Q_s D^{-1} + D^{-1}Q_s D^{-1}Q_s D^{-1} - \cdots$ (valid when $\opnorm{D^{-1}Q_s} < 1$, i.e., $d_{\min,t} > \beta$). The diagonal of the first correction is $-[D^{-1}Q_s D^{-1}]_{ii} = -[Q_s]_{ii}/d_i^2 = -[Q_s]_{ii}\,\sigma_{t,i}^4$, which is negative since $[Q_s]_{ii} > 0$.
+\end{proof}
+
+\begin{remark}[When is the mismatch small?]
+The mismatch is controlled by the ratio $\beta^2/(\alpha^2 d_{\min,t}^2)$. As the filter accumulates temporal information ($d_{\min,t}$ grows), $\bar{\eta}_t \to 0$: the spatial prior becomes a perturbation of the total precision. In the Riccati steady state with time step $\Delta t$, $d_{\min,t}$ stabilizes at a value determined by the balance between prediction and update, and $\bar{\eta}_t$ is $O(1)$ with respect to $\Delta t$ --- it depends on the prior conditioning but not on the temporal resolution. During the initial transient ($d_{\min,t}$ small), the mismatch can be large, but these errors are exponentially forgotten by the contraction argument (\cref{app:mm-contraction}).
+\end{remark}
+
+\subsection{Per-Step Update}
+\label{app:mm-perstep-update}
+
+The prediction and update follow the standard Kalman recursion, with the approximate filter propagating $\widetilde{\Sigma}_{t-1}$ (the moment-matched covariance) rather than $\Sigma_t^+$:
+\begin{align}
+\Sigma_t^- &= A\,\widetilde{\Sigma}_{t-1}\,A^\top + \Sigma_\eta, \label{eq:predict}\\
+\Sigma_t^+ &= \Sigma_t^- - \Delta_t, \qquad \Delta_t := G_t S_t^{-1} G_t^\top \succeq 0. \label{eq:update}
+\end{align}
+
+\subsection{Per-Step Projection Error}
+\label{app:mm-perstep-projection}
+
+The covariance error $E_t := \Sigma_t^+ - \widetilde{\Sigma}_t$ has two contributions: (a)~off-diagonal discrepancy from projecting onto the sparse precision family; and (b)~diagonal discrepancy from the approximate moment-matching rule.
+
+\begin{lemma}[Projection error]
+\label{lem:projection}
+Let $\hat{p}_t = \mathcal{N}(\mu_t, \Sigma_t^+)$ and $p_t = \mathcal{N}(\mu_t, \widetilde{\Sigma}_t) \in \F$. Then:
+\begin{enumerate}
+\item[\textup{(a)}] The covariance error satisfies $\diag(E_t) = -\eta_t$ (the diagonal mismatch from \cref{lem:diag_mismatch}), so $E_t$ does \emph{not} have zero diagonal.
+\item[\textup{(b)}] The Frobenius norm of the error decomposes as
+\begin{equation}\label{eq:E_decomp}
+\fnorm{E_t}^2 = \fnorm{E_t^{\mathrm{off}}}^2 + \norm{\eta_t}_2^2,
+\end{equation}
+where $E_t^{\mathrm{off}}$ denotes the off-diagonal part. The off-diagonal contribution satisfies $\fnorm{E_t^{\mathrm{off}}} \leq C_Q \fnorm{\Delta_t}$, where $C_Q$ depends on $\kappa_s$ and $\delta_{\max}$ (see proof).
+\item[\textup{(c)}] The projection error satisfies
+\begin{equation}\label{eq:proj_bound}
+\varepsilon_t := \KL(\hat{p}_t \| p_t) \leq \frac{(\beta + \delta_{\max})^2}{2}\Bigl(C_Q^2\,\fnorm{\Delta_t}^2 + \norm{\eta_t}_2^2\Bigr) + \text{h.o.t.}
+\end{equation}
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+\textbf{Part (a).} $[E_t]_{ii} = [\Sigma_t^+]_{ii} - [\widetilde{\Sigma}_t]_{ii} = \sigma_{t,i}^2 - (\sigma_{t,i}^2 + \eta_{t,i}) = -\eta_{t,i}$.
+
+\medskip\noindent
+\textbf{Part (b).} Let $P = Q_s + D'$ approximate the predictive precision, so $\Sigma_t^- \approx P^{-1}$ (with $O(\Delta t)$ error from the prediction step). After the FVM update: $\Sigma_t^+ = P^{-1} - \Delta_t$. The moment-matching sets $\widetilde{D}_t = \diag(1/[\Sigma_t^+]_{ii})$ and forms $\widetilde{\Sigma}_t = (Q_s + \widetilde{D}_t)^{-1}$.
+
+Write $\widetilde{D}_t = D' + \delta D$ for some diagonal perturbation $\delta D$. By the resolvent identity:
+\[
+(Q_s + \widetilde{D}_t)^{-1} = P^{-1} - P^{-1}\,\delta D\, P^{-1} + O(\opnorm{\delta D}^2).
+\]
+Thus $E_t = (P^{-1} - \Delta_t) - (P^{-1} - P^{-1}\delta D\, P^{-1}) + O(\opnorm{\delta D}^2) = P^{-1}\delta D\, P^{-1} - \Delta_t + \text{h.o.t.}$
+
+The off-diagonal part of $E_t$ is $(P^{-1}\delta D\, P^{-1})^{\mathrm{off}} - \Delta_t^{\mathrm{off}}$. Since $\opnorm{P^{-1}} \leq \alpha^{-1}$:
+\[
+\fnorm{P^{-1}\delta D\, P^{-1}} \leq \alpha^{-2}\fnorm{\delta D} = \alpha^{-2}\norm{\delta d}_2.
+\]
+The perturbation $\delta d$ is determined by the moment-matching condition $\diag(\widetilde{\Sigma}_t) = \diag(\Sigma_t^+)$, which couples $\delta d$ to both $\Delta_t$ (the update term) and the Schur-complement diagonal mismatch from \cref{lem:diag_mismatch}. Expanding to leading order in $\opnorm{\Delta_t}$, and absorbing the prediction-step approximation $P^{-1} \approx \Sigma_t^-$ together with the constants $\alpha, \beta$ into a single coefficient $C_Q = O(\alpha^{-2}\beta^2)$, we obtain the working bound
+\begin{equation}\label{eq:E_off_bound}
+\fnorm{E_t^{\mathrm{off}}} \leq C_Q\,\fnorm{\Delta_t},
+\end{equation}
+which we use in part~(c) below. A fully rigorous derivation of $C_Q$ that tracks the prediction-step coupling and the diagonal mismatch jointly is beyond the scope of this analysis.
+
+\medskip\noindent
+\textbf{Part (c).} For Gaussians with the same mean, $\KL(\hat{p}_t \| p_t) = \frac{1}{2}[\tr(\widetilde{\Sigma}_t^{-1}\Sigma_t^+) - N + \log\det(\widetilde{\Sigma}_t\,(\Sigma_t^+)^{-1})]$. Writing $\Sigma_t^+ = \widetilde{\Sigma}_t + E_t$ and $W := \widetilde{\Sigma}_t^{-1/2}E_t\,\widetilde{\Sigma}_t^{-1/2}$:
+\begin{equation}\label{eq:kl_perturb}
+\KL(\hat{p}_t\|p_t) = \frac{1}{2}\sum_i\bigl[\lambda_i(W) - \log(1 + \lambda_i(W))\bigr] \leq \frac{\fnorm{W}^2}{4(1 - \opnorm{W})}
+\end{equation}
+for $\opnorm{W} < 1$, using $x - \log(1+x) \leq x^2/(2(1-|x|))$.
+
+Now $\fnorm{W} \leq \opnorm{\widetilde{\Sigma}_t^{-1}}\fnorm{E_t} \leq (\beta + \delta_{\max})\fnorm{E_t}$ by~\eqref{eq:cov_lower}. For $\Delta t$ small enough that $\opnorm{W} \leq 1/2$:
+\[
+\varepsilon_t \leq \frac{(\beta+\delta_{\max})^2}{2}\fnorm{E_t}^2 = \frac{(\beta+\delta_{\max})^2}{2}\bigl(\fnorm{E_t^{\mathrm{off}}}^2 + \norm{\eta_t}_2^2\bigr).
+\]
+Substituting the bound on $\fnorm{E_t^{\mathrm{off}}}$ gives~\eqref{eq:proj_bound}.
+\end{proof}
+
+\begin{remark}[Two error sources]
+\label{rem:two_sources}
+The projection error has two additive contributions with distinct characters:
+\begin{enumerate}
+\item The \emph{off-diagonal} term $C_Q^2\fnorm{\Delta_t}^2$ arises from replacing the full posterior correlation structure with the sparse prior structure. This is $O(\fnorm{\Delta_t}^2)$ and vanishes as $\Delta t \to 0$.
+\item The \emph{diagonal mismatch} term $\norm{\eta_t}_2^2$ arises from the closed-form rule $d_i = 1/\sigma_{t,i}^2$ not exactly recovering the marginal variances. By \cref{lem:diag_mismatch}, $\norm{\eta_t}_2^2 \leq N\bar{\eta}_t^2$. This term does \emph{not} vanish with $\Delta t$ --- it depends on the prior conditioning and accumulated data precision.
+\end{enumerate}
+The diagonal mismatch is thus an $O(1)$-in-$\Delta t$ contribution to $\varepsilon_t$, but it is typically small: $\bar{\eta}_t = O(\kappa_s^2/d_{\min,t})$, and $d_{\min,t}$ stabilizes at a moderate value in steady state. For well-conditioned priors, $\norm{\eta_t}_2^2$ is negligible compared to the off-diagonal term.
+\end{remark}
+
+\subsection{Total Projection Error}
+\label{app:mm-total}
+
+\begin{lemma}[Total covariance removal]
+\label{lem:total_cov}
+Assume $\opnorm{\widetilde{\Sigma}_t} \leq C_\Sigma$ for all $t$ and $\Delta t$ sufficiently small. Then:
+\begin{equation}\label{eq:total_trace}
+\sum_{t=1}^K \tr(\Delta_t) \leq C_\Sigma N + K|\tau|_{\max} + O(N T),
+\end{equation}
+where $|\tau|_{\max} := \max_t |\tau_t|$ with $\tau_t := \tr(\widetilde{\Sigma}_t) - \tr(\Sigma_t^+) = \sum_i \eta_{t,i}$ the trace discrepancy from the diagonal mismatch.
+\end{lemma}
+
+\begin{proof}
+From~\eqref{eq:predict} and~\eqref{eq:update}: $\Sigma_t^+ = A\widetilde{\Sigma}_{t-1}A^\top + \Sigma_\eta - \Delta_t$. Taking traces:
+\[
+\tr(\Sigma_t^+) = \tr(A^\top A\,\widetilde{\Sigma}_{t-1}) + \tr(\Sigma_\eta) - \tr(\Delta_t).
+\]
+For the IWP, $A = I + F\Delta t + O(\Delta t^2)$, so $\tr(A^\top A\,\widetilde{\Sigma}_{t-1}) = \tr(\widetilde{\Sigma}_{t-1}) + O(N \Delta t)$ (the perturbation $\Delta t\,\tr((F+F^\top)\widetilde{\Sigma}_{t-1})$ scales with the state dimension). Using $\tr(\widetilde{\Sigma}_t) = \tr(\Sigma_t^+) + \tau_t$:
+\begin{equation}\label{eq:trace_recursion}
+\tr(\widetilde{\Sigma}_t) - \tau_t = \tr(\widetilde{\Sigma}_{t-1}) + \tr(\Sigma_\eta) - \tr(\Delta_t) + O(\Delta t).
+\end{equation}
+Rearranging: $\tr(\Delta_t) = \tr(\widetilde{\Sigma}_{t-1}) - \tr(\widetilde{\Sigma}_t) + \tau_t + \tr(\Sigma_\eta) + O(\Delta t)$. Summing from $t = 1$ to $K$ and telescoping:
+\begin{align}
+\sum_{t=1}^K \tr(\Delta_t) &= \tr(\widetilde{\Sigma}_0) - \tr(\widetilde{\Sigma}_K) + \sum_{t=1}^K \tau_t + \sum_{t=1}^K[\tr(\Sigma_\eta) + O(N\Delta t)] \nonumber\\
+&\leq C_\Sigma N + K|\tau|_{\max} + O(N T), \label{eq:telescoped}
+\end{align}
+using $\tr(\widetilde{\Sigma}_0) \leq C_\Sigma N$, $\tr(\widetilde{\Sigma}_K) \geq 0$, and $\tr(\Sigma_\eta) = O(N\Delta t)$ for the IWP process-noise covariance.
+\end{proof}
+
+\begin{proposition}[Total projection error]
+\label{prop:total}
+Under the assumptions of \cref{lem:total_cov}, and writing $C' := (\beta+\delta_{\max})^2 C_Q^2/2$:
+\begin{equation}\label{eq:total_proj}
+\sum_{t=1}^K \varepsilon_t \leq C'\,\bigl(\max_t \opnorm{\Delta_t}\bigr)\,\sum_{t=1}^K\tr(\Delta_t) \;+\; \frac{(\beta+\delta_{\max})^2}{2}\sum_{t=1}^K\norm{\eta_t}_2^2.
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+From \cref{lem:projection}(c): $\varepsilon_t \leq C'\fnorm{\Delta_t}^2 + \frac{(\beta+\delta_{\max})^2}{2}\norm{\eta_t}_2^2$. For the first term: $\fnorm{\Delta_t}^2 \leq \opnorm{\Delta_t}\tr(\Delta_t)$ since $\Delta_t \succeq 0$. Taking the max and summing gives the stated bound. For the second term: sum directly.
+\end{proof}
+
+\subsection{Accumulated Error via Contraction}
+\label{app:mm-contraction}
+
+\begin{assumption}[Filter stability]
+\label{ass:stability}
+There exist $\rho \in [0,1)$ and $C_0 > 0$ such that for any two Gaussian filtering distributions propagated through one prediction~\eqref{eq:predict} and conditioning~\eqref{eq:update} step on the same FVM observation:
+\begin{equation}\label{eq:contraction}
+\KL(q_{t+1} \| p_{t+1}) \leq \rho \cdot \KL(q_t \| p_t) + C_0 \cdot \varepsilon_t.
+\end{equation}
+\end{assumption}
+
+\begin{remark}[When does this hold?]
+The contraction $\rho < 1$ follows from detectability of the pair $(A, H)$: unobserved modes must be dynamically stable. For the IWP+FVM system, the FVM constraint observes linear combinations involving the time-derivative components of the IWP state at each cell, and the IWP dynamics couples these to function values via $u_{t+1} \approx u_t + \Delta t\, u_t'$. Over $O(q)$ steps, this renders the full state observable. Detectability holds under the same conditions needed for the PDE solver to be meaningful (well-posed PDE, adequate spatial resolution).
+\end{remark}
+
+\begin{proposition}[Accumulated error bound]
+\label{prop:accumulated}
+Let $q_t$ denote the exact filtering distribution and $p_t$ the moment-matched approximate distribution. Under \cref{ass:stability} with $q_0 = p_0$:
+\begin{enumerate}
+\item[\textup{(i)}] \textbf{Pointwise bound.} At any time step~$t$:
+\begin{equation}\label{eq:pointwise}
+\KL(q_t \| p_t) \leq \frac{C_0}{1 - \rho}\max_{s \leq t} \varepsilon_s.
+\end{equation}
+\item[\textup{(ii)}] \textbf{Summation bound.} For any $t$:
+\begin{equation}\label{eq:summation}
+\KL(q_t \| p_t) \leq C_0 \sum_{s=0}^{t-1} \rho^{t-1-s}\,\varepsilon_s.
+\end{equation}
+\item[\textup{(iii)}] \textbf{Riccati steady state.} In steady state, $\Delta_t \to \Delta_\infty$ with $\opnorm{\Delta_\infty} = O(\Delta t)$, and $\eta_t \to \eta_\infty$ with $\norm{\eta_\infty}_2$ independent of $\Delta t$. The accumulated error converges to:
+\begin{equation}\label{eq:steady_state}
+\lim_{t\to\infty}\KL(q_t\|p_t) \leq \frac{C_0}{1-\rho}\bigl(O(\Delta t^2) + \varepsilon_{\mathrm{diag}}\bigr),
+\end{equation}
+where $\varepsilon_{\mathrm{diag}} := \tfrac{(\beta+\delta_{\max})^2}{2}\norm{\eta_\infty}_2^2$ is independent of $\Delta t$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+\textbf{Part (i).} Unroll~\eqref{eq:contraction} from $\KL(q_0\|p_0) = 0$:
+\[
+\KL(q_t\|p_t) \leq C_0\sum_{s=0}^{t-1}\rho^{t-1-s}\varepsilon_s \leq \frac{C_0}{1-\rho}\max_s \varepsilon_s.
+\]
+\textbf{Part (ii)} is the intermediate expression.
+
+\medskip\noindent\textbf{Part (iii).} In steady state, $\Sigma_t^- \to \Sigma_\infty^-$, $\Sigma_t^+ \to \Sigma_\infty^+$. From the prediction equation with $A = I + F\Delta t + O(\Delta t^2)$:
+\[
+\Sigma_\infty^- = A\widetilde{\Sigma}_\infty A^\top + \Sigma_\eta = \widetilde{\Sigma}_\infty + \Delta t(F\widetilde{\Sigma}_\infty + \widetilde{\Sigma}_\infty F^\top) + O(\Delta t^2).
+\]
+Standard Riccati-equation analysis for the analogous linear-Gaussian filter shows that under bounded gain $G_\infty$ and \cref{ass:stability}, the steady-state update covariance satisfies $\opnorm{\Delta_\infty} = O(\Delta t)$; we do not reproduce this argument here. Since $\Delta_\infty = G_\infty S_\infty^{-1} G_\infty^\top$ has rank at most $m$ (the observation dimension per step), this gives $\fnorm{\Delta_\infty}^2 = O(m\,\Delta t^2)$. The diagonal mismatch $\eta_\infty$ depends on $Q_s$ and $d_{\min,\infty}$, but \emph{not} on $\Delta t$. Taking $t \to \infty$ in~\eqref{eq:pointwise} gives~\eqref{eq:steady_state} with the $O(\Delta t^2)$ term absorbing the dependence on $m$ and the constants from \cref{lem:projection}(c).
+\end{proof}
+
+\begin{remark}[Interpretation]
+The accumulated error decomposes into an $O(\Delta t^2)$ component from the off-diagonal projection error (which vanishes with temporal refinement) and a floor $\varepsilon_{\mathrm{diag}}$ from the diagonal mismatch (which persists even as $\Delta t \to 0$). The floor is controlled by $\kappa_s$ and $d_{\min,\infty}$, and inherits the dimension dependence from $\norm{\eta_\infty}_2^2 \leq N \bar{\eta}_\infty^2$ in the worst case; in practice, when the per-coordinate mismatches $\eta_{\infty,i}$ remain bounded as the mesh is refined, $\varepsilon_{\mathrm{diag}}$ stays small compared to the $O(\Delta t^2)$ term for any reasonable $\Delta t$, which is consistent with the empirical accuracy observed in our experiments.
+\end{remark}
+
+\end{document}
