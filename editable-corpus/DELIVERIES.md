@@ -50,3 +50,4 @@
 | 5243 | `public_exact_commit_full5243_restored_verified` | `caeed00fdba0fd560756f114a18c4be2da617897` | batch-5143-5243-r002 |
 | 5392 | `public_exact_commit_full5392_restored_verified` | `87ad214d93317b9b4b7b48d2bd1ef3315d1286e8` | batch-5243-5392-r002 |
 | 5567 | `public_exact_commit_full5567_restored_verified` | `c69b7f56f12c10cdefaeade2bec9b67152029af4` | batch-5392-5567-r002 |
+| 5673 | `public_exact_commit_full5673_restored_verified` | `265449712e64767bb44a8ea9d91a0c3c378853ee` | batch-5567-5673-r002 |
