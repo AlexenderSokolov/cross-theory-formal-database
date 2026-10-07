@@ -53,3 +53,4 @@
 | 5673 | `public_exact_commit_full5673_restored_verified` | `265449712e64767bb44a8ea9d91a0c3c378853ee` | batch-5567-5673-r002 |
 | 5838 | `public_exact_commit_full5838_restored_verified` | `da348c801cf02a80d72c5175a0232109c4c65f3b` | batch-5673-5838-r002 |
 | 6021 | `public_exact_commit_full6021_restored_verified` | `715ca7df590d449bc8d639d5a06dd9f232cfe468` | batch-5838-6021-r002 |
+| 6160 | `public_exact_commit_full6160_restored_verified` | `c6825dc30e79c8a6132c05c64b4587425b92e761` | batch-6021-6160-r002 |
