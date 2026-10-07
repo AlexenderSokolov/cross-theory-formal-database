@@ -43,3 +43,4 @@
 | 4343 | `public_exact_commit_full4343_restored_verified` | `cf91d0891aa0366be2d7e752eba3978be16a555a` | batch-4093-4343-r002 |
 | 4543 | `public_exact_commit_full4543_restored_verified` | `9bd9c1d10af716caeab221d6ceffc497cec6bedd` | batch-4343-4543-r002 |
 | 4743 | `public_exact_commit_full4743_restored_verified` | `e28f5917cf72210b5205c8038947c2c590bef347` | batch-4543-4743-r002 |
+| 4843 | `public_exact_commit_full4843_restored_verified` | `967e3d505799463c16a1e30df2ff6919c25a6b58` | batch-4743-4843-r002 |
