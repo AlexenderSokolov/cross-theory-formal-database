@@ -1,0 +1,937 @@
+% concatenated from root.tex
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2026_conference,times}
+\iclrfinalcopy
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+
+\usepackage[scaled]{helvet} 
+
+\usepackage{multirow,threeparttable}
+\usepackage{mathtools,amsthm}
+\usepackage{algorithm,algpseudocode}
+\algnewcommand{\Initialize}[1]{%
+	\State \textbf{Initialize} \parbox[t]{.8\linewidth}{\raggedright #1}
+}
+
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue!60!black,
+	citecolor=blue!60!black,
+	urlcolor=blue!60!black,
+}
+
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+\newenvironment{myproof}[1] {\noindent\hspace{2em}{\itshape {#1}: }}{\hspace*{\fill}~\QED\par\endtrivlist\unskip}
+
+\newtheorem{ass}{Assumption}
+\newtheorem{defn}{Definition}
+\newtheorem{thm}{Theorem}
+\newtheorem{prop}{Proposition}
+\newtheorem{lem}{Lemma}
+\newtheorem{claim}{Claim}
+\newtheorem{cor}{Corollary}
+\newtheorem{rem}{Remark}
+
+\renewcommand{\vec}{\mathrm{vec}}
+
+\title{Tuning the burn-in phase in training recurrent neural networks improves their performance}
+
+\author{%
+  Julian D. Schiller\thanks{Corresponding author (e-mail: schiller@irt.uni-hannover.de); code is publicly available in the GitHub repository at \url{https://github.com/jdschille/rnn-training}} \And Malte Heinrich \And Victor G. Lopez \And Matthias A. Müller\and\\[-2.2ex]
+  Leibniz University Hannover, Institute of Automatic Control, Hannover, Germany\\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+	Training recurrent neural networks (RNNs) with standard backpropagation through time (BPTT) can be challenging, especially in the presence of long input sequences. A practical alternative to reduce computational and memory overhead is to perform BPTT repeatedly over shorter segments of the training data set, corresponding to truncated BPTT. In this paper, we examine the training of RNNs when using such a truncated learning approach for time series tasks. Specifically, we establish theoretical bounds on the accuracy and performance loss when optimizing over subsequences instead of the full data sequence. This reveals that the burn-in phase of the RNN is an important tuning knob in its training, with significant impact on the performance guarantees. We validate our theoretical results through experiments on standard benchmarks from the fields of system identification and time series forecasting. In all experiments, we observe a strong influence of the burn-in phase on the training process, and proper tuning can lead to a reduction of the prediction error on the training and test data of more than 60\% in some cases.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+Recurrent neural networks (RNNs) are inherently suited for processing sequential data  \citep{Hewamalage2021,Lipton2015}. For this reason, they have a wide range of applications, including natural language modeling \citep{Khan2023,Mikolov2011,Mikolov2013}, text and image generation \citep{Sutskever2011,Gregor2015}, and computer vision \citep{Buhrmester2021}, as well as classical time series tasks such as modeling dynamical systems \citep{Pillonetto2025,Beintema2023a,Forgione2021,Forgione2021a,Schussler2019,Wang2006} and time series forecasting \citep{Hewamalage2021,Elsworth2020,Bianchi2017}.
+While the Elman network \citep{Elman1990} represents one of the most classic RNN architectures, prevailing approaches in practice combine the vanilla RNN with additional gating mechanisms, such as Long Short-Term Memory (LSTM) \citep{Hochreiter1997} and Gated Recurrent Units (GRU) \citep {Cho2014}.
+RNNs have recently become a very active field of research again, driven also by the impressive performance that transformers have recently achieved for long-range reasoning \citep{Kim2025}.
+Modern architectures include deep state-space models (SSMs) such as S4 \citep{Gu2022} and Mamba \citep{Gu2024,Wang2025}, as well as linear recurrent units (LRUs) \citep{Orvieto2023,Zucchet2023}. Other recent works involve Koopman theory \citep{Li2025}, sparse deep learning \citep{Zhang2023}, and probabilistic methods \citep{Coscia2025}.
+
+RNNs are traditionally trained using backpropagation through time (BPTT) \citep{Werbos1990}; namely, in an iterative fashion using steepest descent. This requires to perform, at each iteration, a forward pass to compute the loss and a backward pass to compute the gradients, each running over the whole training sequence.
+However, in case the training sequence is large, many numerical problems can arise: the loss function landscape becomes increasingly complex \citep{AllenZhu2019,Ribeiro2020}, the computations of the forward and backward pass become computationally intense, and they may even blow up due to vanishing or exploding gradients \citep{Bengio1994,Pascanu2013,Zucchet2024}.
+A standard approach to ensure numerical stability, efficiency, and faster training due to less computational and memory overhead is to simply truncate the forward and backward passes, realizing truncated backpropagation through time (TBPTT) \citep{Williams1990}.
+This can be leveraged in a modified, stochastic version of the parameter update law (i.e., using stochastic gradient descent, SGD), where stochasticity comes from the fact that the loss gradients are computed over (a batch of) random segments of the training data set.
+Overall, TBPTT can be regarded as a practical compromise between learning effectiveness and computational effort. It is a standard method for RNN training, particularly in the presence of long training sequences \citep{Mikolov2011,Tang2018,Aicher2020,Xu2023a}.
+
+Computing the forward pass in TBPTT requires initializing the hidden state, which is usually set to zero or chosen at random.
+This may hinder the learning of long-term dependencies. Alternatives include propagating the hidden state across iterations \citep{Xu2023a,Elsworth2020,Katrompas2021} or estimating it using additional trainable autoencoders \citep{Mohajerin2017,Masti2021,Forgione2022,Beintema2021,Beintema2023a}.
+While beneficial when long-term dependencies are crucial, zero initialization prevails in applications because the implementation is much simpler and renders the overall training process more efficient, numerically stable, and robust with respect to local minima \citep{Xu2023a,AllenZhu2019}.
+
+In this work, we consider the training of RNNs for time series tasks, relying on TBPTT with zero initialization to ensure a simple implementation and efficient training.
+To cope with internal transients resulting from initialization, we introduce the burn-in phase of the network as an additional parameter of the training process, effectively excluding them from the loss function.
+This was also previously suggested by \citet{Jaeger2002,Bonassi2022,Beintema2021}, referring to it (inconsistently) as ``wash out'' or ``burn time''; however, without analyzing its influence on the resulting performance or providing systematic tuning guidelines, leaving it a rather unnoticed~heuristic.
+
+In this paper, we provide answers to the following questions.
+\begingroup
+\it
+\begin{enumerate}
+	\item How much do we lose in the training by employing TBPTT with zero initialization?
+	\item How can we suitably modify the training process to reduce this loss?
+\end{enumerate}
+\endgroup
+We establish novel theoretical results on the performance of RNN training when optimizing over subsequences of the training data using a truncated learning approach.
+More specifically, we estimate the performance gap (\emph{regret}) with respect to a challenging benchmark RNN, trained by optimizing its hidden states on all of the training data.
+{Regret is a standard measure for assessing algorithms in reinforcement learning~\citep{Jaksch2010,Agrawal2021}, online optimal control \citep{Agarwal2019,Li2019,Nonhoff2022,Martin2024a}, and state estimation \citep{Brouillon2023,Schiller2025}.}
+{Our technical analysis is based on viewing the training problem through the lens of optimal control, focusing in particular on the \emph{turnpike phenomenon}.
+This property generally implies that optimal trajectories most of the time stay close to an optimal time-varying reference, which is regarded as the \emph{turnpike}, see, e.g., \citet{Trelat2025,Faulwasser2022,Zaslavski2006,Carlson1991} for further details on this topic.
+Turnpike-related arguments have generally proven useful for analyzing the performance of optimization-based control and estimation techniques \citep{Faulwasser2018,Gruene2019,Schiller2025}.}
+
+The derived regret estimates depend on the hyperparameters of TBPTT, particularly the interplay between the internal forgetting rate of the network and the burn-in phase.
+These novel insights can be leveraged to select a suitable burn-in phase during training, ensuring that the resulting performance is close to that of the benchmark RNN.
+We validate our theoretical results in experiments using real world datasets from the fields of system identification and time series forecasting. In all experiments, we observe a strong influence of the burn-in phase on the training process, and proper tuning can lead to a reduction of the prediction error on the training \emph{and test} data of more than 60\% in some cases.
+The main findings of this paper for RNN training using TBPTT can be summarized as follows:
+\begin{itemize}
+	\item \emph{Theory:} We develop the concept of the burn-in phase from a heuristic to a theoretically grounded method.
+	\item \emph{Practice:} Tuning the burn-in phase can yield significant performance increase.
+\end{itemize}
+
+\section{Recurrent neural networks}
+\label{sec:setup}
+
+The core of any recurrent network is the internal dynamics of its hidden states. Given an input sequence $\{x_t\}_{t=1}^T$ of a certain length $T>0$, the evolution of the hidden state $h_t$ for some pre-specified initial state $h_0$ can generally be described by the equation
+\begin{equation}\label{eq:RNN_1}
+	h_{t} = f(h_{t-1},x_t;\theta_\mathrm{h}), \quad t = 1,...,T,
+\end{equation}
+where $f$ is a function parameterized by the network parameters $\theta_\mathrm{h}\in\mathbb{R}^{n_h}$.
+The output $y_t$ of the network at time $t$ is produced through an output layer, which can be characterized in terms of a function $g$ such that
+\begin{equation}\label{eq:RNN_2}
+	y_t = g(h_t,x_t;\theta_\mathrm{y}), \quad t=1,...,T,
+\end{equation}
+where $\theta_\mathrm{y}\in\mathbb{R}^{n_y}$ corresponds to the parameters of the output layer.
+For convenience, throughout the following we consider the combined parameter vector $\theta = \big[\theta_\mathrm{h}^\top, \theta_\mathrm{y}^\top\big]^\top\in\mathbb{R}^n$ with $n=n_h+n_y$, which consists of all the learnable parameters of the model in~\eqref{eq:RNN_1} and \eqref{eq:RNN_2}.
+Here, we want to emphasize that we consider a general multivariate setup, where $x_t\in\mathbb{R}^{d_x}$, $h_t\in\mathbb{R}^{d_h}$, and $y_t\in\mathbb{R}^{d_y}$.
+
+Overall, the output $y_t$ at time $t=1,...,T$ depends on the initial hidden state $h_0$, the input sequence $\{x_j\}_{j=1}^t$, and the model equations \eqref{eq:RNN_1}--\eqref{eq:RNN_2} for a particular network parameter $\theta$. To make this explicit, we sometimes express the output $y_t$ in terms of the mapping $y_t(h_0,\theta,\{x_j\}_{j=1}^t)$ or, for convenience, using the full input sequence $y_t(h_0,\theta,\{x_j\}_{j=1}^T)$ (which is equivalent, as~\eqref{eq:RNN_1} ensures causality).
+
+\begin{figure}
+	\centering
+	\includegraphics[]{RNN_simple_rev}
+	\caption{General structure of an RNN (left) with its internal architecture unfolded in space and time (middle).
+	The network consists of $L$ recurrent layers and processes an input sequence of length $T$. Black arrows denote instantaneous spatial processing, red arrows denote temporal processing. Each arrow represents learnable linear or nonlinear projections and/or layers, potentially with additional skip connections, which can generally be captured by the functions $f$ and $g$. The right figure shows an exemplary RNN for time series forecasting applications, producing a forecast of $F{\,=\,}3$ future values of a sequence $\{x_t\}$ using a lookback window of $N{\,=\,}4$.}
+	\label{fig:RNN}
+\end{figure}
+
+Note that the model in \eqref{eq:RNN_1}--\eqref{eq:RNN_2} constitutes a very general RNN description, which includes all commonly used network architectures, such as classical Elman RNNs~\citep{Elman1990}, LSTMs~\citep{Hochreiter1997}, GRUs~\citep{Cho2014}, and echo state networks~\citep{Jaeger2002}, but also recently proposed architectures such as LRU networks~\citep{Orvieto2023}.
+In deep RNN structures, the hidden state $h_t$ corresponds to the stacked hidden states of all individual layers, and the function~$f$ embodies the dynamics of the individual layers together with possibly additional nonlinear projections, gated linear units, and/or normalization operators between the layers, see also Figure~\ref{fig:RNN}.
+For the most simple case of a one-layer Elman RNN, the functions $f$ and $g$ and the parameter vector~$\theta$ specialize to
+\begin{align}\label{eq:elman}
+	\begin{split}
+		f(h,x;\theta) &= \phi(W_{\mathrm{\mathrm{hh}}}h+W_{\mathrm{\mathrm{xh}}}x + b_\mathrm{h}), \qquad g(h,x;\theta) = W_{\mathrm{\mathrm{hy}}}h_t + b_\mathrm{y},\\[-0.7ex]
+		\theta &=
+		\begin{bmatrix}
+			\vec(W_{\mathrm{\mathrm{hh}}})^\top & \vec(W_{\mathrm{\mathrm{xh}}})^\top & b_\mathrm{h}^\top & \vec(W_{\mathrm{\mathrm{hy}}})^\top &  b_\mathrm{y}^\top
+		\end{bmatrix}^\top.
+	\end{split}
+\end{align}
+Here, the network dynamics \eqref{eq:RNN_1} involve the weight matrix $W_{\mathrm{hh}}$ for the recurrent connection, the weight matrix $W_{\mathrm{xh}}$ between the input and the hidden layer, the bias vector $b_\mathrm{h}$, and the activation function $\phi$ (e.g., $\tanh$ or ReLU); the output \eqref{eq:RNN_2} is formed by a linear layer with weight matrix $W_{\mathrm{hy}}$ and bias vector $b_\mathrm{y}$. All the weight matrices and bias vectors can be collected in the parameter vector~$\theta$.
+
+
+Note that we define the network output in~\eqref{eq:RNN_2} for all $t=1,...,T$. While this is natural in the context of dynamical systems, in many standard RNN applications such as classification tasks and time series forecasting, the output is usually only formed after the entire input sequence has been processed, that is, at time $T$. However, $g$ can still be evaluated at earlier times $t=1,...,T-1$, see Figure~\ref{fig:RNN}. Finally, note that the RNN \eqref{eq:RNN_1}--\eqref{eq:RNN_2} covers any parameterized nonlinear state-space model; the subsequent analysis therefore directly also covers classical system identification problems \citep{Ljung1999}.
+
+
+\section{Training RNNs using TBPTT and mini-batch SGD}
+
+{In this section, we revisit the overall TBPTT learning algorithm to properly introduce our setup and notation. In particular, we illustrate the data segmentation process inherent to TBPTT (Section~\ref{sec:data_segmentation}), define the segment-wise loss function (Section~\ref{sec:loss_function}), show a basic {mini-}batch training scheme (Section~\ref{sec:algorithm}), and present a suitable measure of training performance (Section~\ref{sec:performance_metric}).
+In this work, we consider the standard mean squared error (MSE) loss, where we treat the burn-in phase of the RNN as an additional hyperparameter of the training process (see Section~\ref{sec:loss_function}). In Section~\ref{sec:results}, we establish novel regret guarantees for truncated learning, which exhibit a strong dependence on the burn-in phase.}
+
+
+
+\subsection{Data segmentation in TBPTT}\label{sec:data_segmentation}
+
+{Let an input-output time series pair $D = \{({x}_{t}^\mathrm{d},{y}_{t}^\mathrm{d})\}_{t=1}^T$ of length $T$ be given and denote the input data sequence as $X^\mathrm{d} := \{x^\mathrm{d}_t\}_{t=1}^T$.}
+{TBPTT essentially implements the BPTT algorithm on short segments of the training data set.
+To this end, we divide the training sequence $D$ into $S$ subsequences, each of which has length $N<T$.}
+We define the index sets for the subsequences as $\mathcal{S} := \{1,...,S\}$ and for the elements within a subsequence as $\mathcal{N}:=\{1,...,N\}$.
+Moreover, we denote the input-output data points of subsequence $i\in\mathcal{S}$ that starts at data sample $s_i\in[1,T-N+1]$ by ${x}_{j|i}^\mathrm{d} := x_{s_i+j-1}^\mathrm{d}$ and ${y}_{j|i}^\mathrm{d} := y_{s_i+j-1}^\mathrm{d}$ for all $j\in\mathcal{N}$.
+For convenience, these are grouped as follows:
+\begin{equation}\label{eq:Di}
+	D_i := \{({x}_{j|i}^\mathrm{d},{y}_{j|i}^\mathrm{d})\}_{j=1}^N, \quad X_i^\mathrm{d} := \{x^\mathrm{d}_{j|i}\}_{j=1}^N, \quad i \in \mathcal{S}.
+\end{equation}
+In order to make use of all available data during training, in the following we restrict ourselves to the case where the subsequences $D_i$ cover the complete data set $D$, and furthermore, assume that the start samples $s_i$, $i\in\mathcal{S}$ are arranged in ascending order.
+Hence, a subsequence $D_i$ may share some data points with the preceding subsequence $D_{i-1}$, which can be characterized by the overlap $o_i$ as
+\begin{equation}\label{eq:overlap_i}
+	o_i := N-(s_i-s_{i-1}), \quad i=2,...,S.
+\end{equation}
+Here, we note that $o_i$ takes values in the interval $[0,N-1]$.
+Considering all $S$ subsequences, we define the minimum overlap according to
+\begin{equation}\label{eq:overlap_min}
+	o_{\min} := \min_{2\leq i \leq S} o_i = N-\max_{2\leq i \leq S}(s_i-s_{i-1}).
+\end{equation}
+The overall data segmentation process is also illustrated in Figure~\ref{fig:data}. The variables $S$, $N$, and $s_i$, $i\in\mathcal{S}$, represent important hyperparameters of the TBPTT algorithm that have a strong influence on the training process and the resulting performance of the trained RNN. In general, suitable values may be chosen by leveraging additional information about the given data set and the underlying application (such as specific patterns or seasonal components of different length).
+If no such information is available, for a fixed value of $N$, a practical choice is to select $S=T-N+1$ (i.e., use as many subsequences of length $N$ as possible), which implies that $s_i = i$ for all $i\in\mathcal{S}$ and yields the maximum overlap $o_i = N-1 = o_{\min}$ uniformly for all $2\leq i \leq S$.
+
+\begin{figure}
+	\centering
+	\includegraphics[]{data_segmentation_small}
+	\caption{Data segmentation in TPBTT learning. Depicted are the full data sequence $D$ of length $T$ (green) and four (out of $S$) subsequences of length $N$ (red). The subsequences $D_i$ and $D_{i-1}$ start at samples $s_i$ and $s_{i-1}$, respectively, and result in the overlap $o_i$, compare~\eqref{eq:overlap_i}. Blue highlighted~segments appear in the loss function $L(\theta;D_i)$ in~\eqref{eq:loss}, which is determined by the burn-in phase length $m$.}
+	\label{fig:data}
+\end{figure}
+
+\subsection{Segment-wise loss function with burn-in phase}\label{sec:loss_function}
+
+In this paper, we consider the MSE loss function---a standard choice for time series tasks. Extensions to other loss functions suitable for, e.g., classification problems are an interesting topic of future~work.
+
+For a particular parameter $\theta$, we define the loss function involving the data subsequence~$D_i$ as
+\begin{equation}\label{eq:loss}
+	L(\theta;D_i) = \frac{1}{N-m}\sum_{j=m+1}^{N}\|{y}_j(0,\theta,X_i^\mathrm{d})-{y}_{j|i}^\mathrm{d}\|^2, \quad i \in\mathcal{S}.
+\end{equation}
+The variable~$m$ appearing in the lower bound of summation in \eqref{eq:loss} refers to the \emph{burn-in phase} of the network, see Figure~\ref{fig:data}. It is an additional design variable to compensate for network outputs that might be negatively affected by internal transients resulting from the zero initialization. It can be chosen from the interval $[0,N-1]$, where $m=0$ recovers the standard MSE loss (without burn-in phase).
+Similar approaches have been used previously \citep{Jaeger2002,Bonassi2022,Beintema2021}, albeit without performing any detailed analysis or providing tuning guidelines.
+Note that $m=N-1$ captures scenarios in which the output is generated by default only after processing the entire input subsequence $X_i$ of length $N$, as is the case with time series forecasting, compare Figure~\ref{fig:RNN} (right). Nevertheless, in the following sections we show both theoretically and experimentally that even here, a choice of $0<m<N-1$ can be beneficial for overall performance, suggesting that $m$ should generally be considered a hyperparameter of RNN training.
+
+\subsection{Basic training algorithm}\label{sec:algorithm}
+
+The network parameter $\theta$ are usually trained iteratively with SGD using mini-batches \citep{Lipton2015,Hewamalage2021,Tian2023}. More specifically, at each iteration $k$, we choose a random subset $\mathcal{B}_k\subset\mathcal{S}$ of size $|\mathcal{B}_k| =: b< S$ to update $\theta$ according to
+\begin{equation}
+	\theta_{k+1} = \theta_{k} - \eta_k\Delta\theta_k,
+	\qquad 
+	\Delta\theta_k := \frac{1}{b}\sum_{i\in\mathcal{B}_k}\nabla_\theta L(\theta_{k};D_i).\label{eq:SGD2}
+\end{equation}
+Here, $\Delta\theta_k$ represents the batch-averaged gradient. The learning rate $\eta_k>0$ is usually chosen to be a small constant or adapted with time \citep{Tian2023}.
+The learning procedure is summarized in Algorithm~\ref{alg:SGD}.
+Here, Step 4 actually corresponds to an additional loop that performs, for each subsequence $i$ contained in the current mini-batch $\mathcal{B}_k$, a forward pass to compute the segment-wise loss $L(\theta_k;D_i)$, and a backward pass to compute the corresponding gradient. However, these computations are completely independent for each $i\in\mathcal{B}_k$ and can therefore be performed in parallel (possibly on a GPU), which significantly accelerates the training.
+The basic algorithm can be adapted, e.g., by employing SGD variants such as AdaGrad, RMSProp, Adam, etc. \citep{Tian2023,Bottou2007,Kingma2015}, all of which are part of standard deep learning libraries such as PyTorch.
+Recent results on the global convergence and stability of SGD algorithms in the context of machine learning can be found in the work of \citet{Patel2022,AllenZhu2019}.
+
+\begin{algorithm}
+	\caption{RNN training using TBPTT with mini-batch SGD}
+	\label{alg:SGD}
+	\begin{algorithmic}[1]
+		\Require data set $D$, learning rate $\eta_k>0$
+		\Initialize{$\theta_0\in\mathbb{R}^n$, $k=0$.}
+		\While{algorithm not converged}
+		\State Sample $\mathcal{B}_k\subset \mathcal{S}$ \Comment{Select current mini-batch}
+		\State $\Delta\theta_k = \frac{1}{b}\sum_{i\in\mathcal{B}_k}\nabla_\theta L(\theta_{k};D_i)$ \Comment Compute batch-averaged gradient
+		\State $\theta_{k+1} = \theta_{k} - \eta_k\Delta\theta_k$  \Comment{Update parameter}
+		\State $k=k+1$
+		\EndWhile
+	\end{algorithmic}
+\end{algorithm}
+
+\begin{rem}\label{rem:stateful}
+	Algorithm~\ref{alg:SGD} employs zero initialization of each segment-wise forward pass, which is the most classical form of TBPTT.
+	A slight modification is to preserve the chronological order of the subsequences when selecting the current batch $\mathcal{B}_k$ in Step 3 and pass the hidden states from iteration $k$ to $k+1$, which is sometimes referred to as ``stateful'' training \citep{Katrompas2021,Elsworth2020,Xu2023a}. Although this can be advantageous when long-term dependencies are crucial, the former approach prevails in deep learning applications because the randomness of the training algorithm can help escape from local minima and generally renders the training process more numerically stable, robust, and efficient \citep{Xu2023a,AllenZhu2019}. Still, extending our theory to stateful training could be an interesting topic for future work.
+\end{rem}
+
+\subsection{Training performance}\label{sec:performance_metric}
+
+Recall that TBPTT is a practical approximation of BPTT using the full training data set $D$. Hence, it seems meaningful to measure the performance of the training algorithm by re-evaluating the network after successful training, processing the full training input sequence $X^\mathrm{d}$ and computing the MSE between the generated outputs and the ground truth data $Y^\mathrm{d}$.
+Specifically, for a given $\theta$ and initial hidden state $h_0$, we define
+\begin{equation}\label{eq:performance}
+	P(h_0,\theta;D) := \frac{1}{T-m}\sum_{t=m+1}^{T}\|y_t(h_0,\theta,X^\mathrm{d})-y^\mathrm{d}_t\|^2.
+\end{equation}
+To ensure a fair comparison between parameter sets when using different network initializations, we in fact consider the truncated MSE in~\eqref{eq:performance}, where, similar to the segment-wise loss in~\eqref{eq:loss}, we exclude internal network transients by incorporating the burn-in phase $m$.
+
+\section{Regret guarantees for truncated learning}\label{sec:results}
+
+This section contains our theoretical results, providing answers to the research questions stated in Section~\ref{sec:intro}.
+Our results indicate how the design parameters $S$ (number of the subsequences), $N$ (length of the subsequences), and burn-in phase length~$m$ of the network influence the training performance of RNNs when pursuing a truncated learning approach.
+Here, we assess the training in terms of the achieved performance gap (i.e., the \emph{regret}) with respect to a challenging benchmark.
+
+\subsection{An optimization perspective}\label{sec:optimization}
+
+The averaged gradient $\Delta\theta_k$ in~\eqref{eq:SGD2} can be interpreted as an unbiased estimate of the gradient of the full-batch loss function, that is, the right-hand side of~\eqref{eq:SGD2} with $\mathcal{B}$ and $b$ replaced by $\mathcal{S}$ and $S$, respectively, compare \citet{Tian2023}. Hence, TBPTT as implemented by Algorithm~\ref{alg:SGD} actually aims at solving the following optimization problem:
+\begin{equation}\label{eq:NLP_SGD}
+	V^*
+	= \min\limits_{\theta}\ \frac{1}{S}\sum_{i=1}^{S} L(\theta,D_i)
+	= \min\limits_{\theta}\ \frac{1}{S(N-m)}\sum_{i=1}^{S}\sum_{j=m+1}^{N} \|{y}_j(0,\theta,X_i^\mathrm{d})-y_{j|i}^\mathrm{d}\|^2.
+\end{equation}
+The optimization objective in~\eqref{eq:NLP_SGD} involves $S$ hidden state sequences of length $N+1$, each initialized with zero, coupled by the same parameterization $\theta$.
+This is conceptually different from the definition of the performance metric in~\eqref{eq:performance}, which assesses the training performance based on a \emph{single hidden state sequence of length $T+1$}.
+This naturally raises the question: What if we leverage this additional knowledge during optimization?
+This motivates considering the following benchmark problem:
+\begin{subequations}\label{eq:NLP_benchmark}
+	\begin{align}
+			V^\mathrm{b} = &\ \min\limits_{\{h_t\}_{t=0}^T,\, \theta}\ \frac{1}{S(N-m)}\sum_{i=1}^{S}\sum_{j=m+1}^{N} \|{y}_j(h_{s_i},\theta,X_i^\mathrm{d})-y_{j|i}^\mathrm{d}\|^2 \label{eq:NLP_benchmark_obj}\\
+		&\ \ \text{subject to} \quad  h_{t} = f(h_{t-1},x^\mathrm{d}_{t};\theta), \quad t=1,...,T. \label{eq:NLP_benchmark_con}
+	\end{align}
+\end{subequations}
+Note that the benchmark problem in~\eqref{eq:NLP_benchmark_con} uses the original TBPTT optimization objective from~\eqref{eq:NLP_SGD}, i.e., aims at minimizing the averaged MSE of $S$ output sequences of length $N$. However, the additional constraint in~\eqref{eq:NLP_benchmark_con} ensures that the underlying hidden state sequences actually correspond to different subsequences of a \emph{single} long hidden state sequence $\{h_t\}_{t=0}^T$.
+Comparing the solutions of~\eqref{eq:NLP_SGD} and \eqref{eq:NLP_benchmark} therefore allows us to investigate and quantify the effects of using zero initialization in TBPTT instead of the optimal initializations.
+Since both problems share the same optimization objective, we can perform this comparison in terms of: 1) the \emph{training regret}, quantifying the optimality gap $V^*-V^\mathrm{b}$ (see Theorem~\ref{cor:TP_informal}); and 2) the \emph{performance regret}, where we apply the parameterized networks to the full training input sequence and evaluate the performance metric~\eqref{eq:performance} (see Theorem~\ref{thm:P_informal}).
+
+In the following, we refer to the solution of the TBPTT problem~\eqref{eq:NLP_SGD} with the parameter $\theta^*$, and to the benchmark problem in \eqref{eq:NLP_benchmark} with the hidden state sequence $\{h^\mathrm{b}_t\}^T_{t=0}$ and network parameter $\theta^\mathrm{b}$.
+
+
+\subsection{Main results}\label{sec:results_main}
+In this section, we present novel accuracy and regret guarantees for truncated learning. To provide insights into the training process and its tuning knobs that are also valuable to practitioners, we focus on the key messages and defer most technical details to the appendix; moreover, we formulate our theorems rather informally in the main body of the paper, while they are made precise in Appendix~\ref{appendix}.
+
+In line with standard learning techniques, we suppose that the training data is normalized in the sense that $({x}_{t}^\mathrm{d},{y}_{t}^\mathrm{d})\in\mathcal{X}^\mathrm{d}\times\mathcal{Y}^\mathrm{d}$ for all $t=1,...,T$, where the sets $\mathcal{X}^\mathrm{d}\subset\mathbb{R}^{d_x}$ and $\mathcal{Y}^\mathrm{d}\subset\mathbb{R}^{d_y}$ are compact. Usual design choices include the intervals $[0,1]$ or $[-1,1]$ for the elements of each data point.
+We focus on parameterizations that result in the RNN having the following output stability property.
+
+\begin{ass}\label{ass:output_stability}
+	There exists a (non-empty) set $\Theta\subset\mathbb{R}^{n}$ such that, for all $\theta\in\Theta$, the network~\eqref{eq:RNN_1}--\eqref{eq:RNN_2} is exponentially incrementally output stable along input sequences of the training data, that is, there exist constants $C>0$ and $\lambda\in(0,1)$ such that
+	\begin{equation}
+		\|y_t(h_0^{(1)},{\theta},X)-y_t(h_0^{(2)},{\theta},X)\| \leq 	C\lambda^t\|h_0^{(1)}-h_0^{(2)}\|,\ t=1,2,...,T' \label{eq:output_stability}
+	\end{equation}
+	for any two initial hidden states $h^{(1)}_{0},h^{(2)}_{0}\in\mathbb{R}^n$ and any sequence $X$ of length $T'\in[0,T]$ extracted from the training input sequence $X^\mathrm{d}$.
+\end{ass}
+
+Assumption~\ref{ass:output_stability} essentially requires that the RNN ``forgets'' its initialization over time, so that for the same input sequence $X$, it always produces output sequences that converge to each other, despite different initial hidden states.
+This is a standard condition \citep{Ljung1978}, and moreover, {generally} represents a desirable feature in the context of RNNs.
+Indeed, when applying an RNN in practice, it should always generate meaningful outputs that are not overly sensitive to its initialization.
+We want to emphasize that Assumption~\ref{ass:output_stability} does \emph{not} refer to a property of some underlying (unknown) data-generating system---it is rather a property of the trained RNN model.
+Consequently, one could directly enforce it during training by normalizing and clipping certain RNN weights when performing the gradient updates such that the RNN forward dynamics essentially become stable (i.e., contractive), see \citet{Miller2019} for more details and corresponding methods (applicable to, e.g., LSTMs) and compare also \citet{Bonassi2021,Kolter2019,Kozachkov2022}.
+Nevertheless, invoking these sufficient conditions is generally conservative, potentially limiting expressiveness of the RNN. However, note also that contractive dynamics are not necessary for Assumption~\ref{ass:output_stability}---rather, it suffices that the trained model satisfies the property in~\eqref{eq:output_stability} only along input sequences of the training data $X^\mathrm{d}$, which can be easily tested numerically after training, compare Section~\ref{sec:exp}.
+
+Our first result bounds the gap between solutions to the TBPTT problem~\eqref{eq:NLP_SGD} and the benchmark~\eqref{eq:NLP_benchmark}.
+
+\begin{thm}[informal]\label{cor:TP_informal}
+	Let the TBPTT solution $\theta^*$ of the problem in~\eqref{eq:NLP_SGD} and the benchmark solution $\theta^\mathrm{b}$ of the problem in~\eqref{eq:NLP_benchmark} be given and assume that both parameters render the respective RNN incrementally output stable in the sense of Assumption~\ref{ass:output_stability}.
+	Under an additional technical condition, there exist constants $C_1,C_2>0$ such that the following properties hold:
+	\begin{align*}
+		\text{1.} & \quad \text{Output accuracy:}
+		&& \sum_{j=m+1}^{N} \ \frac{1}{S}\sum_{i=1}^{S}\|y_j(0,\theta^*,X^\mathrm{d}_i)-y_j(h_{s_i}^\mathrm{b},\theta^\mathrm{b},X^\mathrm{d}_i)\|^2
+		\leq C_1\lambda^m\\
+		\text{2.} & \quad \text{Training regret:}
+		&& \ \ V^* - V^\mathrm{b} \leq C_2 \cdot \frac{\lambda^m}{N-m}
+	\end{align*}
+	Here, $\lambda\in(0,1)$ is from Assumption~\ref{ass:output_stability}.
+\end{thm}
+
+
+We provide the proof of Theorem~\ref{cor:TP_informal} in Appendix~\ref{app:regret} (Corollary~\ref{cor:TP}).
+The first property in Theorem~\ref{cor:TP_informal} states that the sum of the averaged squared errors between the predictions generated by the TBPTT solution $\theta^*$ and the benchmark solution $\theta^\mathrm{b}$ along all subsequences $S$ is bounded by a constant.
+As this constant does \emph{not} depend on $N$, this sum must become smaller if $N$ is increased, which necessarily implies that the TBPTT outputs get closer to the benchmark outputs. Moreover, the bound gets smaller for larger values of $m$ (as the outputs are less influenced by transients) and for smaller values of~$\lambda$ (as the outputs converge faster).
+The second property given in Theorem~\ref{cor:TP_informal} reveals that the optimal value for $m$ when aiming for a small regret bound is in fact highly dependent on the convergence rate~$\lambda$; for slow convergence (larger values of $\lambda$), smaller values of $m$ are preferable, and \textit{vice versa}.
+
+\begin{rem}
+	The statement of Theorem~\ref{cor:TP_informal} (and Theorem~\ref{thm:P_informal} below) involves ``an additional technical condition''. As we show in detail in Appendix~\ref{appendix}, we need to exclude cases where the optimal output sequences fulfill a certain geometric relation, leading to the same value functions despite being different. However, this is rather of formal interest, since 1) it can be avoided in advance by choosing a suitable RNN architecture; 2) we conjecture that our theory can be generalized to these cases as well while preserving the key implications. For further details, see Remark~\ref{rem:epsilon} in Appendix~\ref{app:turnpike}.
+\end{rem}
+
+Our second result assesses the trained RNN when processing the full training input sequence $X^\mathrm{d}$.
+
+\begin{thm}[informal]\label{thm:P_informal}
+	Let the TBPTT solution $\theta^*$ of the problem in~\eqref{eq:NLP_SGD} and the benchmark solution $\theta^\mathrm{b}$ of the problem in~\eqref{eq:NLP_benchmark} be given and assume that both parameters render the respective RNN incrementally output stable in the sense of Assumption~\ref{ass:output_stability}. Let the burn-in phase parameter $m$ satisfy $ m\leq o_{\min}$, where $o_{\min}$ is the minimum overlap between subsequences as defined in~\eqref{eq:overlap_min}.
+	Under an additional technical condition, there exist some $E_1,E_2>0$ such that the following properties hold:
+	\begin{align*}
+		1. & \ \  \text{Output accuracy:} \ \
+		\frac{1}{T{-\,}m}\sum_{t=m+1}^{T} \|y_t(0,\theta^*,X^\mathrm{d}){\,-\,}y_t(h^\mathrm{b}_{0},\theta^\mathrm{b},X^\mathrm{d})\|^2 {\,\leq\, }  E_1
+		\frac{(S{\,-\,}1)\lambda^{2o_{\min}}{\,+\,}S\lambda^m}{T-m}\\
+		2. &\ \ \text{Performance regret:} \quad
+		P(0,\theta^*;D) - P(h^\mathrm{b}_0,\theta^\mathrm{b};D) \leq  E_2\cdot \sqrt{\frac{(S-1)\lambda^{2o_{\min}} + S\lambda^m}{T-m}}
+	\end{align*}
+	Here, $\lambda\in(0,1)$ is from Assumption~\ref{ass:output_stability} and $P$ corresponds to the training performance defined in~\eqref{eq:performance}.
+\end{thm}
+
+Theorem~\ref{thm:P_informal} is proven in Appendix \ref{app:regret_T} (Theorem~\ref{thm:P}).
+It reveals similar dependencies of the tuning parameters on the training performance as Theorem~\ref{cor:TP_informal}, ensuring that the output sequence generated by the TBPTT solution is close to that of the benchmark, also when processing the full input sequence.
+However, there are also subtle differences:
+First, there is an additional condition requiring $m\leq o_{\min}$. This ensures that the full-batch loss functions used in~\eqref{eq:NLP_SGD} and~\eqref{eq:NLP_benchmark} involve all data samples $\{y^\mathrm{d}_t\}_{t=m+1}^T$.
+Second, there is an additional influence of the number of training subsequences~$S$.
+Still, the regret bounds are mainly influenced by the parameters $m$ and $\lambda$, whereby smaller values of $m$ are preferable for $\lambda\rightarrow 1$ and \textit{vice versa}.
+If an upper bound for $\lambda$ is enforced during training, the optimal value of $m$ minimizing the regret estimates from Theorems~\ref{cor:TP_informal} and~\ref{thm:P_informal} could, in principle, be computed explicitly.
+However, the estimates are generally conservative, as Assumption~\ref{ass:output_stability} (on which they are based) also covers the slowest possible decay and is therefore inherently conservative in \emph{quantitative} terms. Our theoretical results should therefore be understood as \emph{qualitative} tuning guidelines.
+	
+\section{Experiments}\label{sec:exp}
+
+We validate our theory on various time series tasks (the code is available online at \url{https://github.com/jdschille/rnn-training}).
+We first consider a small-scale problem of academic nature in Section~\ref{sec:exp_synthetic}, where we rely on synthetic data. This allows us to solve the benchmark problem~\eqref{eq:NLP_benchmark} using direct nonlinear optimization methods and hence to illustrate Theorems~\ref{cor:TP_informal} and \ref{thm:P_informal}.
+In Section~\ref{sec:exp_TS}, we show that the obtained insights carry over to RNN training applied to public data sets from the fields of system identification and time series forecasting, using classical TBPTT and mini-batch SGD methods.
+Here, we numerically tested the TBPTT-trained models for compliance with Assumption~\ref{ass:output_stability}, which was always fulfilled with $\lambda=0.99,\ldots,0.9999<1$.
+However, as the benchmark problem~\eqref{eq:NLP_benchmark} can no longer be directly solved due to the size of the problem, we assess RNN performance by considering the MSE of the generated outputs with respect to training and test data and additionally compare it with BPTT and stateful (see Remark~\ref{rem:stateful}) TBPTT training results.
+
+\subsection{Synthetic data}\label{sec:exp_synthetic}
+We aim to model an unknown linear single-input single-output system, for which a noisy training data set of length $T=100$ is available (see Figure~\ref{fig:ex_academic_data} in Appendix~\ref{app:exp_academic}).
+To this end, we design a linear RNN \citep{Proca2025} with a one-dimensional hidden state, corresponding to the model from \eqref{eq:elman} with $\phi(x)=x$ and $b_\mathrm{h}=b_\mathrm{y}=0$, where we additionally enforce $\|W_{\mathrm{hh}}\|\leq0.999$ during optimization to ensure Assumption~\ref{ass:output_stability}.
+For training, we select $N=21$, set $S=T-N+1 = 80$ (compare Section~\ref{sec:data_segmentation}), and compute the solutions to the TBPTT problem~\eqref{eq:NLP_SGD} and benchmark problem \eqref{eq:NLP_benchmark} for different values of $m$ using the nonlinear programming solver IPOPT \citep{Waechter2005} in MATLAB.
+The key training results depicted in Figure~\ref{fig:ex_academic_train} are in line with our theoretical results provided in Section~\ref{sec:results_main}; specifically, the left plot shows that the $j$-step batch-averaged output error $e_j := \frac{1}{S}\sum_{i=1}^{S}\|y_j(0,\theta^*,X^\mathrm{d}_i)-y_j(h_{s_i}^\mathrm{b},\theta^\mathrm{b},X^\mathrm{d}_i)\|^2$ converges to a neighborhood of zero, the size of which decreases with increasing $m$. Hence, larger values of $m$ allow for longer transient phases, and the RNN effectively exploits this during training to get closer to the benchmark outputs.
+As indicated by the right plot of Figure~\ref{fig:ex_academic_train}, this behavior is also reflected in the resulting performance achieved over the training and an additional test data set (compare Appendix~\ref{app:exp_academic}). Here, the regret exponentially converges to zero with increasing $m$, and almost zero regret can be achieved when using $m\geq 12$.
+
+\begin{figure}
+	\centering
+	\includegraphics[]{ex_academic_y_avrg}
+	\hspace{2.5ex}
+	\includegraphics[]{ex_academic_T_y}
+	\caption{Training results for the synthetic data experiment for different values of the burn-in~phase~$m$. Left: batch-averaged output error $e_j$. Right: performance $P$ (the truncated MSE from  \eqref{eq:performance}) achieved by solving the TBPTT problem~\eqref{eq:NLP_SGD} (`$\circ$' markers) and the benchmark problem~\eqref{eq:NLP_benchmark} (`$\times$' markers).}
+	\label{fig:ex_academic_train}
+\end{figure}
+
+
+\subsection{Data sets from system identification and time series forecasting}\label{sec:exp_TS}
+
+
+In this section, we consider the training of RNNs on public data sets from the fields of 1) system identification: Silver-Box \citep{Wigren2013}, Wiener-Hammerstein (W-H) \citep{Schoukens2009}, RLC circuit (RLC) \citep{Forgione2021}; and 2) time series forecasting: Electricity, Traffic, Solar-Energy \citep{Lai2018,Wang2025}.
+
+For system identification, we aim to design an RNN as a black-box model of the state-space representation of the respective underlying dynamical system. Here, we choose an LSTM cell with hidden state dimension $d_h{=\,}8$ and a linear output layer, see Appendix~\ref{app:exp} for further details.
+For each data set, we train multiple RNN instances using TBPTT and various combinations of window length $N$ and burn-in phase $m$.
+In Figure~\ref{fig:ex_training} (left) and Figure~\ref{fig:ex_app_TS_m} in Appendix~\ref{app:exp}, we observe a strong influence of~$m$ on the MSE achieved on the training and test data. Interestingly, the results show very similar qualitative behavior when varying $m$, regardless of $N$.
+The training results are summarized in Table~\ref{tab:res_sysid_2} (upper half), where we chose $m^*$ based on an additional validation data set and refer to $\bar{m}=0$ as the baseline choice.
+Consequently, proper tuning of $m$ can yield a significant reduction of the MSE on both training and test data compared to baseline TBPTT, narrowing the gap to BPTT performance on the training data while avoiding the risk of overfitting and reducing the training time (see Figure~\ref{fig:ex_training}).
+
+\begin{figure}
+	\centering
+	\includegraphics[]{SYSID_silverbox_N_m}\hfill
+	\includegraphics[]{TSF_electricity_N_m}\ \
+	\includegraphics[]{ex_comptimes}
+	\caption{Training results. Left and middle: MSE of RNN predictions for training (`$\circ$') and test data (`$\times$') after (re-)training; gray lines correspond to the BPTT-trained RNN evaluated on the training (solid) and test data (dashed). Right: Averaged TBPTT training times relative to BPTT.}
+	\label{fig:ex_training}
+\end{figure}
+
+For time series forecasting, we design an RNN to predict $F$ future values of the time series contained in the lookback window of length $N$, compare Figure~\ref{fig:RNN} (right). Here, we choose $F=96$ and consider lookback windows of different lengths $N=48,96,192$, compare \citet{Wang2025}. To simplify the training, we restrict ourselves to univariate forecasting and consider one LSTM cell with hidden state dimension $d_h{\,=\;}96$ and a linear output layer.
+For each data set, we train multiple RNN instances for different values of $N$ and $m$. To this end, we split the available time series into training, validation, and test segments, where we first (pre-)train the RNN on the training segment, tune $m^*$ by additionally considering the validation segment, re-train the RNN using the combined training and validation segments, and ultimately evaluate the forecast performance on the test segment, see Appendix \ref{app:timeseries} for further details.
+Figure~\ref{fig:ex_training} (middle) and Figure~\ref{fig:ex_app_TS_m} in Appendix~\ref{app:timeseries} show the forecast MSE after re-training the RNN using the considered combinations of $N$ and $m$. Here, we recall that $m{\,=\,}N{\,-\,}1$ corresponds to the standard configuration in time series forecasting (compare the discussion at the end of Section~\ref{sec:loss_function}), which we consider as the the baseline TBPTT with corresponding value $\bar{m}$.
+In the bottom half of Table~\ref{tab:res_sysid_2}, we compare the MSE achieved after training using ${m{\,=\,}m^*}$ with the baseline TBPTT, stateful TBPTT (i.e., passing hidden states over lookback windows during training), and full BPTT using $m{\,=\,}0$ (which corresponds to inferring the forecast $F$ using all available past data).
+Again, we find that tuning $m^*$ is beneficial overall, as we can achieve a significant reduction in the training and/or test MSE in the majority of cases.
+Choosing $m{\,<\,}\bar{m}$ can be interpreted as additional regularization, which turns out to be numerically advantageous when performing the gradient updates during training.
+The fact that TBPTT with zero initialization outperforms stateful TBPTT and BPTT training in some cases in Table~\ref{tab:res_sysid_2} is due to the positive effect of randomness in the training process (the data batches are shuffled, see Remark~\ref{rem:stateful}), which renders the training more numerically stable and yields faster convergence (note that we use the same number of iterations for all training methods).
+
+
+\begin{table}[]
+	\caption{Training on public system identification (sysid) and time series forecasting (TSF) data sets.\\[-1ex]}
+	\label{tab:res_sysid_2}
+	\begin{threeparttable}
+		\begingroup\footnotesize\sf
+		\addtolength{\tabcolsep}{-0.114em}
+		\begin{tabular}{ccccccccccc}
+			\toprule
+			& & & \multicolumn{4}{c}{MSE on training data} & \multicolumn{4}{c}{MSE on test data} \\\cmidrule(lr){4-7}\cmidrule(lr){8-11}
+			& $N$ & $m^*$ & TBP $\bar{m}$ & TBP $m^*$ & TBP sf & BP & TBP $\bar{m}$ & TBP $m^*$ & TBP sf & BP\\\midrule
+			\multirow{4}{*}{\rotatebox{90}{Silver-Box}}
+			& 100 & 94 & 0.242 & 0.042 (-83\%) & 0.059 & 0.003 & 0.291 & 0.142 (-51\%) & 0.222 & 0.251 \\
+			& 200 & 94 & 0.050 & 0.030 (-41\%) & 0.048 & 0.003 & 0.140 & 0.135  (-4\%) & 0.221 & 0.251 \\
+			& 500 & 94 & 0.030 & 0.019 (-37\%) & 0.051 & 0.003 & 0.121 & 0.122  (+1\%) & 0.185 & 0.251 \\
+			&1000 & 94 & 0.026 & 0.012 (-54\%) & 0.032 & 0.003 & 0.117 & 0.112  (-4\%) & 0.146 & 0.251 \\
+			\midrule
+			\multirow{4}{*}{\rotatebox{90}{W-H}}
+			& 100 & 21 & 0.220 & 0.153 (-31\%)      & 0.541 & 0.063 & 0.511 & 0.488 (-4\%)       & 1.014 & 0.445 \\
+			& 200 & 36 & 0.168 & 0.138 (-18\%)      & 0.514 & 0.063 & 0.454 & 0.476 (+5\%)       & 0.961 & 0.445   \\
+			& 500 &  0 & 0.135 & 0.135 (\textpm0\%) & 0.465 & 0.063 & 0.397 & 0.397 (\textpm0\%) & 0.875 & 0.445   \\
+			&1000 &  0 & 0.116 & 0.116 (\textpm0\%) & 0.391 & 0.063 & 0.372 & 0.372 (\textpm0\%) & 0.737 & 0.445 \\
+			\midrule
+			\multirow{4}{*}{\rotatebox{90}{RLC}}
+			& 100  &  83 & 2.290 & 1.122 (-51\%) & 1.101 & 0.107 & 3.527 & 1.093 (-69\%) & 1.183 & 0.176 \\
+			& 200  & 110 & 0.971 & 0.309 (-68\%) & 1.057 & 0.107 & 1.462 & 0.307 (-79\%) & 1.186 & 0.176 \\
+			& 500  & 130 & 0.442 & 0.186 (-58\%) & 0.716 & 0.107 & 0.538 & 0.228 (-58\%) & 0.932 & 0.176 \\
+			& 1000 & 110 & 0.306 & 0.176 (-42\%) & 0.674 & 0.107 & 0.402 & 0.362 (-10\%) & 0.871 & 0.176 \\			
+			\midrule
+			\multirow{3}{*}{\rotatebox{90}{Electr.}}
+			& 48 & 10 & 0.107 & 0.101  (-6\%) & 0.165 & 0.103 & 0.150 & 0.146 (-3\%) & 0.418 & 0.227 \\
+			& 96 & 14 & 0.098 & 0.089 (-10\%) & 0.160 & 0.103 & 0.159 & 0.149 (-6\%) & 0.279 & 0.227 \\
+			&192 & 20 & 0.099 & 0.083 (-16\%) & 0.152 & 0.103 & 0.146 & 0.144 (-1\%) & 0.219 & 0.227 \\
+			\midrule
+			\multirow{3}{*}{\rotatebox{90}{Traffic}}
+			&  48 &  0 & 0.297 & 0.287  (-3\%) & 0.321 & 0.240 & 0.343 & 0.316 (-8\%) & 0.728 & 0.498 \\
+			&  96 & 75 & 0.228 & 0.234  (+3\%) & 0.331 & 0.240 & 0.305 & 0.280 (-8\%) & 0.813 & 0.498 \\
+			& 192 & 20 & 0.251 & 0.205 (-18\%) & 0.370 & 0.240 & 0.284 & 0.276 (-3\%) & 0.359 & 0.498 \\			
+			\midrule
+			\multirow{3}{*}{\rotatebox{90}{Solar}}
+			& 48 & 31  & 0.300 & 0.312 (+4\%) & 0.312 & 0.152 & 0.250  & 0.257  (+3\%) & 0.772 & 0.110\\
+			& 96 & 75  & 0.068 & 0.069 (+2\%) & 0.203 & 0.152 & 0.227  & 0.184 (-19\%) & 0.349 & 0.110\\
+			&192 & 141 & 0.020 & 0.020 (-1\%) & 0.185 & 0.152 & 0.211  & 0.112 (-47\%) & 0.092 & 0.110\\
+			\bottomrule			
+		\end{tabular}
+		\endgroup
+		\begin{tablenotes}
+			\item \small{RNNs are evaluated over the interval $[1,T]$ (sysid) or lookback windows of length $N$ (TSF); ``{\sf TBP $\bar{m}$}'': baseline TBPTT training using $m{=}\bar{m}{=}0$ (sysid) and $m{=}\bar{m}{=}N{-}1$ (TSF); ``{\sf TBP $m^*$}'': TBPTT training with $m{=}m^*$, where values in parentheses denote relative change with respect to the respective baseline; ``{\sf TBP sf}'': stateful TBPTT training using $m{=}\bar{m}$; ``{\sf BP}'': full BPTT training using $m{=}0$.
+			The MSE values corresponding to system identification datasets (Silver-Box, W-H, RLC) are scaled by a factor of 10\textsuperscript{2}.}
+		\end{tablenotes}
+	\end{threeparttable}
+\end{table}
+
+
+\section{Conclusions}
+
+In this paper, we developed the concept of burn-in phase from a heuristic to a theoretically grounded method for RNN training.
+Our results indicate how the training hyperparameters---in particular, the length of the burn-in phase---influence the training performance. In experiments on public data sets, we showed that tuning the burn-in phase improves RNN performance compared to standard choices. 
+
+\section*{Acknowledgments}
+This work was supported by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) as part of the Research Unit ``Active Learning for Systems and Control (ALeSCo)'' -- project number 535860958.
+
+\input{references.bbl}
+
+\appendix
+
+\section{Theoretical analysis}\label{appendix}
+
+This section contains proofs and further technical details of Theorems~\ref{cor:TP_informal} and \ref{thm:P_informal} stated in Section~\ref{sec:results_main}. Our analysis builds on a generalized optimization problem (Section~\ref{app:optim}), which captures the TBPTT problem from~\eqref{eq:NLP_SGD} and the benchmark problem from \eqref{eq:NLP_benchmark}. In Section~\ref{app:turnpike}, we show that this generalized problem exhibits an output turnpike property, which is used in Sections~\ref{app:regret} and \ref{app:regret_T} to prove Theorems~\ref{cor:TP_informal} and \ref{thm:P_informal}, respectively.
+
+\subsection{The lifted optimization problem}\label{app:optim}
+
+To allow for a precise technical analysis, we re-formulate the problems~\eqref{eq:NLP_SGD} and \eqref{eq:NLP_benchmark} in a multiple shooting fashion (see, e.g., Section 8.5 of the book by \citet{Rawlings2017} for further details on this topic).
+More specifically, we implement the output mapping used in the respective loss functions as part of the problem constraints and introduce additional decision variables.
+
+To this end, we define the containers of the predicted hidden state and output sequences as
+\begin{equation}\label{eq:HY_def}
+	H:=\{{h}_{j|i}\}_{\forall j\in\mathcal{N}_0,\forall i\in\mathcal{S}}, \quad Y:=\{{y}_{j|i}\}_{\forall j\in\mathcal{N},\forall i\in\mathcal{S}},
+\end{equation}
+where $\mathcal{N}_0:=\mathcal{N}\cup\{0\}$.
+Furthermore, we define the stage cost $l_{j|i}:\mathbb{R}^{d_y}\rightarrow\mathbb{R}_{\geq0}$ associated with stage $j\in\mathcal{N}$ and subsequence $i\in\mathcal{S}$ according to
+\begin{equation}\label{eq:stage_cost}
+	l_{j|i}({y}) = \|{y}-y^\mathrm{d}_{j|i}\|^2.
+\end{equation}
+Now, we can express the loss functions used in~\eqref{eq:NLP_SGD} and~\eqref{eq:NLP_benchmark} as
+\begin{equation}\label{eq:NLP_cost}
+	 J_S(Y;D) := \frac{1}{S(N-m)}\sum_{i=1}^{S}\sum_{j=m+1}^N l_{j|i}(y_{j|i})
+\end{equation}
+and formulate the following optimization problem:
+\begin{subequations}
+	\label{eq:NLP}
+	\begin{align}
+		&\min\limits_{H,Y,\theta} J_S(Y;D) \label{eq:NLP_min}\\
+		\text{subject to \quad }
+		&{h}_{j|i} = f(h_{j-1|i},x_{j|i}^\mathrm{d};\theta), \ \forall j\in\mathcal{N}, \ \forall i\in\mathcal{S}, \label{eq:NLP_f}\\
+		& y_{j|i} = g(h_{j|i},x_{j|i}^\mathrm{d};\theta), \ \forall j\in\mathcal{N}, \ \forall i\in\mathcal{S},\label{eq:NLP_g}\\
+		& \{h_{j|i}\}_{j=0}^N \in\mathcal{H}^{N+1}, \ \{y_{j|i}\}_{j=1}^N\in\mathcal{Y}^N, \quad \forall i\in\mathcal{S} \label{eq:NLP_HY}\\
+		& \theta\in \Theta, \label{eq:NLP_theta}\\
+		&R(H)=0. \label{eq:NLP_h}
+	\end{align}
+\end{subequations}
+
+The constraints in \eqref{eq:NLP_f} and \eqref{eq:NLP_g} imply that over each subsequence $i\in\mathcal{S}$, the corresponding hidden state and output sequences satisfy the network equations from~\eqref{eq:RNN_1} and \eqref{eq:RNN_2} for all $j\in\mathcal{N}$.
+Condition~\eqref{eq:NLP_HY} ensures that these sequences have elements from the sets $\mathcal{H}\subset\mathbb{R}^{d_h}$ and $\mathcal{Y}\subset\mathbb{R}^{d_y}$, respectively, where we assume that $\mathcal{H}$ and $\mathcal{Y}$ are compact. Note that this is required for technical reasons in the proof of our results below and in particular does not need to be incorporated in, e.g., Algorithm~\ref{alg:SGD} (as suitable sets $\mathcal{H}$ and $\mathcal{Y}$ can be found in any case after successful training, compare also Remark~\ref{rem:set_Y} below).
+The constraint in~\eqref{eq:NLP_theta} ensures that the resulting parameter $\theta$ leads to a network model that is incrementally output stable in the sense of Assumption~\ref{ass:output_stability}.
+
+Depending on the last constraint in~\eqref{eq:NLP_h}, we consider three different settings:
+\begin{enumerate}
+	\item The TBPTT case:
+	\begin{equation}\label{eq:RH_SGD}
+		R(H) = [h_{0|1},...,h_{0|S}].
+	\end{equation}
+	This results in each initial hidden state $h_{0|i}$, $i\in\mathcal{S}$, being initialized to zero. From a theoretical perspective, the problem~\eqref{eq:NLP} under~\eqref{eq:RH_SGD} is fully equivalent to the original TBPTT problem in~\eqref{eq:NLP_SGD} (provided that the solution to the latter satisfies Assumption~\ref{ass:output_stability}, i.e., $\theta^*\in\Theta$). We denote the solution to~\eqref{eq:NLP} under~\eqref{eq:RH_SGD} as $(H^*,Y^*,\theta^*)$.
+	
+	\item The coupled case:
+	\begin{equation}\label{eq:RH_full}
+		R(H) = [h_{0|2} - h_{N-o_2|1},...,h_{0|S}-h_{N-o_S|S-1}].
+	\end{equation}
+	This condition implies that for each $i\in\mathcal{S}$ with $i\geq2$, the corresponding initial hidden state $h_{0|i}$ is equal to the hidden state $h_{N-o_i|i-1}$, where $o_i$ corresponds to the overlap between the subsequences $i$ and $i-1$ as defined in~\eqref{eq:overlap_i}.
+	As a consequence, all hidden state sequences contained in $H$ are a subsequence of the same global hidden state sequence of length $T+1$, where the initial hidden state state $h_{0|1}$ is left as a free optimization variable.
+	We denote the solution to~\eqref{eq:NLP} under~\eqref{eq:RH_full} as $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$.
+	Again, from a theoretical point of view, the problem formulation in~\eqref{eq:NLP} under~\eqref{eq:RH_full} is fully equivalent to the benchmark problem in~\eqref{eq:NLP_benchmark} (provided that $\theta^\mathrm{b}\in\Theta$). In particular, their solutions sets coincide in the sense that $\theta^\mathrm{b} = \theta^\mathrm{c}$ and
+	\begin{equation}\label{eq:equivalence}
+		h^\mathrm{b}_{s_i+j-1} = h^\mathrm{c}_{j|i},\quad \forall j\in\mathcal{N}_0,\quad \forall i\in\mathcal{S}.
+	\end{equation}
+	
+	\item The unconstrained case:
+	\begin{equation}\label{eq:RH_TP}
+		R(H)=0.
+	\end{equation}
+	Here, we do not enforce any additional constraints on the hidden state sequences contained in $H$ (except compliance with the model equations~\eqref{eq:NLP_f} and~\eqref{eq:NLP_g}).
+ 	We denote the solution to~\eqref{eq:NLP} under~\eqref{eq:RH_TP} as $(H^\infty,Y^\infty,\theta^\infty)$.
+\end{enumerate}
+
+
+\begin{rem}\label{rem:set_Y}
+	Without loss of generality, we assume that the compact set $\mathcal{Y}$ used in~\eqref{eq:NLP_HY} is large enough such that $y_j(0,\theta^\infty,X^\mathrm{d}_i)\in\mathcal{Y}$ and $y_j(0,\theta^\mathrm{c},X^\mathrm{d}_i)\in\mathcal{Y}$ for all $j\in\mathcal{N}$ and all $i\in\mathcal{S}$, and furthermore, $y_t(0,\theta^*,X^\mathrm{d})\in\mathcal{Y}$ and $y_t(h_{0|1}^\mathrm{c},\theta^\mathrm{c},X^\mathrm{d})\in\mathcal{Y}$ for all times $t\in[1,T]$.
+\end{rem}
+
+
+\subsection{The output turnpike property}\label{app:turnpike}
+
+In this section, we establish a relation between $(H^*,Y^*,\theta^*)$ and the unconstrained solution $(H^\infty,Y^\infty,\theta^\infty)$.
+Note that this is an intermediate step which enables us to derive the desired relation between $(H^*,Y^*,\theta^*)$ and the coupled solution $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$ in Sections~\ref{app:regret} and~\ref{app:regret_T}.
+Our analysis is inspired by classical turnpike theory, which is an important concept in the context of optimal control \citep{Trelat2025,Faulwasser2022,Zaslavski2006,Carlson1991}.
+In particular, we prove a turnpike property of the optimization problem~\eqref{eq:NLP}, characterized in the output space. For the sake of clarity, we provide the following roadmap:
+\begin{enumerate}
+	\item We first establish an upper bound on the difference of the value functions resulting from solving~\eqref{eq:NLP} under~\eqref{eq:RH_SGD} and~\eqref{eq:RH_TP} (see Lemma \ref{lem:controllability}). When interpreting the parameter $\theta$ as the (constant) control input to the dynamical system~\eqref{eq:RNN_1}, this result can be interpreted as a stabilizability property of the latter, characterized in terms of the cost function \eqref{eq:NLP_cost}: When increasing the prediction horizon $N$, the bound on the cost difference stays the same, which implies that the optimal input $\theta^*$ effectively stabilizes the ``output reference'' $Y^\infty$.
+	
+	\item In Lemma~\ref{lem:opti}, we establish a structural relation between the outputs $Y^*$ and $Y^\infty$ using the fact that both correspond to optimal solutions of the same optimization problem~\eqref{eq:NLP}.
+	
+	\item This result is used in Lemma~\ref{lem:coercivity} to prove a coercivity property of the difference of the value functions resulting from solving~\eqref{eq:NLP} under~\eqref{eq:RH_SGD} and~\eqref{eq:RH_TP}: The difference is positive definite in the sum of the differences of the corresponding output predictions.
+	
+	\item Finally, by employing Lemmas~\ref{lem:controllability} and \ref{lem:coercivity}, we can characterize the desired turnpike property of the problem~\eqref{eq:NLP} (see Proposition~\ref{prop:TP}), which states that $Y^*$ must be close to $Y^\infty$ (i.e., the output turnpike) for most of the time. We provide a detailed interpretation of this result below Proposition~\ref{prop:TP}.
+\end{enumerate}
+
+\begin{lem}[Stabilizability]\label{lem:controllability}
+	Let Assumption~\ref{ass:output_stability} hold. Then, there exists a constant $\bar{C}>0$ such that
+	\begin{equation}\label{eq:controllability}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}_{j|i}^*)-l_{j|i}({y}^\infty_{j|i}) \leq \bar{C}S\lambda^m,
+	\end{equation}
+	where $\lambda\in(0,1)$ is from Assumption~\ref{ass:output_stability}.
+\end{lem}
+\begin{proof}
+	The claim follows from the fact that $\theta^\infty\in\Theta$ by~\eqref{eq:NLP_theta} and Assumption~\ref{ass:output_stability}. In particular, let us consider the candidate solution $(\hat{H},\hat{Y},\theta^\infty)$ such that $\hat{y}_{j|i} = y_j(0,\theta^\infty,X^\mathrm{d}_i)$ for all $j\in\mathcal{N}$ and $i\in\mathcal{S}$. Here, $\hat{Y}$ contains $S$ output sequences of length $N$, each of which is generated by the RNN with $\theta^\infty$, initialized at zero, and being driven by the respective subsequences of the training input data $X^\mathrm{d}_i$, $i\in\mathcal{S}$.
+	Note also that, without loss of generality, we can assume that the compact set $\mathcal{Y}$ is such that $\hat{y}_{j|i}\in\mathcal{Y}$ for all $j\in\mathcal{N}$ and all $i\in\mathcal{S}$, compare Remark~\ref{rem:set_Y}.
+	Consequently, $(\hat{H},\hat{Y},\theta^\infty)$ satisfies the constraints~\eqref{eq:NLP_f}--\eqref{eq:NLP_h} and \eqref{eq:RH_SGD} and thus constitutes a feasible candidate solution to the problem~\eqref{eq:NLP} under \eqref{eq:RH_SGD}. By optimality of $Y^*$, we have that $J_S(Y^*;D)\leq J_S(\hat{Y};D)$, which yields
+	\begin{equation}\label{eq:proof_contr_1}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}^*_{j|i})-l_{j|i}({y}^\infty_{j|i}) \leq \sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}(\hat{y}_{j|i})-l_{j|i}({y}^\infty_{j|i}).
+	\end{equation}
+	Because both ${\hat{y}_{j|i}}$ and ${y}^\infty_{j|i}$ are elements of the compact set $\mathcal{Y}$ for each $j\in\mathcal{N}$ and $i\in\mathcal{S}$ and the stage cost $l_{j|i}(y)$ is quadratic in $y$, there exists a Lipschitz constant $L_l>0$ such that
+	\begin{equation}\label{eq:proof_contr_Lipschitz}
+		l_{j|i}(\hat{y}_{j|i})-l_{j|i}({y}^\infty_{j|i}) \leq \|l_{j|i}(\hat{y}_{j|i})-l_{j|i}({y}^\infty_{j|i})\| \leq L_l\|\hat{y}_{j|i}-{y}^\infty_{j|i}\|
+	\end{equation}
+	uniformly for all $\hat{y}_{j|i},{y}^\infty_{j|i}\in\mathcal{Y}$ and all $j\in\mathcal{N}$ and $i\in\mathcal{S}$. (In fact, $L_l = 2(\max_{y\in\mathcal{Y}}\|y\| + \max_{y\in\mathcal{Y}^\mathrm{d}}\|y\|)$ is a valid choice, recalling that $\mathcal{Y}$ and $\mathcal{Y}^d$ are compact).
+	Moreover, due to the fact that the output predictions $\hat{y}_{j|i}$ and ${y}^\infty_{j|i}$ are generated using the RNN with the same parameter $\theta^\infty\in\Theta$ but different initial hidden states, we can apply the property in~\eqref{eq:output_stability} from Assumption~\ref{ass:output_stability} for each $i\in\mathcal{S}$ using $h_0^{(1)} = 0$ and $h_0^{(2)}=h^\infty_{0|i}$, which lets us infer that
+	\begin{equation}\label{eq:proof_contr_stability}
+		\|\hat{y}_{j|i}-{y}^\infty_{j|i}\| \leq  C\lambda^j\|h^\infty_{0|i}\| \leq C\bar{h}\lambda^j,\ j\in\mathcal{N}, \ i\in\mathcal{S},
+	\end{equation}
+	where $\bar{h}:=\max_{h\in\mathcal{H}}\|h\|$ using~\eqref{eq:NLP_HY} and the fact that $\mathcal{H}$ is compact.
+	The combination of \eqref{eq:proof_contr_1}--\eqref{eq:proof_contr_stability} together with the application of the geometric series then leads to
+	\begin{align*}
+		&\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}^*_{j|i})-l_{j|i}({y}^\infty_{j|i})\\
+		&\leq L_lC\bar{h}\sum_{i=1}^{S}\sum_{j=m+1}^{N}\lambda^j
+		 = L_lC\bar{h}\sum_{i=1}^{S}\lambda^m\frac{\lambda-\lambda^{N-m+1}}{1-\lambda}
+		\leq L_lC\bar{h}\sum_{i=1}^{S}\lambda^{m}\frac{\lambda}{1-\lambda}.
+	\end{align*}
+	By defining $\bar{C}:=L_lC\bar{h}\lambda/({1-\lambda})$ we obtain~\eqref{eq:controllability}, which finishes this proof. 
+\end{proof}
+
+\begin{lem}\label{lem:opti}
+	Consider the solutions $(H^*,Y^*,\theta^*)$ and $(H^\infty,Y^\infty,\theta^\infty)$. There exists a constant $\epsilon\geq 1$ such that
+	\begin{equation}\label{eq:lem_opt}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N} 2({y}_{j|i}^\infty-{y}_{j|i}^\mathrm{d})^\top({y}_{j|i}^*-{y}_{j|i}^\infty) \geq-\frac{1}{\epsilon}\sum_{i=1}^{S}\sum_{j=m+1}^{N}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2.
+	\end{equation}
+\end{lem}
+
+\begin{proof}
+	The property in~\eqref{eq:lem_opt} follows from optimality of $(H^*,Y^*,\theta^*)$ and $(H^\infty,Y^\infty,\theta^\infty)$.
+	In particular, since $(H^*,Y^*,\theta^*)$ represents a feasible candidate solution to the unconstrained problem~\eqref{eq:NLP} under~\eqref{eq:RH_TP}, we know that $J_S(Y^\infty)\leq J_S(Y^*)$,
+	which leads to
+	\begin{equation}\label{eq:proof:opti_1}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}_{j|i}^*)-l_{j|i}({y}^\infty_{j|i}) \geq 0.
+	\end{equation}
+	Due to the fact that $l_{j|i}(y)$ is quadratic in $y\in\mathcal{Y}$, it is equivalent to its second-order Taylor polynomial. Consequently, we can express $l_{j|i}(y^*_{j|i})$ in terms of $l_{j|i}(y^\infty_{j|i})$ as
+	\begin{align*}
+		l_{j|i}(y^*_{j|i}) %&= l_{j|i}(s(1))\\
+		%&= l_{j|i}(s(0)) + \frac{\partial l_{j|i}}{\partial y}(s(0))^\top(s(1)-s(0)) + \int_{0}^{1}(s(1)-s(0))^\top H_{j|i}(s(r))(s(r)-s(0))dr\\
+		&= l_{j|i}(y^\infty_{j|i}) + \frac{\partial l_{j|i}}{\partial y}(y^\infty_{j|i})^\top(y^*_{j|i}-y^\infty_{j|i}) + \frac{1}{2}(y^*_{j|i}-y^\infty_{j|i})^\top \mathfrak{H}(y^*_{j|i}-y^\infty_{j|i})\\
+		&= l_{j|i}(y^\infty_{j|i}) + 2(y^\infty_{j|i}-y_{j|i}^\mathrm{d})^\top(y^*_{j|i}-y^\infty_{j|i}) + \|y^*_{j|i}-y^\infty_{j|i}\|^2,
+	\end{align*}
+	where $\mathfrak{H}$ is the Hessian of $l_{j|i}$ with respect to $y\in\mathcal{Y}$ and simply reduces to $\mathfrak{H}=2I_p$.
+	Thus, the left-hand side of~\eqref{eq:proof:opti_1} can be re-written as
+	\begin{equation}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}_{j|i}^*)-l_{j|i}({y}^\infty_{j|i}) = \sum_{i=1}^{S}\sum_{j=m+1}^{N}\left(\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2 + 2(y^\infty_{j|i}-y_{j|i}^\mathrm{d})^\top({y}_{j|i}^*-{y}_{j|i}^\infty)\right).\label{eq:proof_l_difference}
+	\end{equation}
+	The inequality in~\eqref{eq:proof:opti_1} then implies that
+	\begin{equation*}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}2(y^\infty_{j|i}-y_{j|i}^\mathrm{d})^\top({y}_{j|i}^*-{y}_{j|i}^\infty)
+		\geq -\sum_{i=1}^{S}\sum_{j=m+1}^{N}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2,
+	\end{equation*}
+	which establishes the desired property in~\eqref{eq:lem_opt} for $\epsilon=1$ and hence concludes this proof.
+\end{proof}
+
+
+
+\begin{lem}[Coercivity]\label{lem:coercivity}
+	Let the property in \eqref{eq:lem_opt} hold for some $\epsilon>1$. Then, the solutions $(H^*,Y^*,\theta^*)$ and $(H^\infty,Y^\infty,\theta^\infty)$ satisfy
+	\begin{equation}\label{eq:lem_coercive}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}_{j|i}^*)-l_{j|i}({y}^\infty_{j|i}) \geq \frac{\epsilon-1}{\epsilon} \sum_{i=1}^{S}\sum_{j=m+1}^{N}\|{y}^*_{j|i}-{y}_{j|i}^\infty\|^2.
+	\end{equation}
+\end{lem}
+\begin{proof}
+	The claim follows by applying the property~\eqref{eq:lem_opt} to \eqref{eq:proof_l_difference} in the proof of Lemma~\ref{lem:opti}.
+\end{proof}
+
+\begin{rem}\label{rem:epsilon}
+	Requiring $\epsilon>1$ in Lemma~\ref{lem:coercivity} is a rather mild technical condition on $Y^*$ with respect to $Y^\infty$.
+	In particular, using $\kappa:=1/\epsilon\in(0,1)$, the result fails only if, for $\sum_{i=1}^{S}\sum_{j=m+1}^{N}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2 \neq 0$, the following holds:
+	\begin{equation*}
+		-1\leq \frac{\sum_{i=1}^{S}\sum_{j=m+1}^{N}2({y}_{j|i}^\infty-{y}_{j|i}^\mathrm{d})^\top({y}_{j|i}^*-{y}_{j|i}^\infty)}{\sum_{i=1}^{S}\sum_{j=m+1}^{N}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2}
+		<-\kappa, \quad \forall \kappa\in(0,1),
+	\end{equation*}
+	which is the case if and only if
+	\begin{equation}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}2({y}_{j|i}^\infty-{y}_{j|i}^\mathrm{d})^\top({y}_{j|i}^*-{y}_{j|i}^\infty)=-\sum_{i=1}^{S}\sum_{j=m+1}^{N}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2\neq 0. \label{eq:remark}
+	\end{equation}	
+	Solutions to this equation correspond to the case where $J_S(Y^*;D){\,=\,}J_S(Y^\infty;D)$ but $\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2\neq0$ for some $j\in\mathcal{N}$ with $j\geq m+1$ and $i\in\mathcal{S}$.
+	This may occur if $Y^\infty$ (specifically, its restriction to the interval $[m+1,N]$) is non-unique; in particular, the above implies that $Y^*$ then also corresponds to an optimal solution to the unconstrained problem.
+	But this means that we can simply set $(H^\infty,Y^\infty,\theta^\infty) = (H^*,Y^*,\theta^*)$, rendering condition~\eqref{eq:lem_opt} again valid for any $\epsilon>1$.
+	Alternatively, \eqref{eq:remark} could be avoided in advance by proper design of the RNN, ensuring that the output turnpike $Y^\infty$ is unique (which does \emph{not} require uniqueness of the solution with respect to the hidden state trajectory $H^\infty$ or $\theta^\infty$, compare also the discussion below Proposition~\ref{prop:TP}).
+	Moreover, we also conjecture that our analysis can be extended to explicitly cover the case where $Y^\infty$ is non-unique using arguments inspired by \citet{Trelat2018a}; namely, by characterizing the turnpike property using a turnpike set $\mathcal{T}$ containing all possible output sequences achieving the minimum cost (instead of one particular output sequence) and by deriving the results in terms of the point-to-set distance of the solution $Y^*$ to the turnpike set $\mathcal{T}$.
+	Finally, we would like to point out that in our synthetic experiment conducted in Section~\ref{sec:exp_synthetic}, where we were able to explicitly check this condition, it was always possible to choose $\epsilon>1$ such that property \eqref{eq:lem_opt} is satisfied (even when changing the network architecture and using different nonlinear activation functions).
+\end{rem}
+
+
+\begin{prop}[Output turnpike property]\label{prop:TP}
+	Let Assumption~\ref{ass:output_stability} be satisfied.
+	Consider the solutions $(H^*,Y^*,\theta^*)$ and $(H^\infty,Y^\infty,\theta^\infty)$ and suppose that the property in \eqref{eq:lem_opt} holds for some $\epsilon>1$. Then, there exists a constant $K>0$ such that
+	\begin{equation}\label{eq:prop_TP_1}
+	 	\sum_{j=m+1}^{N} \ \frac{1}{S}\sum_{i=1}^{S}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2 \leq K\lambda^m,
+	\end{equation}
+	where $\lambda\in(0,1)$ is from Assumption~\ref{ass:output_stability}.
+\end{prop}
+
+\begin{proof}
+	The statement follows by considering the difference of the loss functions
+	\begin{equation*}
+		\sum_{i=1}^{S}\sum_{j=m+1}^{N}l_{j|i}({y}_{j|i}^*)-l_{j|i}({y}^\infty_{j|i})
+	\end{equation*}
+	 and applying the lower bound from Lemma~\ref{lem:coercivity} and the upper bound from Lemma~\ref{lem:controllability}. The definition of $K:=\bar{C}{\epsilon}/({\epsilon-1})$ with $\bar{C}$ from Lemma \ref{lem:controllability} then leads to \eqref{eq:prop_TP_1}, which finishes this proof.
+\end{proof}
+
+Some remarks are in order.
+
+\begin{itemize}
+	
+	\item Proposition~\ref{prop:TP} provides a characterization of the $j$-step prediction error, averaged over all $S$ subsequences:
+	\begin{equation*}
+		e^{\infty}_j := \frac{1}{S}\sum_{i=1}^{S}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2, \quad j\in\mathcal{N}.
+	\end{equation*}
+	Specifically, property \eqref{eq:prop_TP_1} implies that the sum of $e^{\infty}_j$ over $j\in[m+1,N]$ is uniformly bounded \emph{independent of the length of the subsequences~$N$}. For a fixed value of $m$, this must imply that $e^{\infty}_j$ must become smaller for larger values of $N$ for most of the times $j\in[m+1,N]$. By non-negativity of the norm, we can conclude a similar statement for the output predictions corresponding to each subsequence $i\in\mathcal{S}$: $y_{j|i}$ gets closer to $y_{j|i}^\infty$ for most of the times $j\in[m+1,N]$ when increasing the value of $N$. Hence, the latter can be regarded as the turnpike for the former, and the larger we choose the length $N$, the more elements of $y_{j|i}$ are close to $y_{j|i}^\infty$.
+	
+	\item The fact that the right-hand side of~\eqref{eq:prop_TP_1} is independent of $N$ is in line with intuition: Differences in the output predictions (and thus in the loss functions of the optimization problems under consideration) are caused solely by the burn-in phase of the RNN resulting from zero initialization, whose influence is limited and, for a fixed network parameterization~$\theta$, does not depend on $N$.
+	
+	\item The main difference to the turnpike-related literature is that we formulate the turnpike property with respect to the \emph{outputs}---without, as usual, characterizing the behavior of optimal states, controls, and possibly adjoints, compare \citet{Trelat2025,Faulwasser2022,Zaslavski2006,Carlson1991}. This is natural in our setting, as the set of hidden states and network parameters (i.e., the ``controls'') that generates a specific output sequence is typically \emph{not} a singleton (the same output sequence can usually be generated by a variety of hidden states and parameters without significantly restricting the network architecture).
+		
+	\item The turnpike characterization in \eqref{eq:prop_TP_1} is conceptually related to the \emph{interval turnpike property} from \citet{Faulwasser2022a}. Note that~\eqref{eq:prop_TP_1} can be easily reformulated in terms of a \textit{measure/cardinality turnpike property} by estimating the number of elements of $Y^*$ that lie outside a certain $\epsilon$-neighborhood of the turnpike $Y^\infty$.
+	Similar characterizations are prominent in the most recent turnpike-related literature \citep{Trelat2025,Faulwasser2022,Gruene2019,Faulwasser2018}; however, the quantitative nature of the bound in~\eqref{eq:prop_TP_1} turns out to be more useful when establishing the results in Sections~\ref{app:regret} and \ref{app:regret_T} below.
+	
+	\item The fact that we establish the turnpike property (Proposition~\ref{prop:TP}) using stabilizability (Lemma~\ref{lem:controllability}) and coercivity (Lemma~\ref{lem:coercivity}) is in line with standard turnpike results (compare, e.g., \citet{Trelat2025,Trelat2018a,Gruene2016a}). There, however, coercivity is usually first established as a consequence of an additional dissipativity assumption on the problem, mainly due to the fact that the results are tailored to general cost functions.
+	In contrast, here we can leverage the quadratic nature of the MSE loss and thus avoid an additional dissipativity condition. Nevertheless, we would like to point out that, as one might expect, Lemma~\ref{lem:coercivity} directly implies a dissipativity property, where the storage function can be chosen as a constant and the supply rate involves a strictness term capturing the output differences.
+\end{itemize}
+
+\subsection{Accuracy and regret over subsequences of the training data}\label{app:regret}
+
+In this section, we leverage the turnpike property provided by Proposition~\ref{prop:TP} to establish accuracy and regret guarantees for the solution $(H^*,Y^*,\theta^*)$ with respect to the benchmark $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$. The following should be noted in this regard.
+
+\begin{rem}\label{rem:TP_coupled}
+	The previous results (in particular, Lemmas~\ref{lem:controllability}--\ref{lem:coercivity} and Proposition~\ref{prop:TP}) also hold true if $(H^*,Y^*,\theta^*)$ in the statement of the results is replaced by the coupled solution $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$. The respective proofs can be straightforwardly adapted using the fact that $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$ is a solution to the optimization problem~\eqref{eq:NLP}.
+\end{rem}
+
+Hence, by combining Proposition~\ref{prop:TP} and Remark~\ref{rem:TP_coupled}, we can characterize the relation between $(H^*,Y^*,\theta^*)$ and $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$ as shown in the following corollary.
+
+\begin{cor}\label{cor:TP}
+	Let Assumption~\ref{ass:output_stability} be satisfied.
+	Suppose that there exists some $\epsilon>1$ small enough such that the property in~\eqref{eq:lem_opt} holds true for both $(H^*,Y^*,\theta^*)$ and $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$, see Remark~\ref{rem:TP_coupled}. Then, the following statements hold:
+	\begin{enumerate}
+		\item Output accuracy: The learned output sequences contained in $Y^*$ and $Y^\mathrm{c}$ satisfy
+		\begin{equation}\label{eq:rem_TP_1}
+			\sum_{j=m+1}^{N} \ \frac{1}{S}\sum_{i=1}^{S}\|{y}_{j|i}^*-{y}_{j|i}^\mathrm{c}\|^2
+			\leq 4K\lambda^m,
+		\end{equation}
+		where $K>0$ is from Proposition~\ref{prop:TP} and $\lambda\in(0,1)$ is from Assumption~\ref{ass:output_stability}.
+		
+		\item Training regret: $Y^*$ and $Y^\mathrm{c}$ satisfy
+		\begin{equation}\label{eq:rem_TP_2}
+			J_S(Y^*;D) - J_S(Y^\mathrm{c};D)\leq \bar{C} \cdot \frac{\lambda^m}{N-m},
+		\end{equation}
+		where $\bar{C}>0$ is from Lemma~\ref{lem:controllability} and $\lambda\in(0,1)$ is from Assumption~\ref{ass:output_stability}.
+	\end{enumerate}
+\end{cor}
+
+\begin{proof}
+	 The first statement is a consequence of Proposition~\ref{prop:TP}, Remark~\ref{rem:TP_coupled}, and application of the Cauchy-Schwartz and Young's inequality.
+	 In particular, \eqref{eq:rem_TP_1} follows by noting that
+	 \begin{align*}
+	 	&\sum_{j=m+1}^{N} \ \frac{1}{S}\sum_{i=1}^{S}\|{y}_{j|i}^*-{y}_{j|i}^\mathrm{c}\|^2\\
+	 	&\ \leq 2 \sum_{j=m+1}^{N} \ \frac{1}{S}\sum_{i=1}^{S}\|{y}_{j|i}^*-{y}_{j|i}^\infty\|^2 + 2\sum_{j=m+1}^{N}\ \frac{1}{S}\sum_{i=1}^{S}\|{y}_{j|i}^\mathrm{c}-{y}_{j|i}^\infty\|^2\\
+	 	&\ \leq 4K\lambda^m.
+	 \end{align*}
+	 
+	 The second statement can be established by applying similar steps as in the proof of Lemma~\ref{lem:controllability}. In particular, using the candidate solution $\hat{y}_{j|i}=y_j(0,\theta^\mathrm{c},X^\mathrm{d}_i)\in\mathcal{Y}$, $j\in\mathcal{N}$, $i\in\mathcal{S}$, we have that $J_S(Y^*;D) - J_S(Y^\mathrm{c};D) \leq J_S(\hat{Y};D) - J_S(Y^\mathrm{c};D)$ by optimality of $Y^*$.
+	 Now, we can apply the same arguments that followed \eqref{eq:proof_contr_1}, which leads to \eqref{eq:rem_TP_2} and thus concludes this proof.
+\end{proof}
+
+\begin{rem}
+	The estimate on the training regret in~\eqref{eq:rem_TP_2} in fact also holds true for $\epsilon\geq 1$, as it does not require the coercivity property established in Lemma~\ref{lem:coercivity}.
+\end{rem}
+
+
+Recalling the equivalence between the coupled solution $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$ and the actual benchmark consisting of the hidden state sequence~$\{h^\mathrm{b}_t\}_{t=0}^T$ and the parameter $\theta^\mathrm{b}$ as specified in~\eqref{eq:equivalence}, one can directly see that Corollary~\ref{cor:TP} formalizes (and thus proves) Theorem~\ref{cor:TP_informal}.
+
+
+\subsection{Accuracy and regret over the full training data}\label{app:regret_T}
+
+In this section, we establish accuracy and regret estimates for the RNN parameterized by $\theta^*$ when processing the full training input sequence $X^\mathrm{d}$.
+The estimates are given with respect to the accuracy achieved by the benchmark $(h^\mathrm{b}_0,\theta^\mathrm{b})$ (that is, the the solution to \eqref{eq:NLP_benchmark}), where we measure the performance using the truncated MSE loss as defined in~\eqref{eq:performance}.
+
+The following result constitutes the formal version of Theorem~\ref{thm:P_informal}.
+
+\begin{thm}\label{thm:P}
+	Let Assumption~\ref{ass:output_stability} be satisfied.
+	Suppose that there exists some $\epsilon>1$ small enough such that the property in~\eqref{eq:lem_opt} holds true for both $(H^*,Y^*,\theta^*)$ and $(H^\mathrm{c},Y^\mathrm{c},\theta^\mathrm{c})$, cf.~Remark~\ref{rem:TP_coupled}. Then, the following statements hold:
+	\begin{enumerate}
+		\item Averaged output accuracy: There exists a constant $E_1>0$ such that
+		\begin{equation}\label{eq:thm_y}
+			\frac{1}{T-m}\sum_{t=m+1}^{T}\|y_t(0,\theta^*,X^\mathrm{d})-y_t(h^\mathrm{b}_{0},\theta^\mathrm{b},X^\mathrm{d})\|^2 \leq  E_1 \cdot \frac{(S-1)\lambda^{2o_{\min}} + S\lambda^m}{T-m}
+		\end{equation}
+		\item Performance regret: There exists a constant $E_2>0$ such that
+		\begin{equation}\label{eq:thm_regret}
+			P(0,\theta^*;D) - P(h^\mathrm{b}_0,\theta^\mathrm{b};D) \leq  E_2\cdot \sqrt{\frac{(S-1)\lambda^{2o_{\min}} + S\lambda^m}{T-m}}.
+		\end{equation}
+	\end{enumerate}
+\end{thm}
+
+
+\begin{proof}
+	We start with some useful definitions and observations.
+	Let $\{h^*_t\}_{t=0}^T$ be the hidden state sequence that is generated by the RNN from \eqref{eq:RNN_1}--\eqref{eq:RNN_2} parameterized by $\theta^*$ when being evaluated over the full training input sequence $X^\mathrm{d}$ and initialized with $h_0=0$. Define the corresponding output sequence as $y^*_t:=y_t(0,\theta^*,X^\mathrm{d})$, $t\in[1,T]$.
+	Similarly, define the benchmark output sequence $y_t^\mathrm{b} = y_t(h_{0}^\mathrm{b},\theta^\mathrm{b},X^\mathrm{d})$, $t\in[1,T]$.
+	Recall that $(h_0^\mathrm{b},\theta^\mathrm{b}) = (h_{0|1}^\mathrm{c},\theta^\mathrm{c})$  by~\eqref{eq:equivalence}, which yields
+	\begin{equation}\label{eq:equivalence_Y}
+		y^\mathrm{b}_{s_i+j-1}=y^\mathrm{c}_{j|i} \quad \forall j\in\mathcal{N},\quad \forall i\in\mathcal{S}.
+	\end{equation}
+	Without loss of generality, we can assume that $h^*_t\in\mathcal{H}$ and $y^*_t,y^\mathrm{b}_t\in\mathcal{Y}$ for all $t\in[1,T]$, compare Remark~\ref{rem:set_Y}.
+	
+	We proceed to prove the first claim of this theorem. To this end, note that	we can re-write the sum of output differences (i.e., the left-hand side of~\eqref{eq:thm_y}) in terms of the subsequences $i\in\mathcal{S}$ using the definition of the overlap $o_i$ from~\eqref{eq:overlap_i} according to
+	\begin{equation}
+		\sum_{t=m+1}^{T}\|y^*_t-y_t^\mathrm{b}\|^2
+		= \sum_{j=m+1}^{N}\|y^*_j-y_j^\mathrm{b}\|^2
+		+ \sum_{i=2}^{S}\sum_{j=o_i+1}^{N}\|y^*_{s_i+j-1}-y^\mathrm{b}_{s_i+j-1}\|^2.\label{eq:proof_thm_A1}
+	\end{equation}
+	Regarding the first sum on the right-hand side of~\eqref{eq:proof_thm_A1}, each $y^*_j$ coincides with the output of the first training subsequence in the sense that $y^*_j = y_j(0,\theta^*,X^\mathrm{d}) = y_j(0,\theta^*,X^\mathrm{d}_1) = y^*_{j|1}$ for all $j\in \mathcal{N}$.
+	Using the Cauchy-Schwarz and Young's inequality together with~\eqref{eq:equivalence_Y}, it follows that
+	\begin{align*}
+		\|y^*_{s_i+j-1}-y^\mathrm{b}_{s_i+j-1}\|^2
+		&= \|y_{s_i+j-1}^*-y_{j|i}^*+y_{j|i}^*-y^\mathrm{b}_{s_i+j-1}\|^2\\
+		&\leq 2\|y_{j|i}^*-y_{j|i}^\mathrm{c}\|^2 + 2\|y_{s_i+j-1}^*-y_{j|i}^*\|^2
+	\end{align*}
+	for all $j\in\mathcal{N}$ and $i\in\mathcal{S}$.
+	Consequently,~\eqref{eq:proof_thm_A1} can be bounded as
+	\begin{align}
+		\sum_{t=m+1}^{T}\|y^*_t-y_t^\mathrm{b}\|^2
+		\leq&\ 
+		\sum_{j=m+1}^{N}\|y^*_{j|1}-y_{j|1}^\mathrm{c}\|^2 +
+		2\sum_{i=2}^{S}\sum_{j=o_i+1}^{N}\|y_{j|i}^*-y^\mathrm{c}_{j|i}\|^2\nonumber \\
+		&\ +
+		2\sum_{i=2}^{S}\sum_{j=o_i+1}^{N}\|y^*_{s_i+j-1}-y_{j|i}^*\|^2. \label{eq:proof_thm_A2}
+	\end{align}
+	We first focus on the last sum on the right-hand side in~\eqref{eq:proof_thm_A2}.
+	Here, each summand corresponds to the difference of network outputs resulting from different initial hidden states, but using the same parameter $\theta^*$ which satisfies Assumption~\ref{ass:output_stability} by~\eqref{eq:NLP_theta}.
+	In particular, for each $i\in\mathcal{S}$ with $i\geq2$, from~\eqref{eq:output_stability} we obtain
+	\begin{align*}
+		\|y^*_{s_i+j-1}-y_{j|i}^*\|^2 
+		&= \|y_{s_i+j-1}(0,\theta^*,X^\mathrm{d})-y_j(0,\theta^*,X_i^\mathrm{d})\|^2\\
+		&= \|y_{j}(h_{s_i-1}^*,\theta^*,X_i^\mathrm{d})-y_j(0,\theta^*,X_i^\mathrm{d})\|^2\\
+		&\leq C^2\lambda^{2j}\|h_{s_i-1}^*\|^2 \leq c_1\lambda^{2j}
+	\end{align*}	
+	for all $j\in\mathcal{N}$, where we have used the definition of $c_1 := C^2\max_{h\in\mathcal{H}}\|h\|^2$ (noting that $c_1>0$ is well-defined due to compactness of $\mathcal{H}$ and $h^*_t\in\mathcal{H}$ for all $t\in[0,T]$, see above).
+	By summing over $i,j$ and applying the geometric series, it follows that 
+	\begin{align}
+		\sum_{i=2}^{S}\sum_{j=o_i+1}^{N}\|y^*_{s_i+j-1}-y_{j|i}^*\|^2
+		\leq \sum_{i=2}^{S}\sum_{j=o_i+1}^{N}c_1\lambda^{2j}
+		&= \sum_{i=2}^{S}c_1
+		\frac{\lambda^2}{1-\lambda^2}\lambda^{2o_i}\left(1-\lambda^{2(N-o_i)}\right)\nonumber \\
+		&\leq c_2 \cdot (S-1)\lambda^{2o_{\min}},\label{eq:proof_thm_A3_1}
+	\end{align}
+	where $c_2 := {c_1\lambda^2}/({1-\lambda^2})$.
+	
+	The first line of the right-hand side in \eqref{eq:proof_thm_A2} can be bounded using the fact that the burn-in phase length~$m$ satisfies $m\leq o_{\min} \leq o_i$ for all $i\geq2$ together with the turnpike property provided by Corollary~\ref{cor:TP}, which leads to
+	\begin{align}
+		\sum_{j=m+1}^{N}\|y^*_{j|1}-y_{j|1}^\mathrm{c}\|^2 +
+		2\sum_{i=2}^{S}\sum_{j=o_i+1}^{N}\|y_{j|i}^*-y^\mathrm{c}_{j|i}\|^2
+		&\leq  2\sum_{i=1}^{S}\sum_{j=m+1}^{N}\|y_{j|i}^*-y^\mathrm{c}_{j|i}\|^2\nonumber\\
+		&\leq 2\cdot 4KS\lambda^m.\label{eq:proof_thm_A4_1}
+	\end{align}
+	The combination of~\eqref{eq:proof_thm_A2}--\eqref{eq:proof_thm_A4_1} then yields
+	\begin{equation*}
+		\sum_{t=m+1}^{T}\|y^*_t-y_t^\mathrm{b}\|^2
+		\leq  2c_2(S-1)\lambda^{2o_{\min}} + 8 SK\lambda^m.
+	\end{equation*}
+	Using the definition $E_1:=2\cdot\max\{c_2,4K\}$ and dividing both sides by $(T-m)>0$, we obtain~\eqref{eq:thm_y}.
+	
+	To prove the second statement, note that the performance criterion in~\eqref{eq:performance} is Lipschitz on compact sets (recall out observations in the beginning of this proof, the arguments that lead to~\eqref{eq:proof_contr_Lipschitz}, and the definition of the stage cost in~\eqref{eq:stage_cost}); consequently, the left-hand side of~\eqref{eq:thm_regret} can be bounded according to
+	\begin{align}
+		P(0,\theta^*;D) - P(h^\mathrm{b}_0,\theta^\mathrm{b};D)
+		&= \|P(0,\theta^*;D) -  P(h^\mathrm{b}_0,\theta^\mathrm{b};D)\|\nonumber \\
+		&= \frac{1}{T-m}\sum_{t=m+1}^{T}\left\|\|y^*_t-y^\mathrm{d}_t\|^2 - \|y^\mathrm{b}_t-y^\mathrm{d}_t\|^2\right\|\nonumber \\
+		&\leq \frac{L_l}{T-m}\sum_{t=m+1}^{T}\|y^*_t-y^\mathrm{b}_t\|.
+		\label{eq:proof_thm_B1}
+	\end{align}
+	Using concavity of the square root and Jensen's inequality, it holds that
+	\begin{equation}
+		\sum_{t=m+1}^{T}\|y^*_t-y^\mathrm{b}_t\|
+		= \sum_{t=m+1}^{T}\sqrt{\|y^*_t-y^\mathrm{b}_t\|^2}
+		\leq \frac{T-m}{\sqrt{T-m}}\left(\sum_{t=m+1}^{T}\|y^*_t-y^\mathrm{b}_t\|^2\right)^{1/2} \label{eq:proof_thm_B2}
+	\end{equation}
+	From~\eqref{eq:proof_thm_B1}, \eqref{eq:proof_thm_B2}, and~\eqref{eq:thm_y} proven above, we obtain
+	\begin{align*}
+		P(0,\theta^*;D) - P(h^\mathrm{b}_0,\theta^\mathrm{b};D)
+		&\leq \frac{L_l}{T-m}\frac{T-m}{\sqrt{T-m}}\left(E_1 \cdot \left((S-1)\lambda^{2o_{\min}} + S\lambda^m\right)\right)^{1/2}\\
+		&\leq L_l\sqrt{E_1}\sqrt{\frac{(S-1)\lambda^{2o_{\min}} + S\lambda^m}{T-m}}.
+	\end{align*}
+	This establishes~\eqref{eq:thm_regret} and hence finishes this proof.
+\end{proof}
+
+\section{Additional material for the experiments}\label{app:exp}
+
+\subsection{Synthetic data}\label{app:exp_academic}
+
+In this section, we provide additional illustrative figures and interpretations of the results of the synthetic experiment performed in Section~\ref{sec:exp_synthetic}.
+
+
+
+Specifically, the left column in Figure \ref{fig:ex_academic_data} compares the generated outputs of the trained RNN, the benchmark RNN, and the ground truth data. Without using a burn-in phase (i.e., $m=0$, middle row), the transient resulting from the zero initialization causes the output $y^*_{t}=y_t(0,\theta^*,X^\mathrm{d})$ to be relatively far away from the benchmark output $y^\mathrm{b}_t= y_t(h_0^\mathrm{b},\theta^\mathrm{b},X^\mathrm{d})$ (which employs optimal initialization, compare Section~\ref{sec:optimization}) and the ground truth data.
+This is because the optimizer tries to minimize the influence of this transient by minimizing the convergence rate, which comes at the expense of long-term accuracy.
+In contrast, when using a burn-in phase $m\geq12$, this transient is effectively excluded from the cost function, letting the outputs $y^*_{j|i} = y_j(0,\theta^*,X^\mathrm{d}_i)$ converge closely to the benchmark (and the ground truth data).
+
+According to the right column in Figure~\ref{fig:ex_academic_data}, these observations directly carry over to performance of the trained RNN on test data. 
+Consequently, tuning the burn-in phase during training enables the RNN to achieve benchmark performance on both the training and the test data.
+
+
+\subsection{Data sets from system identification and time series forecasting}\label{app:timeseries}
+
+\begin{figure}
+	\centering
+	\includegraphics[]{ex_academic_app}
+	\caption{Supplementary results for the synthetic data experiment performed in Section~\ref{sec:exp_synthetic}. The left column refers to the training data, the right column to the test data. The corresponding input-output time series are shown in the top row. In the middle row, we compare the outputs of the RNN trained with $m=0$ (without burn-in) in terms of the outputs $\smash{y^*_{j|i}}$ (belonging to subsequences of the training data $\smash{X_i^\mathrm{d}}$, $i\in\mathcal{S}$) and the outputs ${y^*_{t}}$ (generated by processing the entire input sequence ${X^\mathrm{d}}$) with the benchmark output ${y^\mathrm{b}_t}$ and the ground truth data ${y^\mathrm{d}_t}$. The bottom row shows the respective results when training the RNNs using the burn-in phase length $m=N-1=20$.}
+	\label{fig:ex_academic_data}
+\end{figure}
+
+This section contains supplementary material on the experiments conducted in Section~\ref{sec:exp_TS}. Parameters depending on the respective data sets are reported in Table~\ref{tab:res_sysid_app}.
+
+For all experiments, we divide the training sequence of length $T$ into $S=T-N+1$ subsequences of length $N$, leading to the one-step overlap $o_i=1$ for all $i\in\mathcal{S}$ with $i\geq2$, compare Section~\ref{sec:data_segmentation}. This allows us leverage the maximum number of subsequences during TBPTT training and ultimately ensure a fair comparison between the considered methods and parameter choices. A thorough comparison of various options for the number of subsequences and how they might overlap is out of the scope of this paper, as this strongly depends on availability of additional prior knowledge and expertise about the data sets in order to decide which sequences actually contain information and are important for training, and which do not. However, this might indeed be relevant in certain scenarios (especially for very long training sequences), where a proper selection of the subsequences used for training (and hence the value of $S$) can potentially significantly accelerate the training procedure without sacrificing overall performance.
+
+
+\begin{table}
+	\caption{Training parameters for the experiments performed in Section~\ref{sec:exp_TS}.}
+	\label{tab:res_sysid_app}
+	\begin{center}
+	\begin{threeparttable}
+		\begingroup\footnotesize\sf
+		\addtolength{\tabcolsep}{0.2em}
+	
+		\begin{tabular}{ccccccccc}
+			\toprule
+			data set
+			& $T$ & $N$ &$n_y$ & $\alpha$  & $b$ & epochs & $T_{\mathrm{test}}$ & $T_{\mathrm{val}}$\\
+			\midrule
+			Silver-Box & 20,000 & 100..1000 & 1& 10\textsuperscript{-4} & 100 & 400  & 10,000 & 10,000 \\
+			W-H        & 20,000 & 100..1000 & 1& 10\textsuperscript{-4} & 100 & 400  & 10,000 & 10,000 \\
+			RLC        & 6667 & 100..1000 & 2& 3$\cdot$10\textsuperscript{-4} & 100 &  1000 & 3333 & 3333 \\
+			\midrule
+			Electricity (5) & 10,000 & 48, 96, 192 & 96& 5$\cdot$10\textsuperscript{-5} & 24 & 400  & 3360 & 3360\\
+			Traffic (9)     & 10,000 & 48, 96, 192 & 96& 5$\cdot$10\textsuperscript{-5} & 24 & 400  & 3360 & 3360\\
+			Solar (2)       & 20,000 & 48, 96, 192 & 96& 2$\cdot$10\textsuperscript{-4} & 24 & 300  & 5000 & 5000\\
+			\bottomrule
+		\end{tabular}
+		\endgroup
+		\begin{tablenotes}
+			\item{\small The variables correspond to the training sequence length $T$, the TBPTT subsequence (lookback window) length $N$, the RNN output dimension $n_y$, the step size $\alpha$ used in the Adam algorithm, the batch size~$b$, the test sequence length $T_{\mathrm{test}}$, and the validation sequence length $T_{\mathrm{val}}$. The values in parentheses indicate the considered variate of the respective time series data (selected randomly).}
+		\end{tablenotes}
+	\end{threeparttable}
+	\end{center}
+\end{table}
+
+
+We trained the RNNs in a standard Python environment using PyTorch and the Adam optimizer~\citep{Kingma2015}. Computations are performed on a standard laptop (Intel Core Ultra 7 265H, 32 GB RAM, NVIDIA RTX PRO 500 Blackwell GPU).
+
+For the training of RNNs for time series forecasting applied to the Electricity, Traffic, and Solar-Energy data sets, we first split the available time series into a training segment of length $T$ and a test segment of length $T_\mathrm{test}$. Then, we pre-train the RNNs on a subsequence of the training data of length $T-T_\mathrm{val}$ using different values of $N$ and $m$. The remaining subsequence of length $T_\mathrm{val}$ is used for evaluating the pre-training performance and ultimately selecting $m^*$ based on the MSE achieved during pre-training and validation.
+Then, for every $N$ and $m$, we re-train the RNN using the full training sequence of length $T$, and evaluate the forecast performance (and hence our choice of $m^*$) on the test segment of length $T_\mathrm{test}$.
+Stateful TBPTT and BPTT training is performed directly using the full training sequence of length $T$.
+
+In Figure~\ref{fig:ex_app_TS_m}, we compare the MSE achieved by each RNN after TBPTT training for various combinations of the window length $N$ and burn in phase $m$. The top row corresponds to system identification datasets, and the bottom row to time series forecasting data sets.
+For the latter, we show the training and test MSE achieved after re-training the RNNs on the full training sequence of length $T$ using the previously selected values of $N$ and $m$.
+
+In all experiments, we find that the performance achieved on both the training and test data is influenced by the choices of $N$ and $m$, as suggested by our theoretical results. Moreover, proper tuning of $N$ leads to a reduction of the MSE achieved on the training and test data of more than 60\% in some cases, see Table~\ref{tab:res_sysid_2}.
+
+\begin{figure}
+	\centering
+	\includegraphics[]{SYSID_wienerhammerstein_N_m}\hfill
+	\includegraphics[]{SYSID_rlc_N_m}\\[5ex]
+	\includegraphics[]{TSF_traffic_N_m}\hfill
+	\includegraphics[]{TSF_solar_N_m}
+	\caption{MSE after (re-)training the respective RNNs using TBPTT and various combinations of the window length $N$ and burn-in phase $m$; `$\circ$'-markers correspond to the MSE achieved on the training data, `$\times$'-markers to the MSE on the test data. Gray lines refer to the BPTT-trained RNN evaluated on the training (solid) and test data (dashed). This figure complements Figure~\ref{fig:ex_training}.}
+	\label{fig:ex_app_TS_m}
+\end{figure}
+
+\end{document}
