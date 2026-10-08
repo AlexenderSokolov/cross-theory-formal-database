@@ -1,0 +1,2316 @@
+% concatenated from Pre-print_Final_Draft-2.tex
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+
+% Standard packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{natbib}
+\usepackage{authblk}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}{Remark}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+
+% Math notation
+\newcommand{\bB}{\mathbf{B}}
+\newcommand{\bb}{\mathbf{b}}
+\newcommand{\bbS}{\mathbf{b}^{\mathrm{safe}}}
+\newcommand{\ba}{\mathbf{a}}
+\newcommand{\bp}{\mathbf{p}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cP}{\mathcal{P}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\cS}{\mathcal{S}}
+\newcommand{\cF}{\mathcal{F}}
+\newcommand{\cE}{\mathcal{E}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\renewcommand\Affilfont{\small}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\title{A Two-Layer Framework for Joint Online Configuration Selection and Admission Control}
+
+\author[$\dagger$]{Owen Shen\thanks{These authors contributed equally to this work.}}
+\author[$\ddagger$]{Haoran Xu\protect\footnotemark[1]}
+\author[$\ddagger$]{Peter Glynn}
+\author[$\ddagger$]{Yinyu Ye}
+\author[$\dagger$]{Patrick Jaillet}
+
+\affil[$\dagger$]{Operations Research Center, Massachusetts Institute of Technology}
+\affil[$\ddagger$]{Department of Management Science and Engineering, Stanford University}
+
+\affil[$\dagger$]{\{owenshen,jaillet\}@mit.edu}
+\affil[$\ddagger$]{\{haoran14, glynn, yyye\}@stanford.edu }
+
+
+
+%\affil[*]{Equal Contribution}
+%\author{
+%Owen Shen$^{1,*}$ \quad Haoran Xu$^{2,*}$ \quad Yinyu Ye$^2$ \quad Peter Glynn$^2$ \quad Patrick Jaillet$^1$ \\
+%$^1$Massachusetts Institute of Technology \\
+%$^2$Stanford University \\
+%{\small $^*$Corresponding author: \texttt{owenshen@mit.edu}}
+%}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study online configuration selection with admission control problem, which arises in LLM serving, GPU scheduling, and revenue management. In a planning horizon with $T$ periods, we consider a two-layer framework for the decisions made within each time period. In the first layer, the decision maker selects one of the $K$ configurations (ex. quantization, parallelism, fare class) which induces distribution over the reward-resource pair of the incoming request. In the second layer, the decision maker observes the request and then decides whether to accept it or not.
+
+Benchmarking this framework requires care. We introduce a \textbf{switching-aware fluid oracle} that accounts for the value of mixing configurations over time, provably upper-bounding any online policy. We derive a max-min formulation for evaluating the benchmark, and we characterize saddle points of the max-min problem via primal-dual optimality conditions linking equilibrium, feasibility, and complementarity. This guides the design of \textbf{SP-UCB--OLP} algorithm, which solves an optimistic saddle point problem and achieves $\tilde{O}(\sqrt{KT})$ regret. 
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, minimum width=3cm, minimum height=1cm, align=center, font=\small},
+    arrow/.style={->, >=stealth, thick},
+    desc/.style={font=\scriptsize, align=center, text width=3cm}
+]
+% Boxes
+\node[box] (config) at (0,0) {Choose config $\theta_t$};
+\node[box] (observe) at (5.5,0) {Observe $(r_t, \ba_t)$};
+\node[box] (decide) at (11,0) {Accept/Reject};
+
+% Arrows
+\draw[arrow] (config) -- (observe) node[midway, above, font=\scriptsize] {$\sim \cD_{\theta_t}$};
+\draw[arrow] (observe) -- (decide) node[midway, above, font=\scriptsize] {admission rule};
+
+% Layer labels
+\node[above=0.5cm, font=\scriptsize\bfseries] at (config) {Layer 1};
+\node[above=0.5cm, font=\scriptsize\bfseries] at (observe) {Revelation};
+\node[above=0.5cm, font=\scriptsize\bfseries] at (decide) {Layer 2};
+
+% Descriptions below boxes
+\node[desc, below=0.5cm] at (config) {Determines request type $\theta$\\(distribution $\cD_{\theta}$ unknown)};
+\node[desc, below=0.5cm] at (observe) {Reward and resource ($\sim \cD_{\theta}$)\\revealed before commit};
+\node[desc, below=0.5cm] at (decide) {Binary decision under\\budget constraint};
+\end{tikzpicture}
+\caption{Two-layer decision structure with data revelation.}
+\label{fig:two-layer}
+\end{figure*}
+
+Many resource-constrained systems require \emph{two sequential decisions} at each time step. First, the decision maker selects a \emph{system configuration} that determines the type of incoming request. Second, after observing the request's characteristics, the decision maker makes an \emph{admission decision}---whether to accept or reject the request, subject to a cumulative resource budget. Neither decision alone captures the full problem: the configuration shapes what the decision maker will see, and the admission control determines what resources are consumed. It is the \emph{coupling} of both decisions that creates the central challenge.
+
+This two-layer structure arises naturally in several domains. In LLM serving, the system first selects a serving configuration (quantization level, batching strategy)~\citep{kwon2023efficient,yu2022orca}, then observes the incoming request's prompt length and estimated compute cost, and finally decides whether to admit the job under its current resource budget. In cluster scheduling, the system first chooses a parallelism configuration~\citep{gu2019tiresias,narayanan2020heterogeneity,qiao2021pollux}, then observes the job's resource footprint, and decides whether to schedule it. In revenue management, the firm first selects a fare class~\citep{talluri2004theory,gallego1994optimal}, then observes a customer's willingness-to-pay, and decides whether to accept the booking. In all cases, the first decision (configuration) is made \emph{before} the request is revealed, while the second decision (admission) is made \emph{after} observing the request---a \textbf{select--observe--admit} protocol.
+
+We formalize this protocol as follows. There are $K$ \emph{configurations}, each inducing a distribution over reward--resource pairs $(r, \ba)$. At each period, the decision maker (1) \textbf{selects} a configuration $\theta_t$, (2) \textbf{observes} the reward--resource pair $(r_t, \ba_t) \sim \cD_{\theta_t}$, and (3) \textbf{admits or rejects} the request subject to a cumulative budget $\bB$. All decisions are irrevocable. Two existing frameworks each capture one layer of this problem but not both. Bandits with knapsacks (BwK)~\citep{badanidiyuru2018bandits} models configuration selection under budget constraints, but uses \emph{sample-and-commit}: pulling an arm immediately consumes resources with no opportunity to reject after observing the outcome. Online linear programming (OLP)~\citep{Agrawal2014,li2022online} models observation-based admission---the decision maker sees $(r_t, \ba_t)$ before committing resources---but assumes a \emph{fixed} request distribution with no configuration selection. Our framework unifies both: configuration selection from BwK with observation-based admission from OLP. 
+
+\paragraph{Main Contributions.}
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Switching-aware fluid oracle.} Designing an appropriate oracle is essential in solving an online decision making problem. An oracle solves a so-called offline optimization problem whose optimal value serves as a benchmark for evaluating the performance of feasible online policies. A natural oracle of our problem is the fixed configuration oracle, i.e., fix a single best configuration and solve the offline resource allocation problem of the selected configuration. The offline resource allocation problem is given in \cite{li2022online}, and its optimal value depends on the reward-resource distribution. The best configuration in this natural oracle refers to the one whose reward-resource distribution gives the highest optimal value of the offline resource allocation problem. However, this oracle which is based on the naive ``best-response'' interpretation of our problem fails to upper bound the optimal online policy when there are heterogeneous resources. In those situations, a feasible online policy that switches among configurations may have higher total reward than the fixed configuration oracle by exploiting complementary budgets (Example~\ref{ex:pathology}).
+
+\quad In this paper, we propose a \emph{switching-aware} oracle which provides a valid upper bound on all feasible online policies (Theorem~\ref{thm:oracle-upper-bound}). This eliminates the ``beating the oracle'' pathology of the fixed-configuration oracle. \\
+
+\item \textbf{Primal-dual characterization of the oracle.} We derive an equivalent max-min formulation of the offline optimization problem in the switching-aware oracle by duality. We build the connection between the saddle points of the max-min problem and the primal optimal solutions of the offline optimization problem via threshold rules, feasibility, and complementarity conditions (Theorems~\ref{thm:pd_equilibrium}--\ref{thm:all_solutions}), which also corrects the naive ``best-response'' interpretation.\\
+
+\item \textbf{Sublinear regret algorithm.} We design SP-UCB--OLP Algorithm by repeatedly solving the saddle points of an optimistic version of the max-min formulation of the offline optimization problem in the switching-aware oracle. We prove the regret of SP-UCB-OLP Algorithm is $\tilde{O}(\sqrt{KT})$ (Theorem~\ref{thm:main}) where $T$ is the number of periods in the planning horizon and $K$ is the number of configurations. We also conduct numerical experiments to validate the regret upper bound. 
+\end{enumerate}
+
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Bandits with knapsacks (BwK).}
+BwK \citep{badanidiyuru2018bandits} is a framework that deals with multi-armed bandit problems under budget constraints. Many variants of BwK problems including adversarial input~\citep{immorlica2019adversarial}, contextual features~\citep{agrawal2016linear,agrawal2016contextual}, non-linear reward and constraint~\citep{agrawal2019bandits} and non-stationary environments~\citep{liu2022nonstationary} have been studied in the literature. Although BwK has the components of both configuration selection and resource allocation, BwK uses \emph{sample-and-commit}: pulling an arm immediately consumes resources without the option to reject after observing the outcome. This makes our framework and BwK significantly different because our framework leverages \emph{observe-then-decide} admission, where the agent sees $(r_t, \ba_t)$ before committing resources.
+
+\paragraph{Online linear programming (OLP) and threshold-based decision rule.}
+OLP \citep{Agrawal2014} is a framework of online resource allocation problems that uses \emph{observe-then-decide}. Dual-based algorithms~\citep{buchbinder2009online,devanur2009adwords,agrawal2014fast,balseiro2020dual,li2022online,bray2024logarithmic} are the most common way to solve OLP problems. These methods learn dual prices and apply threshold rule to admission control. However, OLP assumes a \emph{fixed} reward-resource distribution of the requests and does not explore over configurations. In this paper, our proposed SP-UCB-OLP algorithm learns both a probability distribution over the configurations and a dual price. The distribution guides the configuration selection decision, and the dual price gives a threshold-based admission rule.
+
+\quad Our threshold-based admission rule also relates to prophet inequalities~\citep{krengel1977semiamarts,samuel1984comparison}, which compare online policies to omniscient prophets. Modern extensions handle matroid constraints~\citep{kleinberg2012matroid} and pricing mechanisms~\citep{dutting2017prophet}. Unlike prophet settings with adversarial inputs, reward and resource consumption of the requests in our model are stochastic but configuration-dependent. Dynamic pricing problems in revenue management \citep{gallego1994optimal,talluri2004theory,besbes2012blind}.  are also closely related to the threshold-based admission rule.
+
+\paragraph{Saddle-point of max-min problem.}
+The offline optimization problem solved by our switching-aware oracle can be expressed as a max-min optimization problem, and our SP-UCB-OLP algorithm solves the joint online configuration selection and admission control problem by learning the saddle point of this max-min optimization problem. Thus our work also aligns with saddle-point learning and multiplicative weights~\citep{freund1997decision,arora2012multiplicative}. 
+
+\paragraph{Our positioning.}
+We unify configuration exploration (from BwK) with observe-then-decide threshold admission (from OLP) through a switching-aware oracle. This switching-aware oracle provides a valid upper bound for the total reward earned by any feasible online polices, and learning the saddle point of the max-min optimization problem corresponding to this oracle leads us to the SP-UCB-OLP algorithm that achieves sublinear regret.
+
+\section{Model}
+\label{sec:model}
+
+\paragraph{Two-layer decision model.}
+The planning horizon has $T \in \mathbb{N}$ time periods, and one request arrives at each of the time periods. Let $d$ be the number of resource types, and $\bB \in \R^d_+$ be the total budget vector. Denote $(r_t,\ba_t)\in \R_+ \times \R^d_+$ as the reward-resource pair of request arriving in time period $t$. There are $K$ configurations $\Theta = \{1, \ldots, K\}$.  Each configuration $\theta$ induces a reward--resource distribution $\cD_\theta$. At each time $t=1,\cdots,T$, the decision maker (1) selects a configuration $\theta_t \in \Theta$, (2) observes $(r_t, \ba_t) \sim \cD_{\theta_t}$ of the request arriving in time period $t$, (3) chooses $x_t \in \{0, 1\}$ after observing $(r_t, \ba_t)$. If $x_t = 1$, the decision maker collects reward $r_t$ and consumes resources $\ba_t$. $\{x_t\}_{t=1}^T$ must satisfy the \textbf{pathwise budget constraint}:
+\[
+\sum_{t=1}^T \ba_t x_t \le \bB \quad \text{(componentwise, almost surely)}.
+\]
+In addition, the decisions made at each time period is irrevocable. The goal of the decision maker is to maximize the expected total reward $\mathbb{E}[\sum_{t=1}^Tr_tx_t]$.
+\subsection{Assumptions}
+\begin{assumption}[Stationarity and Independence]
+\label{assump:iid}
+If an algorithm select configuration $\theta$ at time period $t$, $(r_t,\ba_t)$ is drawn independently from $\cD_\theta$. In addition, the distribution $\cD_\theta$ is time-invariant for all $\theta\in\Theta$.
+\end{assumption}
+\begin{assumption}[Boundedness]
+\label{assump:bounded}
+There exist constants $R_{\max}, A_{\max} > 0$ such that for all $\theta$ and $(r, \ba) \sim \cD_\theta$:
+\[
+0 \le r \le R_{\max}, \quad \|\ba\|_\infty \le A_{\max} \quad \text{a.s.}
+\]
+\end{assumption}
+
+\begin{assumption}[Budget Scaling]
+\label{assump:budget-scaling}
+There exists $\bb\in \mathbb{R}_+^d$ such that $B=T\cdot \bb$.
+\end{assumption}
+In the analysis of this paper, we fix the vector $\bb$ and discuss the dependence of the performance of algorithms as the number of periods $T$ goes to infinity. Under this asymptotic regime, Assumption \ref{assump:budget-scaling} indicates that we consider the ``large resource budget'' scenario in which the total budget is proportional to the total number of time periods.
+\begin{assumption}[Continuous Valuation]
+\label{assump:contivalue}
+For any $\theta\in\Theta$, if $(r,\ba)\sim \cD_{\theta}$, then the conditional distribution of $r$ given $\ba=\alpha$ is continuous for any $\alpha$ in the support of $\ba$.
+\end{assumption}
+We will later show that we do admission control through a price-based threshold method, in which we have a price $\bp\in\mathbb{R}^d$ and accept a request with reward-resource pair $(r,\ba)$ if $r>\ba^T\bp$. Assumption \ref{assump:contivalue} serves as a ``No-Tie'' assumption, i.e., for any $\bp\in \mathbb{R}^d$, $\mathbb{P}(r=\ba^T\bp)=0$.
+\section{Switching-Aware Fluid Oracle}
+\label{sec:oracle}
+We define an oracle and the corresponding offline optimization problem, which provides a benchmark that we can define the regret of an online algorithm with respect to. Recall $\bb := \bB/T$ is the per-period budget given in Assumption \ref{assump:budget-scaling}.
+\subsection{Fixed configuration oracle leads to negative regret}\label{Section: FCO}
+Let $(r_{t,\theta},a_{t,\theta})$ be the reward-resource pair observed if the decision maker selects configuration $\theta$. Define
+\begin{equation*}
+\begin{split}
+V^{off}_{\theta}(\bb) := \mathbb{E}\Big [\max \Big\{ & \sum_{t=1}^Tr_{t,\theta}x_{t,\theta}\Big|\; \sum_{t=1}^Ta_{t,\theta}x_{t,\theta}\leq T\cdot\bb, \\
+& 0\leq x_{t,\theta}\leq 1\;\forall t \Big\}\Big ].
+\end{split}
+\end{equation*}
+The optimization problem inside the expectation defining $V^{off}_{\theta}(\bb)$ is the so-called offline LP in \cite{li2022online}. $V^{off}_{\theta}(\bb)$ represents the maximal expected total reward earned if the decision maker always selects configuration $\theta$ and knows the reward-resource pairs of all the incoming requests in advance. Let $\{x_{t,\theta}^*\}_{t=1}^T$ be the optimal solution of the maximization problem inside the expectation. Then, a natural oracle of our problem is to always select $\theta^*=\arg\min_{\theta\in\Theta}V^{off}_{\theta}(\bb)$ and accepting requests according to $\{x_{t,\theta}^*\}_{t=1}^T$. Then, the expected total reward earned by this fixed configuration oracle is $V^*(\bb):=V^{off}_{\theta^*}(\bb)$. However, the following example indicates that it is possible for an online policy having higher expected total reward than $V^*(\bb)$.
+\begin{example}[Complementary Resources]
+\label{ex:pathology}
+Consider $T=100$ periods, $d=2$ resources with $\bb = [0.5, 0.5]$, and two configurations with deterministic resource consumption: $(r\sim Uniform(0,2), \ba=[1,0])$ and $(r=Uniform(0,2), \ba=[0,1])$, each consuming only one type of resource. The fixed configuration oracle achieves $V^*(\bb) = \frac{7550}{101}\approx74.76$ (one budget wasted), but the optimal online policy is to select configuration $1$ when $t\leq 50$, select configuration $2$ when $t>50$ and accept all the requests, which earns $100$ as the expected total reward.
+\end{example}
+This example motivates the following derivation of the switching-aware oracle.
+\subsection{Primal Mixed Fluid Relaxation}
+
+Let $\Delta_K = \{\bw \in \R^K_+ : \sum_\theta w_\theta = 1\}$ be the probability simplex. For each $\theta\in\Theta$, let $x_\theta : \R_+ \times \R^d_+ \to [0, 1]$ be a measurable acceptance rule. We define the \textbf{mixed fluid value} as:
+\begin{equation}
+\label{eq:mix-primal}
+\begin{split}
+V^{\mathrm{mix}}(\bb) := \max_{\bw \in \Delta_K} \max_{\{x_\theta\}} \Big\{ & \sum_{\theta \in \Theta} w_\theta \E_\theta[r\,x_\theta(r, \ba)] \\
+& \Big|\; \sum_{\theta \in \Theta} w_\theta \E_\theta[\ba\,x_\theta(r, \ba)] \le \bb \Big\}.
+\end{split}
+\end{equation}
+The max-max form represents the two-layer framework in our problem. The outer maximization represents the configuration selection, and the inner maximization represents the admission control after a configuration is selected. $V^{\mathrm{mix}}(\bb)$ also shows how OLP and BwK are connected with our problem. When $K=1$, our problem is reduced to an OLP problem, and $V^{\mathrm{mix}}(\bb)$ is also equivalent to the fluid relaxation of OLP given by \citep{Chen2024} in this case. When the acceptance rule is predetermined and not part of the decision, i.e., $\{x_{\theta}\}_{\theta\in\Theta}$ is fixed, our problem is reduced to a BwK problem, and $V^{\mathrm{mix}}(\bb)$ is also equivalent to the LP relaxation of BwK given by \citep{badanidiyuru2018bandits} in this case.
+
+\quad The switching-aware fluid oracle knows the optimal solution $(\bw^*,\{x^*(\theta)\})$. At each time period $t$, the oracle randomly select a configuration $\theta_t$ following the probability distribution given by the \textbf{mixture} $\bw^*$. After observing $(r_t,a_t)$, the oracle applies the acceptance rule $x_{\theta_t}$ and earns $r_tx_{\theta_t}(r_t,a_t)$. The switching-aware fluid oracle ignores the budget constraint. Thus, the total expected reward earned by the switching-aware fluid oracle is $T\cdot V^{mix}(\bb)$. In the following subsections, we characterize $V^{mix}(\bb)$ and show $T\cdot V^{mix}(\bb)$ is a valid benchmark.
+\subsection{Dual Form and Envelope Structure}
+
+\paragraph{Envelope and threshold consumption.}
+For $\bp\in\mathbb{R}^d$, define the \textbf{surplus} and \textbf{threshold consumption}:
+\[
+g_\theta(\bp):=\E_\theta[(r-\langle \bp,\ba\rangle)_+],\;
+h_\theta(\bp):=\E_\theta[\ba\,\mathbf{1}\{r>\langle \bp,\ba\rangle\}].
+\]
+For a mixture $\bw\in\Delta_K$, define
+\[
+L(\bw,\bp):=\langle \bp,\bb\rangle+\sum_{\theta} w_\theta g_\theta(\bp).
+\]
+\begin{theorem}[Primal--Dual Form of the Mixed Fluid Oracle]
+\label{thm:mix-dual}
+Under Assumptions~\ref{assump:bounded} and~\ref{assump:budget-scaling}, let $b_{min}$ be the smallest component of $\bb$ (in particular, $b_{\min} > 0$) and $P_{max}$ be $2R_{max}/b_{min}$. With price domain $\cP = [0, P_{\max}]^d$,
+\begin{equation}
+\label{eq:mix-dual}
+\begin{split}
+V^{\mathrm{mix}}(\bb) &= \max_{\bw \in \Delta_K} \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \sum_{\theta} w_\theta g_\theta(\bp) \right\} \\
+&= \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \max_{\theta \in \Theta} g_\theta(\bp) \right\}.
+\end{split}
+\end{equation}
+\end{theorem}
+Define the induced consumption $H(\bw,\bp):=\sum_{\theta} w_\theta h_\theta(\bp)$.
+Let $A(\bp):=\arg\max_{\theta} g_\theta(\bp)$ be the \textbf{active (envelope) set}, and $\mathrm{supp}(\bw)$ be the indices of positive components of $\bw$. The following theorem establishes the relationship between the primal form and the max-min form of $V^{mix}(\bb)$.
+\begin{theorem}[Primal--dual optimality (saddle/KKT conditions)]
+\label{thm:pd_equilibrium}
+Assume Assumptions~\ref{assump:iid}--\ref{assump:contivalue}.
+A pair $(\bw^\star,\bp^\star)\in\Delta_K\times\cP$ is a saddle point of $\max_{\bw \in \Delta_K} \min_{\bp \in \cP}L(\bw,\bp)$
+(and hence attains $V^{\mathrm{mix}}(\bb)$) if and only if:
+\begin{enumerate}[label=(\roman*),leftmargin=*,noitemsep]
+\item \textbf{(Envelope support)} $\mathrm{supp}(\bw^\star)\subseteq A(\bp^\star)$.
+\item \textbf{(Feasibility)} $H(\bw^\star,\bp^\star)\le \bb$ (componentwise).
+\item \textbf{(Complementarity)} $\langle \bp^\star,\bb-H(\bw^\star,\bp^\star)\rangle=0$.
+\end{enumerate}
+Moreover, the mixture $\bw^\star$ together with threshold admission $x_{\theta}(r,\ba)=\mathbf{1}\{r>\langle \bp^\star,\ba\rangle\}$ for all $\theta\in\Theta$,
+ is primal-optimal for~\eqref{eq:mix-primal} and
+$V^{\mathrm{mix}}(\bb)=L(\bw^\star,\bp^\star)$.
+\end{theorem}
+Theorem \ref{thm:pd_equilibrium} indicates that, at equilibrium, $\bw^\star$ randomizes only among envelope-optimal configurations at $\bp^\star$,
+and the induced threshold consumption matches the budget on priced resources (complementarity). The following theorem further characterize the saddle points of the max-min form of $V^{mix}(\bb)$.
+\begin{theorem}[Characterization of all saddle points]
+\label{thm:all_solutions}
+Assume Assumptions~\ref{assump:iid}--\ref{assump:contivalue}. Define the envelope objective
+\[
+f(\bp):=\langle \bp,\bb\rangle+\max_{\theta\in\Theta} g_\theta(\bp),
+\qquad
+\cP^\star:=\argmin_{\bp\in\cP} f(\bp).
+\]
+Then the set of saddle points of $L$ is exactly
+\begin{align*}
+\cS = \Big\{(\bw,\bp)&\in\Delta_K\times\cP:\ \bp\in\cP^\star,\ \mathrm{supp}(\bw)\subseteq A(\bp), \\
+&H(\bw,\bp)\le \bb,\ \langle \bp,\bb-H(\bw,\bp)\rangle=0 \Big\}.
+\end{align*}
+\end{theorem}
+\subsection{Oracle Justification}
+Denote $R_T^{\pi}$ as the total reward earned by an online policy $\pi$.
+\begin{theorem}[Switching-Aware Oracle Upper Bound]
+\label{thm:oracle-upper-bound}
+Under Assumptions~\ref{assump:iid}--\ref{assump:bounded}, for any online policy $\pi$ satisfying the pathwise budget constraint,
+\[
+\E[R_T^\pi] \le T \cdot V^{\mathrm{mix}}(\bb).
+\]
+\end{theorem}
+\begin{proof}[Proof sketch]
+Fix $\bp\in\cP$, $r_t x_t\le \langle \bp,\ba_t\rangle x_t + (r_t-\langle \bp,\ba_t\rangle)_+$ almost surely.
+By $\sum_t \ba_t x_t\le \bB$ yields $R_T^\pi\le \langle \bp,\bB\rangle + \sum_{t=1}^T (r_t-\langle \bp,\ba_t\rangle)_+$ almost surely.
+Taking expectation and upper bounding the average surplus by $\max_\theta g_\theta(\bp)$ gives $\E[R_T^\pi]\le T(\langle \bp,\bb\rangle+\max_\theta g_\theta(\bp))$. Minimizing over $\bp$ completes the proof. Full proof is in Appendix~\ref{app:oracle-proof}.
+\end{proof}
+\begin{remark}
+    In Example \ref{ex:pathology}, $T \cdot V^{\mathrm{mix}}(\bb)=100$ which provides a valid upper bound. 
+\end{remark}
+\section{Algorithm: SP-UCB--OLP}
+\label{sec:algorithm}
+The switching-aware oracle motivates the following algorithm. At each time period $t$, we use the observed data to learn the surplus functions $\{g_{\theta}\}_{\theta\in\Theta}$. Using the sample averages $\{\hat g_{\theta,t}\}_{\theta\in\Theta}$ with respect to the observed data is the most straightforward way to learn surplus functions; however, to balance exploration and exploitation, we apply the idea of UCB and add confidence radii $\{\beta_{\alpha,\theta}(t)\}$ to $\{\hat g_{\theta,t}\}_{\theta\in\Theta}$ to get our final estimates of the surplus functions. We replace the surplus functions in ~\eqref{eq:mix-dual} with the estimated surplus function to get an optimistic saddle point problem and solve this problem to get $(\bw_t,\bp_t)$. We then randomly select a configuration $\theta_t$ following the probability distribution given by $\bw_t$ and accept the request if $r_t>{\ba_t}^T\bp_t$ and we have enough resources. We introduce the formulation of confidence radii $\beta_{\alpha,\theta}(t)$ and the details of algorithm in the following sections.
+\subsection{Confidence Radii and Optimistic Saddle Point Problem}
+We store every observed $(r_t,\ba_t)$ regardless of whether it is admitted, so that surplus estimates are unbiased.
+For each configuration $\theta$, maintain a dataset $\cS_\theta$ of all observed samples (accepted or rejected) with count $N_\theta = |\cS_\theta|$. Define the empirical surplus:
+\[
+\widehat{g}_{\theta,t}(\bp) := \frac{1}{N_\theta \vee 1} \sum_{(r, \ba) \in \cS_\theta} (r - \langle \bp, \ba \rangle)_+.
+\]
+By Lemma~\ref{lem:conc-g} and its anytime version (Corollary~\ref{cor:conc-g-anytime}) in the Appendix,
+for any $\alpha\geq 1$ and any $\delta\in(0,1)$, with probability at least $1-\delta$,
+the following holds simultaneously for all $\theta\in\Theta$ and all rounds $t\le T$:
+\[
+\sup_{\bp\in\cP}\big|g_\theta(\bp)-\widehat g_{\theta,t}(\bp)\big|\;\le\;\beta_{\alpha,\theta}(t),
+\]
+where the confidence radius is
+\[
+\beta_{\alpha,\theta}(t)
+:=\alpha\, c_g R_{\max} \sqrt{\frac{d \log\!\Big(\frac{c_0\,d\,P_{\max}\,A_{\max}\,T}{R_{\max}}\Big) + \log(KT/\delta)}{N_\theta \vee 1}},
+\]
+and $c_g, c_0 > 0$ are absolute constants from the concentration lemma (Appendix~\ref{app:concentration}).
+Then, at each round, we solve the following \textbf{optimistic saddle point problem}:
+\begin{equation}
+\label{eq:optimistic-saddle}
+\begin{aligned}
+    (\bw_t, \bp_t) &\in \argmax_{\bw \in \Delta_K} \argmin_{\bp \in \cP} L_t^{\mathrm{opt}}(\bw, \bp)\\
+    &=\argmax_{\bw \in \Delta_K} \argmin_{\bp \geq 0} L_t^{\mathrm{opt}}(\bw, \bp),
+\end{aligned}
+\end{equation}
+where $L_t^{\mathrm{opt}}(\bw, \bp) := \langle \bp, \bbS \rangle + \sum_\theta w_\theta (\widehat{g}_{\theta,t}(\bp) + \beta_{\alpha,\theta}(t))$, and $\bbS:=(1-\varepsilon)\bb$ with
+$\varepsilon=\sqrt{\log T/T}$. The conservative per-period budget $\bbS$ is used to do feasibility control, which is consistent with literature practice such as in \cite{Agrawal2014}. The equality that replace $\bp\in\cP$ with $\bp\geq 0$ is by Assumption \ref{assump:bounded}. For the proof of this equality, please see Appendix \ref{app:implementation}.
+\subsection{Algorithm Details}
+\begin{algorithm}[ht!]
+\caption{SP-UCB--OLP:}
+\label{alg:spucb}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} Configurations $\Theta$ ($|\Theta| = K$), budget $\bB$, horizon $T$, exploration parameter $\alpha$, slack $\varepsilon = \sqrt{\log T / T}$
+\STATE \textbf{Initialize:} $\bB^{\mathrm{rem}} \gets \bB$, $\bb \gets \bB/T$, $\bbS \gets (1-\varepsilon)\bb$
+\STATE For each $\theta$: $N_\theta \gets 0$, $\cS_\theta \gets \emptyset$
+\FOR{$t = 1$ to $T$}
+    \STATE \textbf{// Pure observation phase: initialize sample sets without admission}
+    \IF{$t \le K$}
+        \STATE $\theta_t \gets t$ \COMMENT{Round-robin initialization}
+        \STATE Observe $(r_t, \ba_t) \sim \cD_{\theta_t}$
+        \STATE $\cS_{\theta_t} \gets \cS_{\theta_t} \cup \{(r_t, \ba_t)\}$; \quad $N_{\theta_t} \gets N_{\theta_t} + 1$
+        \STATE $x_t \gets 0$ \COMMENT{Observe only, no admission}
+        \STATE \textbf{continue}
+    \ENDIF
+    \STATE \textbf{// Compute confidence radii}
+    \FOR{each $\theta \in \Theta$}
+        \STATE $\beta_{\alpha,\theta}(t) \gets \alpha\, c_g R_{\max} \sqrt{\frac{d \log\!\Big(\frac{c_0\,d\,P_{\max}\,A_{\max}\,T}{R_{\max}}\Big) + \log(KT/\delta)}{N_\theta \vee 1}}$
+    \ENDFOR
+    \STATE \textbf{// Empirical surpluses}
+    \STATE $\widehat{g}_{\theta,t}(\bp) \gets \frac{1}{N_\theta \vee 1} \sum_{(r,\ba) \in \cS_\theta} (r - \langle \bp, \ba \rangle)_+$
+    \STATE \textbf{// Solve optimistic saddle point problem}
+    \STATE $(\bw_t, \bp_t) \in \argmax_{\bw \in \Delta_K} \argmin_{\bp \geq 0} L_t^{\mathrm{opt}}(\bw, \bp)$ \hfill \COMMENT{$L_t^{\mathrm{opt}}$ from \eqref{eq:optimistic-saddle}}
+    \STATE \textbf{// Sample a configuration from the mixture}
+    \STATE Draw $\theta_t \sim \bw_t$
+    \STATE Observe $(r_t, \ba_t) \sim \cD_{\theta_t}$
+    \STATE $\cS_{\theta_t} \gets \cS_{\theta_t} \cup \{(r_t, \ba_t)\}$; \quad $N_{\theta_t} \gets N_{\theta_t} + 1$
+    \STATE \textbf{// Admission decision (bid-price with hard feasibility)}
+    \IF{$\ba_t \le \bB^{\mathrm{rem}}$ \AND $r_t > \langle \bp_t, \ba_t \rangle$}
+        \STATE Accept: $x_t \gets 1$; \quad $\bB^{\mathrm{rem}} \gets \bB^{\mathrm{rem}} - \ba_t$
+    \ELSE
+        \STATE Reject: $x_t \gets 0$
+    \ENDIF
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+Algorithm \ref{alg:spucb} provides the full details of our \textbf{SP-UCB-OLP} algorithm. An important step in the implementation of this algorithm is to solve the optimistic saddle point problem. We provide a method to solve this problem by solving linear programs in Appendix \ref{app:implementation}.
+\subsection{Theoretical Results}
+\label{sec:theory}
+
+Define the \textbf{switching-aware regret} of an online policy $\pi$ as:
+\[
+\mathrm{Reg}^{\mathrm{mix}}_{\pi}(T) := T \cdot V^{\mathrm{mix}}(\bb) - \E[R_T^{\pi}].
+\]
+
+\begin{theorem}[Main Theorem: Regret vs.\ Switching-Aware Fluid Oracle]
+\label{thm:main}
+Denote Algorithm~\ref{alg:spucb} as $\pi_1$, under Assumptions~\ref{assump:iid}--\ref{assump:contivalue}, run Algorithm~\ref{alg:spucb} with
+$\varepsilon=\sqrt{\log T/T}$, confidence level $\delta=T^{-2}$, and exploration parameter $\alpha\geq 1$. Then
+\[
+\mathrm{Reg}_{\pi_1}^{\mathrm{mix}}(T)
+\le
+C_1\,\alpha\,\sqrt{KT \cdot d \log T}
+\;+\;
+C_2\,\sqrt{T \log T}
+\;+\;
+K R_{\max},
+\]
+where constants $C_1,C_2>0$ depend only on $(d, R_{\max}, A_{\max}, \bb)$. In particular, for fixed $d$,
+\[
+\mathrm{Reg}_{\pi_1}^{\mathrm{mix}}(T)=\tilde{O}(\alpha\sqrt{KT}).
+\]
+\end{theorem}
+\begin{remark}
+    Theorem~\ref{thm:main} requires $\alpha \geq 1$. In practice, smaller values of $\alpha$ (e.g., $\alpha = 0.01$) often improve empirical performance by reducing over-exploration, but are not covered by the high-probability analysis. See Appendix~\ref{app:concentration} for details.
+\end{remark}
+\section{Experiments}
+\label{sec:experiments}
+Our experiments pursue three goals: (i)~validate that SP-UCB--OLP achieves $\tilde{O}(\sqrt{T})$ regret as predicted by Theorem~\ref{thm:main}; (ii)~validate that the switching-aware benchmark $V^{\mathrm{mix}}$ is necessary by demonstrating the complementarity gap; and (iii)~test the algorithm on real GPU cluster traces. In all experiments, the optimistic saddle point problem is solved via the LP formulation in Appendix~\ref{app:implementation}. In addition to \textbf{SP-UCB--OLP}, we also test the other three algorithms: (1) \textbf{Greedy} runs \textbf{SP--UCB--OLP} with $\alpha=0$ yielding pure exploitation. (2) \textbf{Random} selects $\theta_t$ from $\Theta$ uniformly at random and accepts as long as the budget constraint is not violated. (3) \textbf{Oracle} runs \textbf{SP--UCB--OLP} by replacing $\bw_t$ and $\bp_t$ with the true optimal mixture $\bw^*$ and price $\bp^*$ computed by the switching-aware oracle at each round. 
+
+\quad In addition to regret $\mathrm{Reg}_{\pi}^{\mathrm{mix}}(T)$, we also consider the competitive ratio $\mathrm{CR}_{\pi} = \mathbb{E}[R_T^{\pi}] / (T \cdot V^{\mathrm{mix}}(\bb))$ as another performance measurement. Unless otherwise noted, experiments use $d=3$ resource dimensions. Budget is parameterized by a scaling factor $\rho > 0$: $\bb = \rho \cdot \bb_0$, where $\bb_0$ is a scenario-specific baseline per-period budget (see Appendix~\ref{app:experiments}); $\rho < 1$ corresponds to tighter budgets and $\rho > 1$ to looser ones. 
+
+\subsection{Regret Scaling with Horizon}
+\label{sec:theory-validation}
+
+We run SP-UCB--OLP with the theory-compliant exploration parameter $\alpha = 1.5$ on a $K=5$ Gaussian scenario (S0) with $d=3$ resources and budget scaling $\rho = 0.7$. Each configuration $\theta \in \{0,\ldots,4\}$ generates rewards $r \sim \mathcal{N}(\mu_r^\theta, (\sigma_r^\theta)^2)$ and per-resource consumptions $a_j \sim \mathcal{N}(\mu_{a,j}^\theta, (\sigma_{a,j}^\theta)^2)$, independently truncated to $[0.01, R_{\max}]$ and $[0.01, A_{\max}]$ respectively to satisfy Assumption~\ref{assump:bounded}, with $R_{\max} = A_{\max} = 2.0$. The five configurations span a range of reward--consumption trade-offs; full parameter tables appear in Appendix~\ref{app:experiments}. The per-period budget is $\bb = \rho \cdot \bb_0$ where $\bb_0$ is the mean consumption vector of the most resource-intensive configuration, and the baseline budget $\bb_0$ is specified in Appendix~\ref{app:experiments}. Algorithm parameters are $P_{\max} = 2.0$, $\delta = T^{-2}$, $\varepsilon = \sqrt{\log T / T}$, $c_g = 0.0707$ (empirically tuned to match the theoretical $\sqrt{T}$ scaling), with warm-start of $K$ rounds (round-robin, no budget consumption) and saddle-point re-solves on a doubling schedule.
+
+We vary $T \in \{100, 200, 500, 1000, 2000\}$ with 50 independent seeds. Table~\ref{tab:regret-alpha15} and Figure~\ref{fig:regret-alpha15} show that Regret/$\sqrt{T}$ remains approximately constant ($\approx 1.6$) across all horizon lengths, confirming the $\tilde{O}(\sqrt{T})$ scaling predicted by Theorem~\ref{thm:main}.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Regret scaling with $\alpha = 1.5$ (S0, 50 seeds).}
+\label{tab:regret-alpha15}
+\begin{tabular}{rrrr}
+\toprule
+$T$ & Regret & Regret/$\sqrt{T}$ & CR \\
+\midrule
+100 & $15.9 \pm 4.1$ & $1.59 \pm 0.41$ & 0.63 \\
+200 & $22.5 \pm 6.0$ & $1.59 \pm 0.42$ & 0.74 \\
+500 & $35.2 \pm 10.2$ & $1.58 \pm 0.46$ & 0.84 \\
+1000 & $50.6 \pm 13.4$ & $1.60 \pm 0.42$ & 0.88 \\
+2000 & $71.8 \pm 24.7$ & $1.61 \pm 0.55$ & 0.92 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig_regret_scaling_50seeds_T2000.pdf}
+    \caption{Regret scaling with $\alpha = 1.5$ (S0, 50 seeds). }
+    \label{fig:regret-alpha15}
+\end{figure}
+
+\subsection{Real-World Validation: Alibaba Traces}
+To validate beyond synthetic settings, we test on real cluster traces from Alibaba~\citep{alibaba2018} with $d=2$ resource dimensions (CPU and memory), $K=3$ regime configurations, and $T=5{,}000$ arrivals processed in original temporal order.
+
+\paragraph{Data and reward modeling.}
+We use real resource consumption from the trace: $\mathrm{cpu} = \mathrm{plan\_cpu}/100$ and $\mathrm{mem} = \mathrm{plan\_mem}/100$, both normalized to $[0,1]$. The Alibaba trace exhibits significant resource imbalance: mean CPU utilization is $83.6\%$ while mean memory is $34.9\%$. Since the raw trace contains no native reward field, we construct reward as:
+\[
+r = c_1[\theta] \cdot \mathrm{cpu} + c_2[\theta] \cdot \mathrm{mem} + \epsilon, \quad \epsilon \sim \mathcal{N}(0, 0.1^2)
+\]
+where $c_1[\theta], c_2[\theta]$ are regime-specific coefficients. This creates a \emph{stationary LP structure}: the optimal regime depends on which resource is more abundant, creating a meaningful learning problem.
+
+\paragraph{Configuration table.}
+Table~\ref{tab:alibaba-configs} summarizes the three regime configurations. The CPU-heavy regime rewards CPU-intensive tasks; the Memory-heavy regime rewards memory-intensive tasks; the Balanced regime provides equal reward per unit of either resource. Full details appear in Appendix~\ref{app:alibaba}.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Alibaba regime configurations with reward coefficients.}
+\label{tab:alibaba-configs}
+\begin{tabular}{llcc}
+\toprule
+Regime & Description & $c_1$ (CPU) & $c_2$ (Mem) \\
+\midrule
+0 & CPU-heavy & 2.0 & 0.5 \\
+1 & Memory-heavy & 0.5 & 2.0 \\
+2 & Balanced & 1.2 & 1.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The value of minimal exploration.}
+Figure~\ref{fig:alibaba-boxplots} shows competitive ratio distributions across 50 seeds with $\rho=1.0$. A striking finding is the dramatic benefit of minimal exploration: Greedy ($\alpha=0$) achieves $84.8\% \pm 14.2\%$ CR with 10 out of 50 seeds stuck below 70\%, while $\alpha=0.01$ achieves $97.4\% \pm 0.6\%$ CR. This $24\times$ reduction in variance demonstrates that even minimal exploration prevents lock-in to suboptimal regimes. SP-UCB-OLP with $\alpha=0.01$ approaches Oracle performance ($99.95\%$) while Random provides a lower bound at $61.1\%$.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{alibaba_boxplot_nature.pdf}
+    \caption{Alibaba traces: competitive ratio across 50 seeds ($T=5{,}000$, $\rho=1.0$). Greedy ($\alpha=0$) exhibits high variance due to regime lock-in; minimal exploration ($\alpha=0.01$) dramatically stabilizes performance.}
+    \label{fig:alibaba-boxplots}
+\end{figure}
+
+\subsection{Benchmark Validation: Complementarity Gap}
+\label{sec:complementarity}
+
+To test whether the switching-aware benchmark $V^{\mathrm{mix}}$ is necessary, we construct a diagnostic scenario S4 with $K=2$ configurations having orthogonal resource usage ($d=2$). Configuration~0 has reward $r \approx 1$ (with uniform noise $\pm 0.01$) and consumption $\ba \approx [1, 0]$, consuming only resource~1; configuration~1 has $r \approx 1$ and $\ba \approx [0, 1]$, consuming only resource~2. The per-period budget is $\bb = [0.5, 0.5]$ with $\rho = 0.7$. By design, the fixed-configuration oracle achieves $V^*(\bb) \approx 0.5$ (one resource wasted), whereas the switching-aware oracle achieves $V^{\mathrm{mix}}(\bb) \approx 1.0$ (both resources utilized), yielding a complementarity gap of $\approx 2$. We use $T = 5{,}000$ and 10 random seeds; full specifications appear in Appendix~\ref{app:experiments}.
+
+Recall $V^*(\bb)$ provided by the fixed configuration oracle defined in Section \ref{Section: FCO} and define $CR^*=\mathbb{E}[R^{\pi}_T]/V^*(\bb)$. Table~\ref{tab:complementarity} shows that all learning algorithms achieve CR$_{\pi}^* > 1$ (exceeding the fixed oracle), while CR$_{\pi}^{\mathrm{mix}} \le 1$ for all algorithms, confirming $T\cdot V^{\mathrm{mix}}$ is a valid upper bound. Notably, OneHot achieves CR$^* \approx 1.01$---it cannot exploit complementarity because it commits to a single configuration.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Benchmark validation on S4 ($K=2$, $d=2$, $\rho=0.7$, $T=5{,}000$, 10 seeds). CR$^* > 1$ confirms the fixed oracle is beatable; CR$^{\mathrm{mix}} \le 1$ confirms $V^{\mathrm{mix}}$ is a valid upper bound.}
+\label{tab:complementarity}
+\begin{tabular}{lccc}
+\toprule
+Algorithm & CR$^{\mathrm{mix}}$ & CR$^*$ & Gap \\
+\midrule
+SP-UCB-OLP & $0.91 \pm 0.02$ & $1.81 \pm 0.04$ & 1.99 \\
+Greedy & $0.96 \pm 0.01$ & $1.90 \pm 0.02$ & 1.99 \\
+Random & $0.99 \pm 0.00$ & $1.97 \pm 0.00$ & 1.99 \\
+OneHot & $0.51 \pm 0.01$ & $1.01 \pm 0.02$ & 1.99 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Complete scenario specifications, algorithm parameters, and extended results appear in Appendix~\ref{app:experiments}.
+
+%\section{Discussion}
+%\label{sec:discussion}
+
+%Throughout this paper we have studied an \textbf{observe-then-decide} model: the decision maker selects a configuration $\theta_t$, observes the resulting reward--resource pair $(r_t, \ba_t)$, and then makes an admission decision based on the observed values. This structure is natural in computational resource settings where job characteristics are revealed upon arrival. An alternative two-stage model, more natural in revenue management, reverses the information timing: the decision maker first selects a configuration and then \emph{posts a price} (or equivalently, commits to an admission threshold) \emph{before} observing the request. In this \textbf{posted-price} variant, the arriving customer decides whether to accept the offered price, and the system does not have the option to reject a willing customer. Classical dynamic pricing models~\citep{gallego1994optimal,talluri2004theory} follow this posted-price paradigm, where the firm sets fares before customers reveal their willingness-to-pay. The key difference is that the posted-price model eliminates the post-observation information advantage that our threshold rule exploits: the decision maker must commit to the acceptance criterion before seeing the realization. This changes the structure of the offline oracle---the fluid relaxation would optimize over posted prices rather than over threshold rules---and would likely require different algorithmic techniques for the online learning problem. Studying this posted-price extension within our two-layer configuration-selection framework, and understanding how the loss of post-observation information affects regret bounds, is an interesting direction for future work.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We studied a two-layer sequential decision problem combining configuration exploration and admission control under budget constraints. We construct a \textbf{switching-aware fluid oracle} which provides a benchmark that upper bounds the expected total reward of any online policy. This \textbf{switching-aware fluid oracle} also inspires the design of \textbf{SP-UCB--OLP} algorithm, which solves an optimistic saddle point problem at each round and uses the computed saddle point to select configurations and do admission control. We show that the regret of \textbf{SP-UCB--OLP} algorithm against the benchmark given by the switching-aware oracle is $\tilde{O}(\sqrt{KT})$. We also run numerical experiments to study the empirical performance of \textbf{SP-UCB--OLP} algorithm.
+\paragraph{Limitations and future work.}
+Our analysis assumes i.i.d.\ and bounded reward-resource pair of requests within each configuration. Extensions to non-stationary arrivals, contextual settings (where configurations depend on observed context), and delayed feedback are natural future research directions. 
+
+\section*{Acknowledgements}
+PJ acknowledges funding from ONR grant N00014-24-1-2470 and AFOSR grant FA9550-23-1-0190.
+
+\newpage
+
+\bibliographystyle{plainnat}
+\bibliography{reference}
+
+
+
+
+
+
+\newpage
+\tableofcontents
+
+\vspace{1em}
+\noindent\textbf{Roadmap.} This appendix provides complete proofs and extended experiments. Section~\ref{app:notation} defines notation. Section~\ref{app:algorithm} details the algorithm. Section~\ref{app:oracle-proof} proves the oracle characterization (Theorems~\ref{thm:mix-dual}--\ref{thm:oracle-upper-bound} and the saddle/KKT conditions). Section~\ref{app:concentration} establishes concentration bounds. Section~\ref{app:regret-proof} proves the regret bound (Theorem~3). Section~\ref{app:implementation} discusses implementation. Section~\ref{app:experiments} presents full experimental specifications and extended results.
+
+\newpage
+
+\appendix
+
+\section{Notation}
+\label{app:notation}
+
+\textbf{Problem Parameters:}
+\begin{itemize}
+    \item $T$: Time horizon
+    \item $\bB \in \R^d_+$: Initial resource budget vector
+    \item $\bb := \bB/T$: Per-period budget
+    \item $\bbS := (1-\varepsilon)\bb$: Conservative (safe) per-period budget
+    \item $\Theta = \{1, \ldots, K\}$: Set of configurations
+    \item $d$: Resource dimensionality
+    \item $\cP = [0, P_{\max}]^d$: Price domain
+\end{itemize}
+
+\textbf{Distribution and Arrival Parameters:}
+\begin{itemize}
+    \item $\cD_\theta$: Distribution over $(r, \ba)$ induced by configuration $\theta$
+    \item $(r_t, \ba_t) \sim \cD_{\theta_t}$: Arrival at time $t$
+    \item $x_t \in \{0, 1\}$: Admission decision
+    \item $R_{\max}$: Upper bound on rewards
+    \item $A_{\max}$: Upper bound on resource consumption
+\end{itemize}
+
+\textbf{Key Functions:}
+\begin{itemize}
+    \item $g_\theta(\bp) := \E_\theta[(r - \langle \bp, \ba \rangle)_+]$: Surplus function
+    \item $h_\theta(\bp) := \E_\theta[\ba \cdot \mathbf{1}\{r > \langle \bp, \ba \rangle\}]$: Strict-threshold consumption function (analysis uses $>$)
+    \item $\widehat{g}_{\theta,t}(\bp)$: Empirical surplus from $N_\theta(t)$ samples
+    \item $\widehat{h}_{\theta,t}(\bp) := \frac{1}{N_\theta(t)} \sum_{(r,\ba) \in \cS_\theta(t)} \ba \cdot \mathbf{1}\{r > \langle \bp, \ba \rangle\}$: Strict-threshold empirical consumption
+\end{itemize}
+
+\begin{remark}[Tie-Handling Convention]
+\label{rem:tie-convention}
+Throughout the analysis, we use strict-threshold indicators ($r > \langle \bp, \ba \rangle$) for mathematical convenience. Under Assumption~\ref{assump:no-ties}, this is equivalent to weak thresholds ($r \ge \langle \bp, \ba \rangle$) for online arrivals. However, empirical minimizers of piecewise-linear objectives can lie on breakpoints, so the analysis uses strict thresholds to avoid tie-ambiguity. See Lemma~\ref{lem:subgradient} for the tie-weighted subdifferential treatment.
+\end{remark}
+
+\textbf{Algorithm Variables:}
+\begin{itemize}
+    \item $\bw_t \in \Delta_K$: Mixture over configurations at time $t$ (algorithm output)
+    \item $\theta_t \sim \bw_t$: Configuration sampled from mixture at time $t$
+    \item $\bp_t \in \cP$: Global bid price at time $t$
+    \item $\beta_\theta(t)$: Confidence radius for configuration $\theta$ at time $t$
+\end{itemize}
+
+\textbf{Oracle and Regret:}
+\begin{itemize}
+    \item $V^{\mathrm{mix}}(\bb) = \min_{\bp \in \cP} \{\langle \bp, \bb \rangle + \max_\theta g_\theta(\bp)\}$: Switching-aware fluid oracle
+    \item $\mathrm{Reg}^{\mathrm{mix}}(T) := T V^{\mathrm{mix}}(\bb) - \E[R_T]$: Switching-aware regret
+    \item $\widehat{V}_t^{\mathrm{opt}}(\bw) := \min_{\bp \in \cP}\{\langle \bp, \bbS\rangle + \sum_\theta w_\theta (\widehat{g}_{\theta,t}(\bp) + \beta_\theta(t))\}$: Optimistic mixed value
+\end{itemize}
+
+\section{Algorithm Details}
+\label{app:algorithm}
+
+We restate Algorithm~1 (SP-UCB-OLP) from the main paper with additional implementation details.
+
+\begin{algorithm}[H]
+\caption{SP-UCB-OLP: Optimistic Saddle + Mixture Sampling + Bid-Price Admission}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} Configurations $\Theta$ ($|\Theta| = K$), budget $\bB$, horizon $T$, price box $\cP = [0, P_{\max}]^d$, exploration parameter $\alpha$, slack $\varepsilon = \sqrt{\log T / T}$
+\STATE \textbf{Initialize:} $\bB^{\mathrm{rem}} \gets \bB$, $\bb \gets \bB/T$, $\bbS \gets (1-\varepsilon)\bb$
+\STATE For each $\theta$: $N_\theta \gets 0$, $\cS_\theta \gets \emptyset$
+\FOR{$t = 1$ to $T$}
+    \STATE \textbf{// Warm start: round-robin exploration without consuming budget}
+    \IF{$t \le K$}
+        \STATE $\theta_t \gets t$ \COMMENT{Round-robin}
+        \STATE Observe $(r_t, \ba_t) \sim \cD_{\theta_t}$
+        \STATE $\cS_{\theta_t} \gets \cS_{\theta_t} \cup \{(r_t, \ba_t)\}$; \quad $N_{\theta_t} \gets N_{\theta_t} + 1$
+        \STATE $x_t \gets 0$ \COMMENT{Do not consume budget during warm start}
+        \STATE \textbf{continue}
+    \ENDIF
+    \STATE \textbf{// Compute confidence radii}
+    \FOR{each $\theta \in \Theta$}
+        \STATE $\beta_\theta(t) \gets \alpha \cdot c_g R_{\max} \sqrt{\frac{d \log\!\Big(\frac{c_0\,d\,P_{\max}\,A_{\max}\,T}{R_{\max}}\Big) + \log(KT/\delta)}{N_\theta \vee 1}}$
+    \ENDFOR
+    \STATE \textbf{// Empirical surpluses}
+    \STATE $\widehat{g}_{\theta,t}(\bp) \gets \frac{1}{N_\theta \vee 1} \sum_{(r,\ba) \in \cS_\theta} (r - \langle \bp, \ba \rangle)_+$
+    \STATE \textbf{// Solve optimistic saddle problem (exact or approximate)}
+    \STATE $(\bw_t, \bp_t) \in \argmax_{\bw \in \Delta_K} \argmin_{\bp \in \cP} \left\{ \langle \bp, \bbS \rangle + \sum_\theta w_\theta (\widehat{g}_{\theta,t}(\bp) + \beta_\theta(t)) \right\}$
+    \STATE \textbf{// Sample a configuration from the mixture}
+    \STATE Draw $\theta_t \sim \bw_t$
+    \STATE Observe $(r_t, \ba_t) \sim \cD_{\theta_t}$
+    \STATE $\cS_{\theta_t} \gets \cS_{\theta_t} \cup \{(r_t, \ba_t)\}$; \quad $N_{\theta_t} \gets N_{\theta_t} + 1$
+    \STATE \textbf{// Admission decision (bid-price with hard feasibility)}
+    \IF{$\ba_t \le \bB^{\mathrm{rem}}$ \AND $r_t \ge \langle \bp_t, \ba_t \rangle$}
+        \STATE Accept: $x_t \gets 1$; \quad $\bB^{\mathrm{rem}} \gets \bB^{\mathrm{rem}} - \ba_t$
+    \ELSE
+        \STATE Reject: $x_t \gets 0$
+    \ENDIF
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Key design features:}
+\begin{enumerate}
+    \item \textbf{Warm start}: For $t \le K$, sample each configuration once without consuming budget. This ensures $N_\theta(t) \ge 1$ for all $\theta$ when the saddle problem is first solved, avoiding ``$N_\theta \vee 1$'' hacks. The warm start contributes an additive $K R_{\max}$ to regret.
+    \item \textbf{Mixture $\bw_t$ is part of the policy}: The algorithm outputs a mixture over configurations and \emph{samples} $\theta_t \sim \bw_t$. This is not equivalent to picking the single maximizer of the envelope---the mixture is essential for matching multi-resource budgets under complementary configurations.
+    \item \textbf{Global price $\bp_t$}: The price is the dual variable of the switching-aware benchmark, not per-configuration.
+    \item \textbf{Optimistic saddle problem}: The term $\sum_\theta w_\theta(\widehat{g}_{\theta,t}(\bp) + \beta_\theta(t))$ learns the mixed value with optimism.
+    \item \textbf{Sample storage}: All samples $(r, \ba)$ are stored regardless of admission decision, enabling unbiased estimation.
+    \item \textbf{Conservative slack}: Using $\bbS = (1-\varepsilon)\bb$ ensures budget feasibility with high probability.
+    \item \textbf{Strict vs.\ weak threshold}: The algorithm uses $r_t \ge \langle \bp_t, \ba_t \rangle$ in implementation; the analysis uses strict thresholds (see Remark~\ref{rem:tie-convention}).
+\end{enumerate}
+
+\textbf{Important note on mixture vs.\ one-hot selection.} The benchmark $V^{\mathrm{mix}}$ is generally attained by a \emph{mixture} over configurations, not a single configuration. If one instead computes $\bp_t$ via envelope minimization and picks $\theta_t \in \argmax_\theta(\widehat{g}_{\theta,t}(\bp_t) + \beta_\theta(t))$, the policy may fail to match budget constraints when configurations have complementary resource profiles. Sampling from the mixture $\bw_t$ ensures the algorithm's expected resource consumption aligns with the safe budget.
+
+\section{Oracle Construction and Proofs}
+\label{app:oracle-proof}
+
+This section proves the primal--dual form of the switching-aware fluid oracle (Theorem~\ref{thm:mix-dual}), the saddle/KKT conditions (Theorem~\ref{thm:pd_equilibrium}), the characterization of all saddle points (Theorem~\ref{thm:all_solutions}), and the oracle upper bound (Theorem~\ref{thm:oracle-upper-bound}).
+
+\subsection{Bounded Dual Prices}
+
+We first justify that restricting dual prices to a compact box $\cP = [0, P_{\max}]^d$ is without loss of generality.
+
+\begin{lemma}[Bounded Dual Prices are W.L.O.G.\ (Safe Budget)]
+\label{lem:pmax-wlog}
+Assume $0 \le r \le R_{\max}$ a.s.\ and $\bbS \in \R_+^d$ satisfies $b^{\mathrm{safe}}_i \ge b^{\mathrm{safe}}_{\min} > 0$ for all $i$. Then every minimizer of
+\[
+\min_{\bp \ge 0} \left\{ \langle \bp, \bbS \rangle + \max_{\theta \in \Theta} g_\theta(\bp) \right\}
+\]
+lies in the box $\|\bp\|_\infty \le R_{\max}/b^{\mathrm{safe}}_{\min}$. Hence for any $P_{\max} \ge R_{\max}/b^{\mathrm{safe}}_{\min}$, restricting to $\cP = [0, P_{\max}]^d$ does not change $V^{\mathrm{mix}}(\bbS)$.
+\end{lemma}
+
+\begin{proof}
+Let $i$ be any coordinate and suppose $p_i > R_{\max}/b^{\mathrm{safe}}_i$. Then $\langle \bp, \bbS \rangle \ge p_i b^{\mathrm{safe}}_i > R_{\max}$. Since $(r - \langle \bp, \ba \rangle)_+ \ge 0$, the objective at $\bp$ exceeds $R_{\max}$.
+
+At $\bp = \mathbf{0}$, the objective equals $\max_\theta \E_\theta[(r)_+] = \max_\theta \E_\theta[r] \le R_{\max}$. Therefore any point with $p_i > R_{\max}/b^{\mathrm{safe}}_i$ cannot be optimal. Applying this coordinatewise yields $\|\bp^\star\|_\infty \le R_{\max}/b^{\mathrm{safe}}_{\min}$.
+\end{proof}
+
+\textbf{Importance.} This lemma ensures:
+\begin{itemize}
+    \item The minimax theorem (Sion) applies with compact domain $\cP$.
+    \item The upper boundary constraint $p_i \le P_{\max}$ is non-binding at optimality.
+    \item KKT conditions for the inner minimization involve only the lower boundary $\bp \ge 0$.
+\end{itemize}
+
+\textbf{Note:} Whenever the analysis claims ``the upper box constraint $p_i \le P_{\max}$ is non-binding,'' the correct condition is $P_{\max} > R_{\max}/b^{\mathrm{safe}}_{\min}$.
+
+\begin{corollary}[Bounded Dual Prices for Empirical Objectives]
+\label{cor:pmax-wlog-emp}
+Fix any mixture $\bw\in\Delta_K$ and any time $t$. Consider the empirical objective
+\[
+\min_{\bp\ge 0}\left\{\langle \bp,\bbS\rangle + \sum_{\theta} w_\theta \widehat g_{\theta,t}(\bp)\right\},
+\qquad
+\widehat g_{\theta,t}(\bp)=\frac{1}{N_\theta(t)}\sum_{(r,\ba)\in\cS_\theta(t)}(r-\langle \bp,\ba\rangle)_+.
+\]
+Then every minimizer satisfies $\|\bp\|_\infty \le R_{\max}/b^{\mathrm{safe}}_{\min}$.
+Hence if $P_{\max}> R_{\max}/b^{\mathrm{safe}}_{\min}$, the upper box constraint $p_i\le P_{\max}$
+is non-binding at the empirical minimizer(s) as well.
+\end{corollary}
+
+\begin{proof}
+The argument is identical to Lemma~\ref{lem:pmax-wlog}. If $p_i>R_{\max}/b^{\mathrm{safe}}_i$, then
+$\langle \bp,\bbS\rangle \ge p_i b^{\mathrm{safe}}_i>R_{\max}$ while $\widehat g_{\theta,t}(\bp)\ge 0$,
+so the objective exceeds $R_{\max}$. At $\bp=\mathbf{0}$, the objective equals
+$\sum_\theta w_\theta \widehat g_{\theta,t}(\mathbf{0})=\sum_\theta w_\theta \frac1{N_\theta}\sum r \le R_{\max}$.
+Thus such $\bp$ cannot be optimal. Apply coordinatewise.
+\end{proof}
+
+\subsection{Nash Equilibrium Characterization}
+\label{app:nash-proof}
+
+We prove that saddle points of zero-sum games are equivalent to Nash equilibria.
+
+\begin{theorem}[Saddle Points $\Leftrightarrow$ Nash Equilibria]
+\label{thm:nash-equilibrium}
+For the zero-sum game with payoff function $L(\bw, \bp)$, a pair $(\bw^*, \bp^*)$ is a saddle point of $L$ if and only if it is a Nash equilibrium.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:nash-equilibrium}]
+Consider the zero-sum game with payoff $L(\bw, \bp)$ where Player~1 receives $L(\bw, \bp)$ and Player~2 receives $-L(\bw, \bp)$.
+
+\textbf{Definition (Saddle Point).} $(w^*, p^*)$ is a saddle point if:
+\[
+L(\bw, \bp^*) \le L(\bw^*, \bp^*) \le L(\bw^*, \bp) \quad \forall \bw \in \Delta_K, \forall \bp \in \cP.
+\]
+
+\textbf{Definition (Nash Equilibrium).} $(w^*, p^*)$ is a Nash equilibrium if no player can improve by unilateral deviation:
+\begin{enumerate}
+    \item $L(\bw^*, \bp^*) \ge L(\bw, \bp^*)$ for all $\bw \in \Delta_K$ (Player~1 best-responds)
+    \item $-L(\bw^*, \bp^*) \ge -L(\bw^*, \bp)$ for all $\bp \in \cP$ (Player~2 best-responds)
+\end{enumerate}
+
+\textbf{($\Rightarrow$) Saddle Point implies Nash Equilibrium.}
+
+Assume $(w^*, p^*)$ is a saddle point.
+
+\emph{Player~1's condition:} The left inequality gives $L(\bw, \bp^*) \le L(\bw^*, \bp^*)$ for all $\bw$, so $w^*$ maximizes $L(\cdot, \bp^*)$. Player~1 has no profitable deviation.
+
+\emph{Player~2's condition:} The right inequality gives $L(\bw^*, \bp^*) \le L(\bw^*, \bp)$ for all $\bp$, equivalently $-L(\bw^*, \bp) \le -L(\bw^*, \bp^*)$. Thus $p^*$ minimizes $L(w^*, \cdot)$. Player~2 has no profitable deviation.
+
+\textbf{($\Leftarrow$) Nash Equilibrium implies Saddle Point.}
+
+Assume $(w^*, p^*)$ is a Nash equilibrium.
+
+From Player~1's condition: $L(\bw^*, \bp^*) \ge L(\bw, \bp^*)$ for all $\bw$, yielding the left saddle inequality.
+
+From Player~2's condition: $-L(\bw^*, \bp^*) \ge -L(\bw^*, \bp)$ for all $\bp$, hence $L(\bw^*, \bp^*) \le L(\bw^*, \bp)$, yielding the right saddle inequality.
+
+Combining: $L(\bw, \bp^*) \le L(\bw^*, \bp^*) \le L(\bw^*, \bp)$ for all $\bw, \bp$.
+\end{proof}
+
+\begin{remark}[Existence and Uniqueness]
+By Sion's minimax theorem, a saddle point (and hence Nash equilibrium) exists when $\Delta_K$ and $\cP$ are compact convex and $L$ is convex in $\bp$ and linear (hence concave) in $\bw$. The optimal mixture $\bw^*$ may be unique (when budget constraints pin down resource utilization), while $\bp^*$ may be non-unique (any price on the ``tie surface'' where configurations have equal surplus is optimal).
+\end{remark}
+
+\subsection{Pointwise Surplus Inequality}
+
+\begin{lemma}[Pointwise Surplus Inequality]
+\label{lem:surplus-ineq}
+For any $\bp \in \R^d_+$, any $(r, \ba) \in \R_+ \times \R^d_+$, and any $x \in [0, 1]$:
+\[
+r \cdot x \le \langle \bp, \ba \rangle \cdot x + (r - \langle \bp, \ba \rangle)_+.
+\]
+\end{lemma}
+
+\begin{proof}
+Let $z := r - \langle \bp, \ba \rangle$. Then:
+\[
+\langle \bp, \ba \rangle \cdot x + (r - \langle \bp, \ba \rangle)_+ = (r - z) \cdot x + z_+ = r \cdot x + (z_+ - z \cdot x).
+\]
+We show $z_+ - z \cdot x \ge 0$:
+\begin{itemize}
+    \item If $z \ge 0$: $z_+ - z \cdot x = z(1 - x) \ge 0$ since $x \le 1$.
+    \item If $z < 0$: $z_+ = 0$ and $z_+ - z \cdot x = -z \cdot x \ge 0$ since $z < 0$ and $x \ge 0$.
+\end{itemize}
+\end{proof}
+
+\subsection{Optimal Acceptance Under Fixed Price}
+
+\begin{lemma}[Threshold Optimality]
+\label{lem:threshold-optimal}
+Fix $\bp \in \cP$ and $\theta$. The optimization:
+\[
+\sup_{x_\theta: 0 \le x_\theta \le 1} \E_\theta\left[(r - \langle \bp, \ba \rangle) \cdot x_\theta(r, \ba)\right]
+\]
+equals $\E_\theta[(r - \langle \bp, \ba \rangle)_+] = g_\theta(\bp)$, achieved by the threshold rule $x_\theta(r, \ba) = \mathbf{1}\{r > \langle \bp, \ba \rangle\}$ (ties arbitrary).
+\end{lemma}
+
+\begin{proof}
+For any fixed realization $(r, \ba)$, the quantity $(r - \langle \bp, \ba \rangle) \cdot x$ is maximized over $x \in [0, 1]$ by:
+\begin{itemize}
+    \item $x = 1$ if $r - \langle \bp, \ba \rangle > 0$,
+    \item $x = 0$ if $r - \langle \bp, \ba \rangle < 0$,
+    \item Any $x \in [0, 1]$ if $r = \langle \bp, \ba \rangle$ (ties).
+\end{itemize}
+Thus the pointwise supremum equals $(r - \langle \bp, \ba \rangle)_+$, achieved by the threshold rule. Taking expectation yields $g_\theta(\bp)$.
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:mix-dual} (Primal--Dual Form)}
+
+\begin{proof}[Proof of Theorem~\ref{thm:mix-dual}]
+We prove:
+\[
+V^{\mathrm{mix}}(\bb) = \max_{\bw \in \Delta_K} \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \sum_\theta w_\theta g_\theta(\bp) \right\} = \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \max_\theta g_\theta(\bp) \right\}.
+\]
+
+\textbf{Step 1: Lagrangian dual for fixed $\bw$.}
+Fix any $\bw \in \Delta_K$. The inner problem in the primal definition is:
+\[
+V(\bw) := \max_{\{x_\theta\}} \left\{ \sum_\theta w_\theta \E_\theta[r \cdot x_\theta] \;\Big|\; \sum_\theta w_\theta \E_\theta[\ba \cdot x_\theta] \le \bb \right\}.
+\]
+This is an infinite-dimensional linear program. Let $\mathcal{Z} := \R_+ \times \R_+^d$ denote the outcome space (reward-resource pairs). Each $x_\theta: \mathcal{Z} \to [0,1]$ is a Borel-measurable acceptance function in $L^\infty(\mathcal{Z}, \mathcal{B}, \mathcal{D}_\theta)$. The objective and constraints are linear in $x_\theta$, and the Slater constraint qualification is satisfied since $x_\theta \equiv 0$ is strictly feasible: $\sum_\theta w_\theta \E_\theta[\ba \cdot 0] = 0 \prec \bb$ (componentwise strict inequality holds since $b_{\min} > 0$ by Assumption~\ref{assump:budget-scaling}). The key observation is that while the primal space $L^\infty$ is infinite-dimensional, the constraint map $\{x_\theta\} \mapsto \sum_\theta w_\theta \E_\theta[\ba \cdot x_\theta]$ takes values in $\R^d$, where the positive cone $\R_+^d$ has non-empty interior. Under this structure, Slater's condition implies strong duality (see \citet{luenberger1969optimization}, Chapter~8, or \citet{anderson1987linear}):
+\[
+V(\bw) = \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \sup_{\{x_\theta\}} \sum_\theta w_\theta \E_\theta[(r - \langle \bp, \ba \rangle) \cdot x_\theta] \right\}.
+\]
+By Lemma~\ref{lem:threshold-optimal}, the inner supremum equals $\sum_\theta w_\theta g_\theta(\bp)$. Hence:
+\[
+V(\bw) = \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \sum_\theta w_\theta g_\theta(\bp) \right\}.
+\]
+
+\textbf{Step 2: Maximize over $\bw$.}
+By definition, $V^{\mathrm{mix}}(\bb) = \max_{\bw \in \Delta_K} V(\bw)$, so:
+\[
+V^{\mathrm{mix}}(\bb) = \max_{\bw \in \Delta_K} \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \sum_\theta w_\theta g_\theta(\bp) \right\}.
+\]
+
+\textbf{Step 3: Minimax swap via Sion's theorem.}
+Define $\Phi(\bw, \bp) := \langle \bp, \bb \rangle + \sum_\theta w_\theta g_\theta(\bp)$. We verify the conditions for Sion's minimax theorem:
+\begin{itemize}
+    \item $\Delta_K$ is compact and convex.
+    \item $\cP = [0, P_{\max}]^d$ is compact and convex.
+    \item For fixed $\bp$, $\Phi(\cdot, \bp)$ is linear (hence concave) in $\bw$.
+    \item For fixed $\bw$, $\Phi(\bw, \cdot)$ is convex in $\bp$ because each $g_\theta(\bp) = \E[(r - \langle \bp, \ba \rangle)_+]$ is convex (expectation of a convex function in $\bp$).
+    \item $\Phi$ is continuous and bounded by the boundedness assumptions.
+\end{itemize}
+By Sion's minimax theorem:
+\[
+\max_{\bw \in \Delta_K} \min_{\bp \in \cP} \Phi(\bw, \bp) = \min_{\bp \in \cP} \max_{\bw \in \Delta_K} \Phi(\bw, \bp).
+\]
+
+\textbf{Step 4: Simplify max over simplex.}
+For fixed $\bp$:
+\[
+\max_{\bw \in \Delta_K} \sum_\theta w_\theta g_\theta(\bp) = \max_\theta g_\theta(\bp),
+\]
+since a linear function over the simplex is maximized at an extreme point. Therefore:
+\[
+V^{\mathrm{mix}}(\bb) = \min_{\bp \in \cP} \left\{ \langle \bp, \bb \rangle + \max_\theta g_\theta(\bp) \right\}.
+\]
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:oracle-upper-bound} (Oracle Upper Bound)}
+
+\begin{proof}[Proof of Theorem~\ref{thm:oracle-upper-bound}]
+Let $\pi$ be any causal online policy satisfying $\sum_{t=1}^T \ba_t x_t \le \bB$ almost surely.
+
+Fix any $\bp \in \cP$. Apply Lemma~\ref{lem:surplus-ineq} at each time $t$ with $x = x_t$:
+\[
+r_t x_t \le \langle \bp, \ba_t \rangle x_t + (r_t - \langle \bp, \ba_t \rangle)_+.
+\]
+Summing over $t = 1, \ldots, T$:
+\[
+R_T^\pi = \sum_{t=1}^T r_t x_t \le \left\langle \bp, \sum_{t=1}^T \ba_t x_t \right\rangle + \sum_{t=1}^T (r_t - \langle \bp, \ba_t \rangle)_+.
+\]
+By pathwise feasibility:
+\[
+R_T^\pi \le \langle \bp, \bB \rangle + \sum_{t=1}^T (r_t - \langle \bp, \ba_t \rangle)_+.
+\]
+
+Taking expectation:
+\[
+\E[R_T^\pi] \le \langle \bp, \bB \rangle + \sum_{t=1}^T \E\left[(r_t - \langle \bp, \ba_t \rangle)_+\right].
+\]
+
+Condition on $\theta_t$. Since $(r_t, \ba_t) \mid (\theta_t = \theta) \sim \cD_\theta$:
+\[
+\E\left[(r_t - \langle \bp, \ba_t \rangle)_+ \mid \theta_t = \theta\right] = g_\theta(\bp).
+\]
+
+\textbf{Model assumption used:} The equality above uses Assumption~\ref{assump:iid}, which ensures that conditional on $\theta_t = \theta$, the pair $(r_t, \ba_t)$ is distributed according to $\cD_\theta$. 
+
+Thus:
+\[
+\E\left[(r_t - \langle \bp, \ba_t \rangle)_+\right] = \sum_\theta \Pr(\theta_t = \theta) \cdot g_\theta(\bp).
+\]
+
+Define the empirical mixture $\bar{w}_\theta := \frac{1}{T} \sum_{t=1}^T \Pr(\theta_t = \theta)$. Then $\bar{\bw} \in \Delta_K$ and:
+\[
+\frac{1}{T} \sum_{t=1}^T \E\left[(r_t - \langle \bp, \ba_t \rangle)_+\right] = \sum_\theta \bar{w}_\theta g_\theta(\bp) \le \max_\theta g_\theta(\bp).
+\]
+
+Therefore:
+\[
+\E[R_T^\pi] \le T \left( \langle \bp, \bb \rangle + \max_\theta g_\theta(\bp) \right).
+\]
+
+Minimizing over $\bp \in \cP$ and applying Theorem~1:
+\[
+\E[R_T^\pi] \le T \cdot V^{\mathrm{mix}}(\bb).
+\]
+\end{proof}
+
+\subsection{No-Tie Condition and Subgradients}
+
+For the regret analysis, we require a technical assumption on online arrivals.
+
+\begin{assumption}[No-Tie Condition]
+\label{assump:no-ties}
+For all $\theta \in \Theta$ and all $\bp \in \cP$,
+\[
+\Pr_{(r,\ba) \sim \cD_\theta}\big(r = \langle \bp, \ba \rangle\big) = 0.
+\]
+\end{assumption}
+
+See Remark~\ref{rem:tie-convention} for why we use strict thresholds in the analysis.
+
+\begin{lemma}[Subgradients and Tie-Weighted Consumption]
+\label{lem:subgradient}
+Fix any sample $(r,\ba)$ and define $\phi_{\bp}(r,\ba):=(r-\langle \bp,\ba\rangle)_+$.
+Then $\phi_{\bp}$ is convex in $\bp$ and its subdifferential is
+\[
+\partial_{\bp}\phi_{\bp}(r,\ba)=
+\begin{cases}
+\{-\ba\}, & r>\langle \bp,\ba\rangle,\\
+\{-\lambda \ba:\lambda\in[0,1]\}, & r=\langle \bp,\ba\rangle,\\
+\{\mathbf{0}\}, & r<\langle \bp,\ba\rangle.
+\end{cases}
+\]
+Equivalently, for any $\lambda\in[0,1]$, the vector
+\[
+-\ba\Big(\mathbf{1}\{r>\langle \bp,\ba\rangle\}+\lambda\mathbf{1}\{r=\langle \bp,\ba\rangle\}\Big)
+\]
+is a valid subgradient of $\phi_{\bp}(r,\ba)$.
+
+Now fix $\theta$ and time $t$ with samples $\cS_\theta(t)=\{(r_j,\ba_j)\}_{j=1}^{N_\theta(t)}$ and define
+\[
+\widehat g_{\theta,t}(\bp):=\frac1{N_\theta(t)}\sum_{j=1}^{N_\theta(t)}(r_j-\langle \bp,\ba_j\rangle)_+.
+\]
+For any $\bp$ and any tie-weight vector $\lambda\in[0,1]^{N_\theta(t)}$, define the tie-weighted empirical
+consumption
+\[
+\widehat h_{\theta,t}^{\lambda}(\bp)
+:=\frac1{N_\theta(t)}\sum_{j=1}^{N_\theta(t)}\ba_j\Big(\mathbf{1}\{r_j>\langle \bp,\ba_j\rangle\}
++\lambda_j\mathbf{1}\{r_j=\langle \bp,\ba_j\rangle\}\Big).
+\]
+Then
+\[
+\partial \widehat g_{\theta,t}(\bp)=\left\{-\widehat h_{\theta,t}^{\lambda}(\bp):\lambda\in[0,1]^{N_\theta(t)}\right\}.
+\]
+Moreover, componentwise for every $\bp$ and $\lambda$,
+\[
+\widehat h_{\theta,t}^{>,}(\bp)\;\le\;\widehat h_{\theta,t}^{\lambda}(\bp)\;\le\;\widehat h_{\theta,t}^{\ge,}(\bp),
+\]
+where $\widehat h_{\theta,t}^{>,}(\bp)$ uses the strict indicator and $\widehat h_{\theta,t}^{\ge,}(\bp)$ uses
+the weak indicator.
+\end{lemma}
+
+\begin{proof}
+The pointwise subdifferential formula is standard for the hinge composed with an affine map.
+For the empirical average $\widehat g_{\theta,t}$, the subdifferential is the average of the pointwise
+subdifferentials (finite sum of convex functions), hence it equals the set of averages of admissible
+pointwise subgradients; this is exactly the tie-weighted form above. The sandwich inequality holds because
+at a tie the contribution is $\lambda_j\ba_j$ with $\lambda_j\in[0,1]$.
+\end{proof}
+
+\subsection{Auxiliary Lemmas for Population Primal--Dual Analysis}
+
+\begin{lemma}[Upper Box Constraint is Inactive at Minimizers]
+\label{lem:upper-box-inactive}
+Assume $0 \le r \le R_{\max}$ a.s.\ and $b_{\min} > 0$. Fix any $\bw \in \Delta_K$ and consider the convex function
+\[
+F_{\bw}(\bp) := \langle \bp, \bb \rangle + \sum_{\theta} w_\theta g_\theta(\bp), \qquad \bp \in \R_+^d.
+\]
+Then every minimizer of $\min_{\bp \ge 0} F_{\bw}(\bp)$ satisfies $\|\bp\|_\infty \le R_{\max}/b_{\min}$.
+In particular, if $P_{\max} > R_{\max}/b_{\min}$, then every minimizer of $\min_{\bp \in \cP} F_{\bw}(\bp)$ lies in the strict interior of the upper box constraints, i.e., $p_i < P_{\max}$ for all $i$.
+\end{lemma}
+
+\begin{proof}
+Fix coordinate $i$ and suppose $p_i > R_{\max}/b_i$. Then
+\[
+F_{\bw}(\bp) \ge \langle \bp, \bb \rangle \ge p_i b_i > R_{\max}.
+\]
+On the other hand, at $\bp = \mathbf{0}$,
+\[
+F_{\bw}(\mathbf{0}) = \sum_{\theta} w_\theta \E_\theta[r] \le R_{\max}.
+\]
+Hence no point with $p_i > R_{\max}/b_i$ can be optimal. Applying this argument to all $i$ gives $\|\bp\|_\infty \le R_{\max}/b_{\min}$. If $P_{\max} > R_{\max}/b_{\min}$, then $\|\bp\|_\infty \le R_{\max}/b_{\min}$ implies $\bp$ cannot satisfy $p_i = P_{\max}$ for any $i$.
+\end{proof}
+
+\begin{lemma}[Differentiability and Gradient Formula for $g_\theta$]
+\label{lem:grad-g-pop}
+Assume Assumption~\ref{assump:bounded} and Assumption~\ref{assump:no-ties} (no ties).
+Then for each $\theta$, $g_\theta$ is convex and continuously differentiable on $\cP$, and
+\[
+\nabla g_\theta(\bp) = -h_\theta(\bp) = -\E_\theta\!\left[\ba \, \mathbf{1}\{r > \langle \bp, \ba \rangle\}\right].
+\]
+Consequently, for any $\bw \in \Delta_K$,
+\[
+\nabla_{\bp} L(\bw, \bp) = \bb - H(\bw, \bp).
+\]
+\end{lemma}
+
+\begin{proof}
+Fix $\theta$ and define $\phi(\bp; r, \ba) := (r - \langle \bp, \ba \rangle)_+$, so $g_\theta(\bp) = \E_\theta[\phi(\bp; r, \ba)]$.
+
+\textbf{Step 1 (convexity).}
+For each fixed $(r, \ba)$, $\bp \mapsto r - \langle \bp, \ba \rangle$ is affine and $x \mapsto x_+$ is convex, hence $\bp \mapsto \phi(\bp; r, \ba)$ is convex. Expectation preserves convexity, so $g_\theta$ is convex.
+
+\textbf{Step 2 (pointwise derivative).}
+Fix coordinate $i$ and consider the one-sided difference quotient:
+\[
+D_t^{(i)}(r, \ba) := \frac{\phi(\bp + t e_i; r, \ba) - \phi(\bp; r, \ba)}{t}, \qquad t \neq 0.
+\]
+Because $x \mapsto x_+$ is 1-Lipschitz and the argument changes by $t a^{(i)}$, we have
+\[
+|D_t^{(i)}(r, \ba)| \le a^{(i)} \le A_{\max} \qquad \text{a.s.}
+\]
+Moreover, for any $(r, \ba)$ with $r \neq \langle \bp, \ba \rangle$ (which holds a.s.\ by Assumption~\ref{assump:no-ties}), $\phi(\cdot; r, \ba)$ is differentiable at $\bp$ and
+\[
+\lim_{t \to 0} D_t^{(i)}(r, \ba) = \frac{\partial}{\partial p_i} \phi(\bp; r, \ba) =
+\begin{cases}
+-a^{(i)}, & r > \langle \bp, \ba \rangle, \\
+0, & r < \langle \bp, \ba \rangle.
+\end{cases}
+\]
+Equivalently,
+\[
+\frac{\partial}{\partial p_i} \phi(\bp; r, \ba) = -a^{(i)} \mathbf{1}\{r > \langle \bp, \ba \rangle\} \qquad \text{a.s.}
+\]
+
+\textbf{Step 3 (interchange derivative and expectation).}
+By the uniform bound $|D_t^{(i)}(r, \ba)| \le A_{\max}$ and dominated convergence,
+\[
+\frac{\partial}{\partial p_i} g_\theta(\bp) = \frac{\partial}{\partial p_i} \E_\theta[\phi(\bp; r, \ba)] = \E_\theta\!\left[\frac{\partial}{\partial p_i} \phi(\bp; r, \ba)\right] = -\E_\theta\!\left[a^{(i)} \mathbf{1}\{r > \langle \bp, \ba \rangle\}\right].
+\]
+Stacking coordinates yields $\nabla g_\theta(\bp) = -h_\theta(\bp)$.
+
+\textbf{Step 4 (continuity of the gradient).}
+Let $\bp_n \to \bp$. Then $\mathbf{1}\{r > \langle \bp_n, \ba \rangle\} \to \mathbf{1}\{r > \langle \bp, \ba \rangle\}$ pointwise for all $(r, \ba)$ such that $r \neq \langle \bp, \ba \rangle$; by Assumption~\ref{assump:no-ties} this holds a.s. Bounded convergence with $0 \le a^{(i)} \le A_{\max}$ implies $\E[a^{(i)} \mathbf{1}\{r > \langle \bp_n, \ba \rangle\}] \to \E[a^{(i)} \mathbf{1}\{r > \langle \bp, \ba \rangle\}]$, so $\nabla g_\theta$ is continuous on $\cP$.
+
+Finally, $\nabla_\bp L(\bw, \bp) = \bb + \sum_\theta w_\theta \nabla g_\theta(\bp) = \bb - H(\bw, \bp)$.
+\end{proof}
+
+\begin{lemma}[Nonnegative Dot Product Complementarity is Coordinatewise]
+\label{lem:coordwise-complementarity}
+If $u, v \in \R_+^d$ and $\langle u, v \rangle = 0$, then $u_i v_i = 0$ for every $i \in [d]$.
+\end{lemma}
+
+\begin{proof}
+Each term $u_i v_i \ge 0$ and $\sum_i u_i v_i = 0$, hence each term must be zero.
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:pd_equilibrium} (Saddle/KKT Optimality)}
+
+\begin{proof}[Proof of Theorem~\ref{thm:pd_equilibrium}]
+Assume Assumptions~\ref{assump:bounded}--\ref{assump:no-ties}, and assume $P_{\max} > R_{\max}/b_{\min}$ so that by Lemma~\ref{lem:upper-box-inactive} the upper box constraints are inactive at any minimizer of $\bp \mapsto L(\bw, \bp)$ for any fixed $\bw$.
+
+We prove the equivalence between:
+\begin{itemize}
+\item[(S)] $(\bw^\star, \bp^\star)$ is a saddle point of $L$, i.e.,
+\[
+L(\bw, \bp^\star) \le L(\bw^\star, \bp^\star) \le L(\bw^\star, \bp) \quad \forall \bw \in \Delta_K, \forall \bp \in \cP;
+\]
+\item[(KKT)] conditions (i)--(iii) in the theorem statement.
+\end{itemize}
+
+\textbf{(S) $\Rightarrow$ (KKT).}
+
+\emph{Step 1 (Envelope support).}
+Fix $\bp^\star$. The map $\bw \mapsto L(\bw, \bp^\star) = \langle \bp^\star, \bb \rangle + \sum_{\theta} w_\theta g_\theta(\bp^\star)$ is linear in $\bw$ over the simplex. Therefore, any maximizer $\bw^\star \in \arg\max_{\bw \in \Delta_K} L(\bw, \bp^\star)$ must place all its mass on indices attaining the maximum coefficient $g_\theta(\bp^\star)$:
+\[
+\mathrm{supp}(\bw^\star) \subseteq A(\bp^\star) := \arg\max_{\theta} g_\theta(\bp^\star).
+\]
+This is condition (i).
+
+\emph{Step 2 (First-order optimality for the $\bp$-minimization).}
+Because $(\bw^\star, \bp^\star)$ is a saddle, $\bp^\star \in \arg\min_{\bp \in \cP} L(\bw^\star, \bp)$.
+By Lemma~\ref{lem:upper-box-inactive}, $\bp^\star$ lies in the interior of the upper box constraints, so the effective constraint set is only $\bp \in \R_+^d$.
+
+By Lemma~\ref{lem:grad-g-pop}, $L(\bw^\star, \bp)$ is convex and differentiable in $\bp$ with $\nabla_\bp L(\bw^\star, \bp) = \bb - H(\bw^\star, \bp)$. The KKT condition for minimizing a convex differentiable function over $\R_+^d$ is
+\[
+\mathbf{0} \in \nabla_\bp L(\bw^\star, \bp^\star) + N_{\R_+^d}(\bp^\star),
+\]
+where $N_{\R_+^d}(\bp^\star)$ is the normal cone to $\R_+^d$ at $\bp^\star$.
+Equivalently, there exists $v \in N_{\R_+^d}(\bp^\star)$ such that
+\[
+\mathbf{0} = \bb - H(\bw^\star, \bp^\star) + v.
+\]
+The normal cone satisfies: $v_i = 0$ if $p_i^\star > 0$, and $v_i \le 0$ if $p_i^\star = 0$.
+Thus:
+\[
+p_i^\star > 0 \Rightarrow b_i - H_i(\bw^\star, \bp^\star) = 0, \qquad p_i^\star = 0 \Rightarrow b_i - H_i(\bw^\star, \bp^\star) \ge 0.
+\]
+Hence $H(\bw^\star, \bp^\star) \le \bb$ componentwise, which is condition (ii). Also, $b_i - H_i(\bw^\star, \bp^\star) \ge 0$ and $p_i^\star \ge 0$ imply $\langle \bp^\star, \bb - H(\bw^\star, \bp^\star) \rangle \ge 0$. Moreover, because the coordinatewise implications above include $p_i^\star(b_i - H_i(\bw^\star, \bp^\star)) = 0$ for each $i$, we obtain
+\[
+\langle \bp^\star, \bb - H(\bw^\star, \bp^\star) \rangle = 0,
+\]
+which is condition (iii).
+
+\textbf{(KKT) $\Rightarrow$ (S).}
+
+Assume (i)--(iii).
+
+\emph{Step 1 ($\bw^\star$ is a best response to $\bp^\star$).}
+For fixed $\bp^\star$, $\bw \mapsto L(\bw, \bp^\star)$ is linear over $\Delta_K$, and its maximum value equals $\langle \bp^\star, \bb \rangle + \max_{\theta} g_\theta(\bp^\star)$.
+Condition (i) implies $\sum_\theta w_\theta^\star g_\theta(\bp^\star) = \max_{\theta} g_\theta(\bp^\star)$, hence for all $\bw \in \Delta_K$,
+\[
+L(\bw, \bp^\star) \le L(\bw^\star, \bp^\star).
+\]
+
+\emph{Step 2 ($\bp^\star$ is a best response to $\bw^\star$).}
+By Lemma~\ref{lem:grad-g-pop}, $L(\bw^\star, \bp)$ is convex differentiable in $\bp$.
+Since (ii) gives $\bb - H(\bw^\star, \bp^\star) \in \R_+^d$ and (iii) gives $\langle \bp^\star, \bb - H(\bw^\star, \bp^\star) \rangle = 0$, Lemma~\ref{lem:coordwise-complementarity} implies $p_i^\star(b_i - H_i(\bw^\star, \bp^\star)) = 0$ for each $i$.
+Equivalently:
+\[
+p_i^\star > 0 \Rightarrow b_i - H_i(\bw^\star, \bp^\star) = 0, \qquad p_i^\star = 0 \Rightarrow b_i - H_i(\bw^\star, \bp^\star) \ge 0.
+\]
+This is exactly the KKT condition $\mathbf{0} \in \nabla_\bp L(\bw^\star, \bp^\star) + N_{\R_+^d}(\bp^\star)$ for minimizing $L(\bw^\star, \cdot)$ over $\R_+^d$ (upper box inactive by our choice of $P_{\max}$).
+Therefore $\bp^\star \in \arg\min_{\bp \in \cP} L(\bw^\star, \bp)$, and for all $\bp \in \cP$,
+\[
+L(\bw^\star, \bp^\star) \le L(\bw^\star, \bp).
+\]
+
+Combining Steps 1 and 2 yields the saddle inequalities, so $(\bw^\star, \bp^\star)$ is a saddle point.
+
+\textbf{Primal optimality of threshold admission and value identity.}
+Let $x(r, \ba) := \mathbf{1}\{r > \langle \bp^\star, \ba \rangle\}$ and define the achieved (fluid) reward
+\[
+U(\bw^\star, \bp^\star) := \sum_\theta w_\theta^\star \E_\theta\!\left[r \mathbf{1}\{r > \langle \bp^\star, \ba \rangle\}\right].
+\]
+Using the identity $r \mathbf{1}\{r > \langle \bp^\star, \ba \rangle\} = \langle \bp^\star, \ba \rangle \mathbf{1}\{r > \langle \bp^\star, \ba \rangle\} + (r - \langle \bp^\star, \ba \rangle)_+$, we obtain
+\[
+U(\bw^\star, \bp^\star) = \langle \bp^\star, H(\bw^\star, \bp^\star) \rangle + \sum_\theta w_\theta^\star g_\theta(\bp^\star).
+\]
+Hence
+\[
+L(\bw^\star, \bp^\star) = \langle \bp^\star, \bb \rangle + \sum_\theta w_\theta^\star g_\theta(\bp^\star) = U(\bw^\star, \bp^\star) + \langle \bp^\star, \bb - H(\bw^\star, \bp^\star) \rangle.
+\]
+By condition (iii), the last inner product is zero, so $U(\bw^\star, \bp^\star) = L(\bw^\star, \bp^\star)$.
+Condition (ii) implies the threshold rule is feasible for the primal constraint.
+Finally, since $(\bw^\star, \bp^\star)$ is a saddle point, $L(\bw^\star, \bp^\star)$ equals the minimax value $V^{\mathrm{mix}}(\bb)$ by Theorem~\ref{thm:mix-dual}. Therefore the mixture $\bw^\star$ together with threshold admission attains $V^{\mathrm{mix}}(\bb)$ and is primal-optimal for~\eqref{eq:mix-primal}.
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:all_solutions} (All Saddle Points)}
+
+\begin{proof}[Proof of Theorem~\ref{thm:all_solutions}]
+Recall
+\[
+f(\bp) := \langle \bp, \bb \rangle + \max_{\theta \in \Theta} g_\theta(\bp), \qquad \cP^\star := \arg\min_{\bp \in \cP} f(\bp),
+\]
+and the candidate saddle set
+\[
+\cS = \Big\{(\bw, \bp) \in \Delta_K \times \cP : \bp \in \cP^\star, \mathrm{supp}(\bw) \subseteq A(\bp), H(\bw, \bp) \le \bb, \langle \bp, \bb - H(\bw, \bp) \rangle = 0\Big\}.
+\]
+
+\textbf{Step 1 (Any saddle point lies in $\cS$).}
+Let $(\bw^\star, \bp^\star)$ be any saddle point of $L$.
+By Theorem~\ref{thm:pd_equilibrium}, we have $\mathrm{supp}(\bw^\star) \subseteq A(\bp^\star)$, $H(\bw^\star, \bp^\star) \le \bb$, and $\langle \bp^\star, \bb - H(\bw^\star, \bp^\star) \rangle = 0$.
+
+Moreover, $\mathrm{supp}(\bw^\star) \subseteq A(\bp^\star)$ implies $\sum_\theta w_\theta^\star g_\theta(\bp^\star) = \max_\theta g_\theta(\bp^\star)$, so
+\[
+L(\bw^\star, \bp^\star) = \langle \bp^\star, \bb \rangle + \sum_\theta w_\theta^\star g_\theta(\bp^\star) = \langle \bp^\star, \bb \rangle + \max_\theta g_\theta(\bp^\star) = f(\bp^\star).
+\]
+Because $(\bw^\star, \bp^\star)$ is a saddle point, $L(\bw^\star, \bp^\star)$ equals the minimax value, and by Theorem~\ref{thm:mix-dual} this value is $\min_{\bp \in \cP} f(\bp)$. Hence
+\[
+f(\bp^\star) = \min_{\bp \in \cP} f(\bp),
+\]
+so $\bp^\star \in \cP^\star$. Therefore $(\bw^\star, \bp^\star) \in \cS$.
+
+\textbf{Step 2 (Any point in $\cS$ is a saddle point).}
+Now let $(\bw, \bp) \in \cS$. Then $\mathrm{supp}(\bw) \subseteq A(\bp)$, $H(\bw, \bp) \le \bb$, and $\langle \bp, \bb - H(\bw, \bp) \rangle = 0$. These are exactly conditions (i)--(iii) of Theorem~\ref{thm:pd_equilibrium}. Therefore $(\bw, \bp)$ is a saddle point of $L$.
+
+Combining Steps 1 and 2 proves that the set of all saddle points of $L$ is exactly $\cS$.
+\end{proof}
+
+\section{Uniform Concentration}
+\label{app:concentration}
+
+We prove uniform concentration bounds for the empirical surplus and consumption functions.
+
+\subsection{Concentration for Surplus Function}
+
+\begin{lemma}[Uniform Concentration for $g_\theta$ (Fixed $n$)]
+\label{lem:conc-g}
+Fix $\theta$ and $n\ge 1$. Let $\{(r_i,\ba_i)\}_{i=1}^n$ be i.i.d.\ samples from $\cD_\theta$ and define
+\[
+\widehat g_{\theta,n}(\bp):=\frac1n\sum_{i=1}^n (r_i-\langle \bp,\ba_i\rangle)_+,\qquad
+g_\theta(\bp):=\E_\theta[(r-\langle \bp,\ba\rangle)_+].
+\]
+There exist absolute constants $c_g,c_0>0$ such that for any $\delta\in(0,1)$, with probability at least
+$1-\delta$,
+\[
+\sup_{\bp\in\cP}\big|\widehat g_{\theta,n}(\bp)-g_\theta(\bp)\big|
+\;\le\;
+c_g R_{\max}\sqrt{\frac{d\log\!\Big(\frac{c_0 d P_{\max} A_{\max} n}{R_{\max}}\Big)+\log(2/\delta)}{n}}.
+\]
+\end{lemma}
+
+\begin{proof}
+\textbf{Step 1 (Pointwise Hoeffding).}
+For fixed $\bp$, the random variable $(r-\langle \bp,\ba\rangle)_+$ lies in $[0,R_{\max}]$.
+Thus by Hoeffding,
+\[
+\Pr\!\left(\big|\widehat g_{\theta,n}(\bp)-g_\theta(\bp)\big|>\epsilon\right)
+\le 2\exp\!\left(-\frac{2n\epsilon^2}{R_{\max}^2}\right).
+\]
+
+\textbf{Step 2 (Lipschitzness in $\bp$).}
+For any $\bp,\boldsymbol{q}\in\cP$ and any $(r,\ba)$,
+\[
+\big|(r-\langle \bp,\ba\rangle)_+-(r-\langle \boldsymbol{q},\ba\rangle)_+\big|
+\le |\langle \bp-\boldsymbol{q},\ba\rangle|
+\le A_{\max}\|\bp-\boldsymbol{q}\|_1,
+\]
+using $\|\ba\|_\infty\le A_{\max}$. Hence both $\widehat g_{\theta,n}$ and $g_\theta$ are
+$A_{\max}$-Lipschitz in $\ell_1$.
+
+\textbf{Step 3 ($\ell_1$-net + union bound).}
+Let $\eta>0$ and let $\mathcal N$ be an $\ell_1$-net of $\cP=[0,P_{\max}]^d$ with radius $\eta$.
+A standard volume argument gives $|\mathcal N|\le \big(\frac{c_0 d P_{\max}}{\eta}\big)^d$
+for an absolute constant $c_0>0$.
+
+For any $\bp\in\cP$, pick $\boldsymbol{q}\in\mathcal N$ with $\|\bp-\boldsymbol{q}\|_1\le \eta$. By Lipschitzness,
+\[
+\big|\widehat g_{\theta,n}(\bp)-g_\theta(\bp)\big|
+\le \big|\widehat g_{\theta,n}(\boldsymbol{q})-g_\theta(\boldsymbol{q})\big| + 2A_{\max}\eta.
+\]
+Set $\eta=\epsilon/(4A_{\max})$. Then
+\[
+\Pr\!\left(\sup_{\bp\in\cP}\big|\widehat g_{\theta,n}(\bp)-g_\theta(\bp)\big|>\epsilon\right)
+\le
+\Pr\!\left(\max_{\boldsymbol{q}\in\mathcal N}\big|\widehat g_{\theta,n}(\boldsymbol{q})-g_\theta(\boldsymbol{q})\big|>\epsilon/2\right)
+\]
+\[
+\le
+\sum_{\boldsymbol{q}\in\mathcal N}\Pr\!\left(\big|\widehat g_{\theta,n}(\boldsymbol{q})-g_\theta(\boldsymbol{q})\big|>\epsilon/2\right)
+\le
+2|\mathcal N|\exp\!\left(-\frac{2n(\epsilon/2)^2}{R_{\max}^2}\right)
+=
+2|\mathcal N|\exp\!\left(-\frac{n\epsilon^2}{2R_{\max}^2}\right).
+\]
+Substitute $|\mathcal N|\le \big(\frac{4c_0 d P_{\max}A_{\max}}{\epsilon}\big)^d$ and solve for $\epsilon$
+so that the RHS is at most $\delta$. This yields the stated bound.
+
+\begin{equation*}
+    \epsilon = R_{\max}\sqrt{\frac{d\log\left(\left(\frac{4d P_{max} A_{max}}{ R_{max}}\right)^2n\right)+\log\left(\frac{1}{\delta^2}\right)}{n}}
+\end{equation*}
+
+\end{proof}
+
+\begin{corollary}[Anytime Version for Adaptive Sample Sizes]
+\label{cor:conc-g-anytime}
+Fix $\theta$ and horizon $T$. There exists an absolute constant $c_g'>0$ such that for any $\delta\in(0,1)$,
+with probability at least $1-\delta$, the following holds simultaneously for all $n\in\{1,\dots,T\}$:
+\[
+\sup_{\bp\in\cP}\big|\widehat g_{\theta,n}(\bp)-g_\theta(\bp)\big|
+\;\le\;
+c_g' R_{\max}\sqrt{\frac{d\log\!\Big(\frac{c_0 d P_{\max} A_{\max} T}{R_{\max}}\Big)+\log(2T/\delta)}{n}}.
+\]
+Consequently, at any time $t\le T$, the bound holds with $n=N_\theta(t)$ even when $N_\theta(t)$ is
+chosen adaptively.
+\end{corollary}
+
+\begin{proof}
+Apply Lemma~\ref{lem:conc-g} with confidence level $\delta/T$ and take a union bound over $n=1,\dots,T$.
+\end{proof}
+
+\subsection{Concentration for Threshold Consumption}
+
+The threshold consumption function involves weighted indicators $a^{(i)} \cdot \mathbf{1}\{r > \langle \bp, \ba \rangle\}$, which is not a pure indicator class. We use pseudo-dimension to obtain uniform concentration.
+
+\begin{lemma}[Pseudo-Dimension of Weighted Threshold Consumption]
+\label{lem:pdim}
+Fix a coordinate $i \in [d]$ and define the function class
+\[
+\mathcal{F}_i := \left\{ f_{\bp}(r, \ba) := a^{(i)} \, \mathbf{1}\{r > \langle \bp, \ba \rangle\} : \bp \in \cP \right\}.
+\]
+Then $\mathrm{Pdim}(\mathcal{F}_i) \le d + 2$.
+\end{lemma}
+
+\begin{proof}
+Recall the definition of pseudo-dimension: $\mathcal{F}_i$ pseudo-shatters $n$ points $z_1, \ldots, z_n$ if there exist thresholds $s_1, \ldots, s_n$ such that for every labeling $S \subseteq [n]$ there exists $f \in \mathcal{F}_i$ with $f(z_j) > s_j$ iff $j \in S$.
+
+Take any candidate set $\{z_j = (r_j, \ba_j)\}_{j=1}^n$ and thresholds $\{s_j\}$.
+
+If $s_j < 0$, then $f_{\bp}(z_j) \ge 0 > s_j$ for all $\bp$, so the label of $j$ cannot vary across $S$. If $s_j \ge a_j^{(i)}$, then $f_{\bp}(z_j) \le a_j^{(i)} \le s_j$ for all $\bp$, so again the label cannot vary. Therefore, for a point to be label-flexible under pseudo-shattering, it must satisfy $0 \le s_j < a_j^{(i)}$.
+
+For such $j$, we have:
+\[
+f_{\bp}(z_j) > s_j \quad \Longleftrightarrow \quad a_j^{(i)} \, \mathbf{1}\{r_j > \langle \bp, \ba_j \rangle\} > s_j \quad \Longleftrightarrow \quad \mathbf{1}\{r_j > \langle \bp, \ba_j \rangle\} = 1.
+\]
+Thus, on the subset of flexible points, pseudo-shattering by $\mathcal{F}_i$ reduces exactly to shattering by the halfspace indicator class
+\[
+\mathcal{H} := \left\{ (r, \ba) \mapsto \mathbf{1}\{r > \langle \bp, \ba \rangle\} : \bp \in \cP \right\},
+\]
+which is a class of halfspaces in $\R^{d+1}$ and satisfies $\mathrm{VCdim}(\mathcal{H}) \le d + 2$. Therefore no more than $d + 2$ flexible points can be shattered, and hence $\mathrm{Pdim}(\mathcal{F}_i) \le d + 2$.
+\end{proof}
+
+\begin{theorem}[Uniform Deviation Bound for Pseudo-Dimension Classes]
+\label{thm:pdim-uniform}
+Let $\mathcal{F}$ be a class of functions mapping into $[0, 1]$ with pseudo-dimension $v$. Let $Z_1, \ldots, Z_n$ be i.i.d.\ samples from any distribution. Then for any $\delta \in (0, 1)$, with probability at least $1 - \delta$,
+\[
+\sup_{f \in \mathcal{F}} \left| \E[f(Z)] - \frac{1}{n} \sum_{j=1}^n f(Z_j) \right| \le c \sqrt{\frac{v \log(en) + \log(1/\delta)}{n}},
+\]
+for a universal constant $c > 0$.
+\end{theorem}
+
+This is a standard result in statistical learning theory (see, e.g., \citet{pollard1984convergence}).
+
+\begin{lemma}[Uniform Concentration for $h_\theta$ (Strict and Weak Thresholds)]
+\label{lem:conc-h}
+Fix $\theta$, $n\ge 1$, and coordinate $i\in[d]$. Let $\{(r_j,\ba_j)\}_{j=1}^n$ be i.i.d.\ from $\cD_\theta$.
+Define the strict and weak empirical consumptions
+\[
+\widehat h_{\theta,n}^{>,(i)}(\bp):=\frac1n\sum_{j=1}^n a_j^{(i)}\mathbf{1}\{r_j>\langle \bp,\ba_j\rangle\},\qquad
+\widehat h_{\theta,n}^{\ge,(i)}(\bp):=\frac1n\sum_{j=1}^n a_j^{(i)}\mathbf{1}\{r_j\ge\langle \bp,\ba_j\rangle\},
+\]
+and the population consumption (using strict threshold)
+\[
+h_\theta^{(i)}(\bp):=\E_\theta\!\left[a^{(i)}\mathbf{1}\{r>\langle \bp,\ba\rangle\}\right].
+\]
+Assume Assumption~\ref{assump:no-ties} (so that $\Pr(r=\langle \bp,\ba\rangle)=0$ for all $\bp\in\cP$), hence
+$\E[a^{(i)}\mathbf{1}\{r\ge\langle \bp,\ba\rangle\}]=h_\theta^{(i)}(\bp)$ as well.
+Then there exists an absolute constant $c_h>0$ such that for any $\delta\in(0,1)$, with probability at least
+$1-\delta$,
+\[
+\sup_{\bp\in\cP}\Big|\widehat h_{\theta,n}^{>,(i)}(\bp)-h_\theta^{(i)}(\bp)\Big|
+\;\le\;
+c_h A_{\max}\sqrt{\frac{(d+2)\log(en)+\log(4/\delta)}{n}},
+\]
+and simultaneously
+\[
+\sup_{\bp\in\cP}\Big|\widehat h_{\theta,n}^{\ge,(i)}(\bp)-h_\theta^{(i)}(\bp)\Big|
+\;\le\;
+c_h A_{\max}\sqrt{\frac{(d+2)\log(en)+\log(4/\delta)}{n}}.
+\]
+\end{lemma}
+
+\begin{proof}
+Both function classes
+$\{(r,\ba)\mapsto a^{(i)}\mathbf{1}\{r>\langle \bp,\ba\rangle\}:\bp\in\cP\}$
+and
+$\{(r,\ba)\mapsto a^{(i)}\mathbf{1}\{r\ge\langle \bp,\ba\rangle\}:\bp\in\cP\}$
+have pseudo-dimension at most $d+2$ by the same argument as Lemma~\ref{lem:pdim}
+(the strict vs.\ weak inequality does not change VC/pseudo-dimension).
+After scaling by $A_{\max}$ the functions map into $[0,1]$.
+Apply Theorem~\ref{thm:pdim-uniform} to each class with confidence $\delta/2$ and union bound.
+Assumption~\ref{assump:no-ties} ensures both expectations coincide with $h_\theta^{(i)}(\bp)$.
+\end{proof}
+
+\begin{corollary}[Anytime Version for Adaptive Sample Sizes]
+\label{cor:conc-h-anytime}
+Fix $\theta$ and horizon $T$. There exists a constant $c_h'>0$ such that for any $\delta\in(0,1)$,
+with probability at least $1-\delta$, the bounds in Lemma~\ref{lem:conc-h} hold simultaneously
+for all $n\in\{1,\dots,T\}$ (for both strict and weak thresholds) with the RHS replaced by
+\[
+c_h' A_{\max}\sqrt{\frac{(d+2)\log(eT)+\log(4Td/\delta)}{n}}.
+\]
+Consequently, at any time $t\le T$, the bound holds with $n=N_\theta(t)$ under adaptive sampling.
+\end{corollary}
+
+\begin{proof}
+Apply Lemma~\ref{lem:conc-h} with confidence $\delta/T$ and union bound over $n\le T$ (and over coordinates $i$
+if desired).
+\end{proof}
+
+\subsection{Good Event}
+
+\paragraph{Good event definition.}
+Fix a global confidence $\delta_{\mathrm{tot}}:=T^{-2}$.
+For each $\theta$, apply Corollary~\ref{cor:conc-g-anytime} with confidence $\delta_g:=\delta_{\mathrm{tot}}/(2K)$
+and apply Corollary~\ref{cor:conc-h-anytime} with confidence $\delta_h:=\delta_{\mathrm{tot}}/(2K)$
+(and union bound over coordinates $i\in[d]$ inside the corollary if desired).
+Let $\mathcal E$ be the event that for every $\theta$ and every $n\le T$ simultaneously:
+\begin{itemize}
+\item $\sup_{\bp\in\cP}|\widehat g_{\theta,n}(\bp)-g_\theta(\bp)|\le \beta_{g,\theta}(n)$,
+\item for every coordinate $i$, both strict and weak empirical consumptions satisfy
+$\sup_{\bp\in\cP}|\widehat h_{\theta,n}^{>,(i)}(\bp)-h_\theta^{(i)}(\bp)|\le \beta_{h,\theta}(n)$ and
+$\sup_{\bp\in\cP}|\widehat h_{\theta,n}^{\ge,(i)}(\bp)-h_\theta^{(i)}(\bp)|\le \beta_{h,\theta}(n)$.
+\end{itemize}
+Then $\Pr(\mathcal E^c)\le \delta_{\mathrm{tot}}$.
+
+\paragraph{Confidence radii.}
+For definiteness, one may take (for $n\ge 1$)
+\[
+\beta_{g,\theta}(n):=
+c_g' R_{\max}\sqrt{\frac{d\log\!\Big(\frac{c_0 d P_{\max} A_{\max} T}{R_{\max}}\Big)+\log(2KT/\delta_{\mathrm{tot}})}{n}},
+\qquad
+\beta_{h,\theta}(n):=
+c_h' A_{\max}\sqrt{\frac{(d+2)\log(eT)+\log(4KTd/\delta_{\mathrm{tot}})}{n}}.
+\]
+In the regret proof, we evaluate these at $n=N_\theta(t)$.
+
+\section{Regret Proof for Theorem 3}
+\label{app:regret-proof}
+
+We prove the main theorem following a five-step decomposition.
+
+\subsection{Setup}
+
+Let $\varepsilon = \sqrt{\log T / T}$ and $\bbS = (1-\varepsilon)\bb$. For mixture $\bw \in \Delta_K$, define:
+\[
+V(\bw) := \min_{\bp \in \cP} \left\{ \langle \bp, \bbS \rangle + \sum_\theta w_\theta g_\theta(\bp) \right\},
+\quad
+V^{\mathrm{mix}}(\bbS) = \max_{\bw \in \Delta_K} V(\bw).
+\]
+
+Define the \textbf{optimistic mixed value}:
+\[
+\widehat{V}_t^{\mathrm{opt}}(\bw) := \min_{\bp \in \cP} \left\{ \langle \bp, \bbS \rangle + \sum_\theta w_\theta \big(\widehat{g}_{\theta,t}(\bp) + \beta_{g,\theta}(t)\big) \right\}.
+\]
+The algorithm chooses $\bw_t \in \argmax_{\bw \in \Delta_K} \widehat{V}_t^{\mathrm{opt}}(\bw)$.
+
+\paragraph{Confidence radii used in the analysis.}
+Fix $\delta_{\mathrm{tot}}:=T^{-2}$. Let $\beta_{g,\theta}(t)$ be any sequence satisfying
+$\sup_{\bp\in\cP}|\widehat g_{\theta,t}(\bp)-g_\theta(\bp)|\le \beta_{g,\theta}(t)$ on $\mathcal E$.
+For concreteness, by Corollary~\ref{cor:conc-g-anytime} one may take
+\[
+\beta_{g,\theta}(t)
+:=
+\alpha\,c_g' R_{\max}\sqrt{
+\frac{d\log\!\Big(\frac{c_0 d P_{\max} A_{\max} T}{R_{\max}}\Big)+\log\!\Big(\frac{2KT}{\delta_{\mathrm{tot}}}\Big)}
+{N_\theta(t)\vee 1}},
+\]
+with any fixed $\alpha\ge 1$.
+
+Similarly, by Corollary~\ref{cor:conc-h-anytime} one may take
+\[
+\beta_{h,\theta}(t)
+:=
+c_h' A_{\max}\sqrt{
+\frac{(d+2)\log(eT)+\log\!\Big(\frac{4KTd}{\delta_{\mathrm{tot}}}\Big)}
+{N_\theta(t)\vee 1}}.
+\]
+
+\subsection{Step 1: Good Event}
+
+On the good event $\cE$ (probability $\ge 1 - O(1/T)$):
+\begin{itemize}
+    \item $\sup_{\bp \in \cP} |\widehat{g}_{\theta,t}(\bp) - g_\theta(\bp)| \le \beta_{g,\theta}(t)$ for all $\theta, t$.
+    \item $\sup_{\bp \in \cP} |\widehat{h}_{\theta,t}^{(i)}(\bp) - h_\theta^{(i)}(\bp)| \le \beta_{h,\theta}(t)$ for all $\theta, t, i$.
+\end{itemize}
+
+The bad event contributes at most
+\[
+\E\big[\mathrm{Reg}^{\mathrm{mix}}(T)\mathbf{1}_{\mathcal E^c}\big]
+\le TR_{\max}\Pr(\mathcal E^c)
+\le TR_{\max}\cdot T^{-2}
+= \frac{R_{\max}}{T},
+\]
+which is negligible compared to the main terms (and can be absorbed into constants).
+
+\begin{lemma}[Mixture-Weight Bridge]
+\label{lem:mixture-bridge}
+Since $\theta_t \sim \bw_t$ and $\beta_\theta(t)$ is $\cF_{t-1}$-measurable,
+\[
+\E[\beta_{\theta_t}(t) \mid \cF_{t-1}] = \sum_\theta w_{t,\theta} \beta_\theta(t).
+\]
+Therefore, for any realization,
+\[
+\E\left[\sum_{t=1}^T \beta_{\theta_t}(t)\right] = \E\left[\sum_{t=1}^T \sum_\theta w_{t,\theta} \beta_\theta(t)\right],
+\]
+and standard concentration bounds apply to the realized arm sequence $\{\theta_t\}_{t=1}^T$.
+\end{lemma}
+
+\begin{proof}
+Fix any round $t$. Since $\bw_t = (w_{t,1}, \ldots, w_{t,K})$ is determined by the history up to round $t-1$ (i.e., $\bw_t \in \cF_{t-1}$) and $\theta_t$ is drawn from the categorical distribution with weights $\bw_t$, we have by definition:
+\[
+\E[\beta_{\theta_t}(t) \mid \cF_{t-1}] = \sum_{\theta=1}^K \Pr(\theta_t = \theta \mid \cF_{t-1}) \cdot \beta_\theta(t) = \sum_{\theta=1}^K w_{t,\theta} \beta_\theta(t).
+\]
+Summing over $t$ and taking total expectation via the tower property yields the result. This lemma bridges the gap between our algorithm's mixture sampling and classical chosen-arm concentration lemmas, justifying why bounds on $\sum_\theta w_{t,\theta} \beta_\theta(t)$ translate to bounds on $\sum_t \beta_{\theta_t}(t)$.
+\end{proof}
+
+\subsection{Step 2: Mixture-Value Regret}
+
+\begin{lemma}[Optimism and True Value]
+\label{lem:emp-dev}
+On $\cE$, for all $t \le T$ and all $\bw \in \Delta_K$:
+\[
+V(\bw) \le \widehat{V}_t^{\mathrm{opt}}(\bw) \le V(\bw) + 2\sum_\theta w_\theta \beta_{g,\theta}(t).
+\]
+In particular, $\widehat{V}_t^{\mathrm{opt}}(\bw)$ is an optimistic upper bound on $V(\bw)$.
+\end{lemma}
+
+\begin{proof}
+For any $\bp$, on $\cE$:
+\[
+\sum_\theta w_\theta g_\theta(\bp) \le \sum_\theta w_\theta (\widehat{g}_{\theta,t}(\bp) + \beta_{g,\theta}(t)).
+\]
+Adding $\langle \bp, \bbS \rangle$ and taking $\min_{\bp \in \cP}$ gives the lower bound $V(\bw) \le \widehat{V}_t^{\mathrm{opt}}(\bw)$.
+
+For the upper bound, on $\cE$:
+\[
+\sum_\theta w_\theta (\widehat{g}_{\theta,t}(\bp) + \beta_{g,\theta}(t)) \le \sum_\theta w_\theta (g_\theta(\bp) + 2\beta_{g,\theta}(t)).
+\]
+Adding $\langle \bp, \bbS \rangle$ and taking $\min_{\bp \in \cP}$ gives the result.
+\end{proof}
+
+Let $\bw^\star \in \argmax_\bw V(\bw)$ so that $V(\bw^\star) = V^{\mathrm{mix}}(\bbS)$.
+
+\begin{lemma}[Per-Round Mixture-Value Gap]
+\label{lem:per-round-gap}
+On $\cE$, for all $t \le T$:
+\[
+V^{\mathrm{mix}}(\bbS) - V(\bw_t) \le 2 \sum_\theta w_{t,\theta} \beta_{g,\theta}(t).
+\]
+\end{lemma}
+
+\begin{proof}
+Since $\bw_t$ maximizes $\widehat{V}_t^{\mathrm{opt}}(\bw)$ over $\Delta_K$:
+\[
+V(\bw^\star) \le \widehat{V}_t^{\mathrm{opt}}(\bw^\star) \le \widehat{V}_t^{\mathrm{opt}}(\bw_t),
+\]
+where the first inequality uses Lemma~\ref{lem:emp-dev}. By the upper bound in Lemma~\ref{lem:emp-dev}:
+\[
+\widehat{V}_t^{\mathrm{opt}}(\bw_t) \le V(\bw_t) + 2\sum_\theta w_{t,\theta} \beta_{g,\theta}(t).
+\]
+Combining gives the result.
+\end{proof}
+
+\subsection{Step 3: Admission-Price Error and KKT Feasibility}
+
+Define the unconstrained threshold acceptance $\tilde{x}_t := \mathbf{1}\{r_t > \langle \bp_t, \ba_t \rangle\}$ and reward $\tilde{R}_T := \sum_{t=1}^T r_t \tilde{x}_t$.
+
+For any mixture $\bw$ and price $\bp$, define (using strict threshold $>$ per our convention):
+\begin{align*}
+U(\bw, \bp) &:= \sum_\theta w_\theta \E_\theta[r \cdot \mathbf{1}\{r > \langle \bp, \ba \rangle\}], \\
+H(\bw, \bp) &:= \sum_\theta w_\theta h_\theta(\bp), \\
+\widehat{H}_t(\bw, \bp) &:= \sum_\theta w_\theta \widehat{h}_{\theta,t}(\bp).
+\end{align*}
+
+\begin{lemma}[Primal--Dual Inequality for Threshold Rules]
+\label{lem:primal-dual}
+For any mixture $\bw$ and price $\bp \in \R^d_+$:
+\[
+V(\bw) - U(\bw, \bp) \le \langle \bp, \bbS - H(\bw, \bp) \rangle.
+\]
+\end{lemma}
+
+\begin{proof}
+Fix any mixture $\bw$ and price $\bp\in\R_+^d$.
+
+\textbf{Step 1 (dual upper bound on $V(\bw)$).}
+By the dual representation of $V(\bw)$ (Theorem~1 in the main paper / Theorem~\ref{thm:mix-dual}),
+for any fixed $\bp$ we have
+\[
+V(\bw)
+=
+\min_{\boldsymbol{q}\in\cP}\left\{\langle \boldsymbol{q},\bbS\rangle+\sum_\theta w_\theta g_\theta(\boldsymbol{q})\right\}
+\le
+\langle \bp,\bbS\rangle+\sum_\theta w_\theta g_\theta(\bp).
+\]
+
+\textbf{Step 2 (identity for the threshold value).}
+For strict-threshold admission at price $\bp$,
+\[
+r\,\mathbf{1}\{r>\langle \bp,\ba\rangle\}
+=
+\langle \bp,\ba\rangle\,\mathbf{1}\{r>\langle \bp,\ba\rangle\}
++
+(r-\langle \bp,\ba\rangle)_+.
+\]
+Taking expectation under $\cD_\theta$ and summing with weights $w_\theta$ yields
+\[
+U(\bw,\bp)
+=
+\sum_\theta w_\theta \E_\theta\!\left[r\,\mathbf{1}\{r>\langle \bp,\ba\rangle\}\right]
+=
+\langle \bp, H(\bw,\bp)\rangle + \sum_\theta w_\theta g_\theta(\bp),
+\]
+where $H(\bw,\bp)=\sum_\theta w_\theta h_\theta(\bp)$ is the strict-threshold expected consumption.
+
+\textbf{Step 3 (combine).}
+Subtract the expression for $U(\bw,\bp)$ from the dual upper bound on $V(\bw)$:
+\[
+V(\bw)-U(\bw,\bp)
+\le
+\langle \bp,\bbS\rangle+\sum_\theta w_\theta g_\theta(\bp)
+-
+\left(\langle \bp,H(\bw,\bp)\rangle+\sum_\theta w_\theta g_\theta(\bp)\right)
+=
+\langle \bp,\bbS-H(\bw,\bp)\rangle.
+\]
+\end{proof}
+
+The following lemma establishes drift control via KKT conditions using tie-weighted consumption.
+
+\begin{lemma}[KKT Implies Tie-Weighted Empirical Complementarity]
+\label{lem:kkt-feasibility}
+Fix a mixture $\bw\in\Delta_K$ and time $t$ with $N_\theta(t)\ge 1$ for all $\theta$.
+Consider the convex problem
+\[
+\min_{\bp\in\cP}\left\{\langle \bp,\bbS\rangle+\sum_{\theta}w_\theta \widehat g_{\theta,t}(\bp)\right\}.
+\]
+Assume $P_{\max}> R_{\max}/b^{\mathrm{safe}}_{\min}$ so that the upper box constraint is non-binding at minimizers
+(Corollary~\ref{cor:pmax-wlog-emp}).
+Let $\bp^\star(\bw)$ be any minimizer.
+Then there exist tie-weight vectors $\lambda_\theta\in[0,1]^{N_\theta(t)}$ (one per configuration) such that,
+with the tie-weighted empirical consumptions $\widehat h_{\theta,t}^{\lambda_\theta}(\bp^\star)$ from
+Lemma~\ref{lem:subgradient}, the mixture tie-weighted empirical consumption
+\[
+\widehat H_t^{\mathrm{kkt}}(\bw,\bp^\star)
+:=\sum_{\theta} w_\theta\,\widehat h_{\theta,t}^{\lambda_\theta}(\bp^\star)
+\]
+satisfies
+\[
+\widehat H_t^{\mathrm{kkt}}(\bw,\bp^\star)\le \bbS\quad\text{(componentwise)}
+\qquad\text{and}\qquad
+\langle \bp^\star,\,\bbS-\widehat H_t^{\mathrm{kkt}}(\bw,\bp^\star)\rangle=0.
+\]
+\end{lemma}
+
+\begin{proof}
+By optimality of $\bp^\star$ for the constrained convex problem with effective domain $\bp\in\R_+^d$
+(upper box non-binding), the KKT condition is
+\[
+\mathbf{0}\in \bbS+\sum_{\theta}w_\theta\,\partial \widehat g_{\theta,t}(\bp^\star)+N_{\R_+^d}(\bp^\star).
+\]
+Thus there exist subgradients $s_\theta\in\partial \widehat g_{\theta,t}(\bp^\star)$ and a normal-cone vector
+$v\in N_{\R_+^d}(\bp^\star)$ such that
+\[
+\mathbf{0}=\bbS+\sum_{\theta}w_\theta s_\theta+v.
+\]
+By Lemma~\ref{lem:subgradient}, each $s_\theta$ can be written as
+$s_\theta=-\widehat h_{\theta,t}^{\lambda_\theta}(\bp^\star)$ for some tie-weight vector $\lambda_\theta$.
+Define $\widehat H_t^{\mathrm{kkt}}(\bw,\bp^\star):=\sum_\theta w_\theta \widehat h_{\theta,t}^{\lambda_\theta}(\bp^\star)$.
+Then the KKT condition becomes
+\[
+\mathbf{0}=\bbS-\widehat H_t^{\mathrm{kkt}}(\bw,\bp^\star)+v,
+\quad\text{i.e.,}\quad
+v=\widehat H_t^{\mathrm{kkt}}(\bw,\bp^\star)-\bbS.
+\]
+The normal cone $N_{\R_+^d}(\bp^\star)$ satisfies:
+$v_i=0$ if $p_i^\star>0$ and $v_i\le 0$ if $p_i^\star=0$.
+Hence if $p_i^\star>0$ then $\widehat H_{t,i}^{\mathrm{kkt}}=b_i^{\mathrm{safe}}$, and if $p_i^\star=0$ then
+$\widehat H_{t,i}^{\mathrm{kkt}}\le b_i^{\mathrm{safe}}$. This yields the componentwise feasibility.
+The complementarity identity follows because for every coordinate $i$,
+either $p_i^\star=0$ or $b_i^{\mathrm{safe}}-\widehat H_{t,i}^{\mathrm{kkt}}=0$, hence
+$\sum_i p_i^\star(b_i^{\mathrm{safe}}-\widehat H_{t,i}^{\mathrm{kkt}})=0$.
+\end{proof}
+
+\begin{lemma}[Consumption Drift Bound]
+\label{lem:drift-bound}
+On the good event $\cE$ (defined in Section~\ref{app:concentration} with Lemma~\ref{lem:conc-h}
+holding for both strict and weak thresholds), for all $t$,
+\[
+H(\bw_t,\bp_t)\le \bbS+\Big(\sum_{\theta} w_{t,\theta}\beta_{h,\theta}(t)\Big)\mathbf{1}_d,
+\]
+where $H(\bw,\bp):=\sum_{\theta}w_\theta h_\theta(\bp)$ is the population consumption under the strict threshold
+(which equals the weak threshold by Assumption~\ref{assump:no-ties}).
+\end{lemma}
+
+\begin{proof}
+Fix $t$ and apply Lemma~\ref{lem:kkt-feasibility} with $\bw=\bw_t$ and $\bp^\star=\bp_t$ to obtain
+$\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)\le \bbS$ componentwise.
+For each $\theta$, the tie-weighted empirical consumption $\widehat h_{\theta,t}^{\lambda_\theta}(\bp_t)$
+satisfies
+\[
+\widehat h_{\theta,t}^{>,}(\bp_t)\le \widehat h_{\theta,t}^{\lambda_\theta}(\bp_t)\le \widehat h_{\theta,t}^{\ge,}(\bp_t)
+\quad\text{(componentwise)}
+\]
+by Lemma~\ref{lem:subgradient}. On $\cE$, Lemma~\ref{lem:conc-h} implies both
+$\|\widehat h_{\theta,t}^{>,}(\bp_t)-h_\theta(\bp_t)\|_\infty\le \beta_{h,\theta}(t)$ and
+$\|\widehat h_{\theta,t}^{\ge,}(\bp_t)-h_\theta(\bp_t)\|_\infty\le \beta_{h,\theta}(t)$.
+Since $\widehat h_{\theta,t}^{\lambda_\theta}(\bp_t)$ lies between the strict and weak empirical quantities
+coordinatewise and $h_\theta(\bp_t)$ equals the strict/weak population expectation, it follows that
+$\|\widehat h_{\theta,t}^{\lambda_\theta}(\bp_t)-h_\theta(\bp_t)\|_\infty\le \beta_{h,\theta}(t)$ as well.
+Therefore,
+\[
+H(\bw_t,\bp_t)=\sum_\theta w_{t,\theta} h_\theta(\bp_t)
+\le \sum_\theta w_{t,\theta}\Big(\widehat h_{\theta,t}^{\lambda_\theta}(\bp_t)+\beta_{h,\theta}(t)\mathbf{1}_d\Big)
+= \widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)+\Big(\sum_\theta w_{t,\theta}\beta_{h,\theta}(t)\Big)\mathbf{1}_d
+\le \bbS+\Big(\sum_\theta w_{t,\theta}\beta_{h,\theta}(t)\Big)\mathbf{1}_d.
+\]
+\end{proof}
+
+\begin{lemma}[Price-Error Bound]
+\label{lem:price-error}
+On the good event $\cE$, for all $t\le T$,
+\[
+V(\bw_t)-U(\bw_t,\bp_t)\le dP_{\max}\sum_{\theta}w_{t,\theta}\beta_{h,\theta}(t),
+\]
+where $U(\bw,\bp):=\sum_{\theta}w_\theta\,\E_\theta[r\mathbf{1}\{r>\langle \bp,\ba\rangle\}]$.
+\end{lemma}
+
+\begin{proof}
+By Lemma~\ref{lem:primal-dual},
+\[
+V(\bw_t)-U(\bw_t,\bp_t)\le \langle \bp_t,\bbS-H(\bw_t,\bp_t)\rangle.
+\]
+Apply Lemma~\ref{lem:kkt-feasibility} (with $\bw=\bw_t$) to obtain a tie-weighted empirical consumption
+$\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)$ satisfying
+$\langle \bp_t,\bbS-\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)\rangle=0$.
+Hence
+\[
+\langle \bp_t,\bbS-H(\bw_t,\bp_t)\rangle
+=
+\langle \bp_t,\bbS-\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)\rangle
++\langle \bp_t,\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)-H(\bw_t,\bp_t)\rangle
+=
+\langle \bp_t,\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)-H(\bw_t,\bp_t)\rangle.
+\]
+By Hölder and $\|\bp_t\|_1\le dP_{\max}$,
+\[
+\langle \bp_t,\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)-H(\bw_t,\bp_t)\rangle
+\le \|\bp_t\|_1\cdot \|\widehat H_t^{\mathrm{kkt}}(\bw_t,\bp_t)-H(\bw_t,\bp_t)\|_\infty
+\le dP_{\max}\cdot \sum_{\theta}w_{t,\theta}\beta_{h,\theta}(t),
+\]
+where the last inequality uses the same sandwich argument as in Lemma~\ref{lem:drift-bound}.
+\end{proof}
+
+\subsection{Step 4: Budget-Feasibility Loss}
+
+The real algorithm uses budget checks, producing reward $R_T \le \tilde{R}_T$. We bound $\E[\tilde{R}_T - R_T]$ using a clean martingale-maximum approach.
+
+\textbf{Setup.} Let $\tilde{x}_t := \mathbf{1}\{r_t > \langle \bp_t, \ba_t \rangle\}$ be the unconstrained threshold decision (strict inequality by Assumption~\ref{assump:contivalue}), and let $\tilde{R}_T := \sum_{t=1}^T r_t \tilde{x}_t$. For each resource coordinate $i$, define $\tilde{C}_t^{(i)} := \sum_{s=1}^t a_s^{(i)} \tilde{x}_s$ and the violation time $\tau_i := \inf\{t \ge 1 : \tilde{C}_t^{(i)} > B_i\}$, with the convention $\inf \emptyset = \infty$. Let $\tau := \min_{i \in [d]} \tau_i$.
+
+\begin{lemma}[Budget Loss Controlled by Violation Times]
+\label{lem:budget-loss}
+Almost surely,
+\[
+\tilde{R}_T - R_T \le R_{\max} (T - \tau + 1)_+ \le R_{\max} \sum_{i=1}^d (T - \tau_i + 1)_+.
+\]
+\end{lemma}
+
+\begin{proof}
+If no coordinate violates, then the budget check never rejects an unconstrained acceptance, so $\tilde{R}_T = R_T$. Otherwise, after the first violation time $\tau$, the real algorithm may lose at most $R_{\max}$ reward per remaining period, giving the first inequality. The second inequality uses $\max_i z_i \le \sum_i z_i$ with $z_i = (T - \tau_i + 1)_+$.
+\end{proof}
+
+\textbf{Martingale structure.} For coordinate $i$, let $Y_{t,i} := a_t^{(i)} \tilde{x}_t \in [0, A_{\max}]$. Since $\theta_t \sim \bw_t$ and $(r_t, \ba_t) \sim \cD_{\theta_t}$:
+\[
+\E[Y_{t,i} | \cF_{t-1}] = \sum_\theta w_{t,\theta} \E_\theta\left[a^{(i)} \cdot \mathbf{1}\{r > \langle \bp_t, \ba \rangle\}\right] = H^{(i)}(\bw_t, \bp_t).
+\]
+Define the martingale $M_{t,i} := \sum_{s=1}^t (Y_{s,i} - \E[Y_{s,i} | \cF_{s-1}])$ with bounded increments $|M_{t,i} - M_{t-1,i}| \le A_{\max}$.
+
+\begin{lemma}[Violation Time Bounded by Martingale Maximum and Drift]
+\label{lem:tau-bound}
+Assume the drift bound holds: $\E[Y_{t,i} | \cF_{t-1}] \le b^{\mathrm{safe}}_i + \Delta_t$ for all $t$, where $\Delta_t \ge 0$ is $\cF_{t-1}$-measurable. Let $\Delta_{1:T} := \sum_{t=1}^T \Delta_t$. Then for the violation time $\tau_i$,
+\[
+(T - \tau_i + 1)_+ \le 1 + \frac{\sup_{t \le T} (M_{t,i})_+ + \Delta_{1:T}}{b_i}.
+\]
+\end{lemma}
+
+\begin{proof}
+If $\tau_i = \infty$ the left side is 0 and the inequality is trivial. Otherwise, by definition $\tilde{C}_{\tau_i}^{(i)} > B_i = T b_i$. By the martingale decomposition,
+\[
+\tilde{C}_{\tau_i}^{(i)} = \sum_{s=1}^{\tau_i} \E[Y_{s,i} | \cF_{s-1}] + M_{\tau_i,i} \le \tau_i b^{\mathrm{safe}}_i + \sum_{s=1}^{\tau_i} \Delta_s + M_{\tau_i,i} \le \tau_i (1-\varepsilon) b_i + \Delta_{1:T} + M_{\tau_i,i}.
+\]
+Thus
+\[
+M_{\tau_i,i} > T b_i - \tau_i (1-\varepsilon) b_i - \Delta_{1:T} = (T - \tau_i) b_i + \varepsilon \tau_i b_i - \Delta_{1:T} \ge (T - \tau_i) b_i - \Delta_{1:T}.
+\]
+Rearranging gives
+\[
+T - \tau_i < \frac{(M_{\tau_i,i})_+ + \Delta_{1:T}}{b_i} \le \frac{\sup_{t \le T} (M_{t,i})_+ + \Delta_{1:T}}{b_i}.
+\]
+Adding 1 yields the claim.
+\end{proof}
+
+\begin{lemma}[Expected Maximum of Bounded-Increment Martingale]
+\label{lem:mart-max}
+Let $(M_t)_{t=0}^T$ be a martingale with $M_0 = 0$ and increments bounded as $|M_t - M_{t-1}| \le A_{\max}$ almost surely. Then
+\[
+\E\left[\sup_{t \le T} (M_t)_+\right] \le A_{\max} \sqrt{\frac{\pi T}{2}}.
+\]
+\end{lemma}
+
+\begin{proof}
+By Azuma--Hoeffding,
+\[
+\Pr\left(\sup_{t \le T} M_t \ge u\right) \le \exp\left(-\frac{u^2}{2 T A_{\max}^2}\right) \quad \text{for all } u \ge 0.
+\]
+(One may prove this by applying Azuma to the stopped process at the first hitting time of level $u$.)
+
+Integrate the tail bound:
+\[
+\E\left[\sup_{t \le T} (M_t)_+\right] = \int_0^\infty \Pr\left(\sup_{t \le T} M_t \ge u\right) du \le \int_0^\infty \exp\left(-\frac{u^2}{2 T A_{\max}^2}\right) du = A_{\max} \sqrt{\frac{\pi T}{2}}.
+\]
+\end{proof}
+
+\begin{corollary}[Expected Feasibility Loss Bound]
+\label{cor:feas-loss}
+Under the drift condition in Lemma~\ref{lem:tau-bound},
+\[
+\E[\tilde{R}_T - R_T] \le R_{\max} \sum_{i=1}^d \E[(T - \tau_i + 1)_+] \le R_{\max} \left( d + \frac{d}{b_{\min}} \E[\Delta_{1:T}] + \frac{d A_{\max}}{b_{\min}} \sqrt{\frac{\pi T}{2}} \right).
+\]
+\end{corollary}
+
+\begin{proof}
+Combine Lemma~\ref{lem:budget-loss} and Lemma~\ref{lem:tau-bound}, take expectations, apply Lemma~\ref{lem:mart-max}, and use $b_i \ge b_{\min}$.
+\end{proof}
+
+\textbf{Drift bound verification.} By Lemma~\ref{lem:drift-bound}, on the good event $\cE$:
+\[
+H(\bw_t, \bp_t) \le \bbS + \sum_\theta w_{t,\theta} \beta_{h,\theta}(t) \cdot \mathbf{1}_d,
+\]
+so $\E[Y_{t,i} | \cF_{t-1}] \le b^{\mathrm{safe}}_i + \Delta_t$ with $\Delta_t := \sum_\theta w_{t,\theta} \beta_{h,\theta}(t)$. By Corollary~\ref{cor:feas-loss}:
+\[
+\E[\tilde{R}_T - R_T | \cE] \le R_{\max} \left( d + \frac{d}{b_{\min}} \E[\Delta_{1:T} | \cE] + \frac{d A_{\max}}{b_{\min}} \sqrt{\frac{\pi T}{2}} \right).
+\]
+
+\subsection{Step 5: Summing Confidence Radii and Slack Loss}
+
+\begin{lemma}[Summation of $1/\sqrt{N}$]
+\label{lem:sum-sqrt}
+Let $\theta_t$ be the arm pulled at time $t$. Then pathwise:
+\[
+\sum_{t=1}^T \frac{1}{\sqrt{N_{\theta_t}(t) \vee 1}} \le 2 \sum_{\theta=1}^K \sqrt{N_\theta(T) \vee 1} \le 2\sqrt{K(T+K)}.
+\]
+\end{lemma}
+
+\begin{proof}
+For each $\theta$, the $j$-th pull contributes $1/\sqrt{j}$; $\sum_{j=1}^n 1/\sqrt{j} \le 1 + \int_1^n s^{-1/2} ds \le 2\sqrt{n}$. Then apply Cauchy--Schwarz: $\sum_\theta \sqrt{N_\theta} \le \sqrt{K \sum_\theta N_\theta} = \sqrt{KT}$.
+\end{proof}
+
+Since $\beta_g(n), \beta_h(n) = O(\sqrt{d \log T / n})$, Lemma~\ref{lem:sum-sqrt} implies:
+\[
+\sum_{t=1}^T \sum_\theta w_{t,\theta} \beta_{g,\theta}(t) = O\left( \alpha\,c_g R_{\max} \sqrt{KT \cdot d \log T} \right),
+\]
+and similarly:
+\[
+\E[\Delta_{1:T}] = O\left( A_{\max} \sqrt{KT \cdot d \log T} \right).
+\]
+
+\begin{lemma}[Lipschitzness and Monotonicity in the Budget]
+\label{lem:slack-loss}
+For any $\bb,\bb'\in\R_+^d$,
+\[
+\big|V^{\mathrm{mix}}(\bb)-V^{\mathrm{mix}}(\bb')\big|\le P_{\max}\|\bb-\bb'\|_1.
+\]
+Moreover, $V^{\mathrm{mix}}$ is monotone: if $\bb\ge \bb'$ componentwise, then
+$V^{\mathrm{mix}}(\bb)\ge V^{\mathrm{mix}}(\bb')$.
+In particular, with $\bbS=(1-\varepsilon)\bb\le \bb$,
+\[
+0\le T\big(V^{\mathrm{mix}}(\bb)-V^{\mathrm{mix}}(\bbS)\big)
+\le P_{\max}\|\bb-\bbS\|_1 T
+= P_{\max}\|\bb\|_1\,\varepsilon T.
+\]
+\end{lemma}
+
+\begin{proof}
+Using the dual form,
+\[
+V^{\mathrm{mix}}(\bb)=\min_{\bp\in\cP}\{\langle \bp,\bb\rangle+\max_\theta g_\theta(\bp)\}.
+\]
+For any fixed $\bp\in\cP$,
+\[
+\langle \bp,\bb\rangle+\max_\theta g_\theta(\bp)
+-
+\big(\langle \bp,\bb'\rangle+\max_\theta g_\theta(\bp)\big)
+=\langle \bp,\bb-\bb'\rangle,
+\]
+hence
+$V^{\mathrm{mix}}(\bb)-V^{\mathrm{mix}}(\bb')\le \sup_{\bp\in\cP}\langle \bp,\bb-\bb'\rangle
+\le P_{\max}\|\bb-\bb'\|_1$.
+Swap $\bb,\bb'$ to get the absolute-value bound.
+Monotonicity follows since $\langle \bp,\bb\rangle$ is monotone in $\bb$ and the minimum over $\bp$
+preserves monotonicity.
+\end{proof}
+
+\subsection{Combining All Pieces (Unconditional Expectation; No Conditioning on $\mathcal E$)}
+
+We now combine the previous steps in a way that is fully rigorous: we \emph{never} condition on the global
+good event $\mathcal E$ (which depends on the entire trajectory), and instead split expectations using
+indicators $1_{\mathcal E}$ and $1_{\mathcal E^c}$.
+
+\paragraph{Warm-start definition.}
+For warm-start rounds $t\le K$, the algorithm sets $x_t=0$ (pure observation).
+We define $\tilde x_t:=0$ and $U(\bw_t,\bp_t):=0$ for $t\le K$, as saddle-point
+outputs $(\bw_t,\bp_t)$ are only computed for $t\ge K+1$. Accordingly, all sums
+involving $U(\bw_t,\bp_t)$ or $\tilde x_t$ below are taken over $t=K+1,\dots,T$.
+
+\paragraph{Warm start loss.}
+During rounds $t\le K$, the algorithm forces $x_t=0$, hence it can lose at most $R_{\max}$ reward per round
+relative to any benchmark. Therefore the warm start contributes at most $K R_{\max}$ to regret.
+
+\paragraph{Step A: relate $\E[\tilde R_T]$ to $U(\bw_t,\bp_t)$.}
+For $t > K$, recall the unconstrained strict-threshold decision $\tilde x_t:=\mathbf{1}\{r_t>\langle \bp_t,\ba_t\rangle\}$;
+for $t \le K$, we set $\tilde x_t := 0$ by convention. Define $\tilde R_T:=\sum_{t=K+1}^T r_t\tilde x_t$.
+Because $\bw_t$ and $\bp_t$ are $\mathcal F_{t-1}$-measurable and $\theta_t\sim \bw_t$, for $t > K$ we have
+\[
+\E[r_t\tilde x_t\mid \mathcal F_{t-1}]
+=
+\sum_{\theta} w_{t,\theta}\,\E_{\theta}\!\left[r\,\mathbf{1}\{r>\langle \bp_t,\ba\rangle\}\right]
+=
+U(\bw_t,\bp_t).
+\]
+Taking total expectation and summing over $t=K+1,\ldots,T$ (tower property) gives
+\[
+\E[\tilde R_T]=\sum_{t=K+1}^T \E\!\left[U(\bw_t,\bp_t)\right].
+\]
+Hence
+\[
+T V^{\mathrm{mix}}(\bbS)-\E[\tilde R_T]
+=
+K V^{\mathrm{mix}}(\bbS) + \sum_{t=K+1}^T \E\!\left[V^{\mathrm{mix}}(\bbS)-U(\bw_t,\bp_t)\right].
+\]
+
+\paragraph{Step B: per-round expected gap on $\mathcal E$.}
+On the good event $\mathcal E$, Lemmas~\ref{lem:per-round-gap} and \ref{lem:price-error} imply for every round $t>K$:
+\[
+V^{\mathrm{mix}}(\bbS)-U(\bw_t,\bp_t)
+=
+\big(V^{\mathrm{mix}}(\bbS)-V(\bw_t)\big) + \big(V(\bw_t)-U(\bw_t,\bp_t)\big)
+\le
+2\sum_\theta w_{t,\theta}\beta_{g,\theta}(t) + dP_{\max}\sum_\theta w_{t,\theta}\beta_{h,\theta}(t).
+\]
+Multiplying by $1_{\mathcal E}$ and using nonnegativity of the RHS yields the unconditional bound
+\[
+\E\!\left[\big(V^{\mathrm{mix}}(\bbS)-U(\bw_t,\bp_t)\big)1_{\mathcal E}\right]
+\le
+2\,\E\!\left[\sum_\theta w_{t,\theta}\beta_{g,\theta}(t)\right]
++
+dP_{\max}\,\E\!\left[\sum_\theta w_{t,\theta}\beta_{h,\theta}(t)\right].
+\]
+On $\mathcal E^c$, we use the crude bound $0\le U(\bw_t,\bp_t)\le R_{\max}$ and
+$0\le V^{\mathrm{mix}}(\bbS)\le R_{\max}$, hence
+\[
+\E\!\left[\big(V^{\mathrm{mix}}(\bbS)-U(\bw_t,\bp_t)\big)1_{\mathcal E^c}\right]
+\le
+R_{\max}\Pr(\mathcal E^c).
+\]
+Summing over $t$ and adding the warm start loss gives
+\begin{align*}
+T V^{\mathrm{mix}}(\bbS)-\E[\tilde R_T]
+&\le
+K R_{\max}
++
+2\sum_{t=K+1}^T \E\!\left[\sum_\theta w_{t,\theta}\beta_{g,\theta}(t)\right]
++
+dP_{\max}\sum_{t=K+1}^T \E\!\left[\sum_\theta w_{t,\theta}\beta_{h,\theta}(t)\right]
++
+T R_{\max}\Pr(\mathcal E^c).
+\end{align*}
+
+\paragraph{Step C: feasibility loss $\E[\tilde R_T-R_T]$.}
+We split
+\[
+\E[\tilde R_T-R_T]=\E[(\tilde R_T-R_T)1_{\mathcal E}] + \E[(\tilde R_T-R_T)1_{\mathcal E^c}].
+\]
+The bad-event term satisfies $\E[(\tilde R_T-R_T)1_{\mathcal E^c}]\le TR_{\max}\Pr(\mathcal E^c)$.
+
+On $\mathcal E$, the drift condition in Lemma~\ref{lem:tau-bound} holds with
+$\Delta_t:=\sum_\theta w_{t,\theta}\beta_{h,\theta}(t)$ by Lemma~\ref{lem:drift-bound}, so Lemmas
+\ref{lem:budget-loss}--\ref{lem:tau-bound} imply (for each coordinate $i$)
+\[
+(T-\tau_i+1)_+\,1_{\mathcal E}
+\le
+\left(1+\frac{\sup_{t\le T}(M_{t,i})_+ + \Delta_{1:T}}{b_i}\right)1_{\mathcal E}.
+\]
+Taking expectations and using $\E[\sup_{t\le T}(M_{t,i})_+\,1_{\mathcal E}] \le \E[\sup_{t\le T}(M_{t,i})_+]$
+together with Lemma~\ref{lem:mart-max} gives
+\[
+\E[(T-\tau_i+1)_+\,1_{\mathcal E}]
+\le
+1+\frac{A_{\max}\sqrt{\pi T/2}}{b_i}+\frac{\E[\Delta_{1:T}]}{b_i}.
+\]
+Combining with Lemma~\ref{lem:budget-loss} and $b_i\ge b_{\min}$ yields
+\[
+\E[(\tilde R_T-R_T)1_{\mathcal E}]
+\le
+R_{\max}\left(
+d+\frac{dA_{\max}}{b_{\min}}\sqrt{\frac{\pi T}{2}}+\frac{d}{b_{\min}}\E[\Delta_{1:T}]
+\right).
+\]
+Therefore,
+\[
+\E[\tilde R_T-R_T]
+\le
+R_{\max}\left(
+d+\frac{dA_{\max}}{b_{\min}}\sqrt{\frac{\pi T}{2}}+\frac{d}{b_{\min}}\E[\Delta_{1:T}]
+\right)
++
+TR_{\max}\Pr(\mathcal E^c).
+\]
+
+\paragraph{Step D: slack loss.}
+By Lemma~\ref{lem:slack-loss},
+\[
+0\le T\big(V^{\mathrm{mix}}(\bb)-V^{\mathrm{mix}}(\bbS)\big)\le P_{\max}\|\bb-\bbS\|_1 T
+= P_{\max}\|\bb\|_1\,\sqrt{T\log T}.
+\]
+
+\paragraph{Step E: bound the confidence sums.}
+Using Lemma~\ref{lem:mixture-bridge} and Lemma~\ref{lem:sum-sqrt}, and the definitions of $\beta_{g,\theta}(t)$
+and $\beta_{h,\theta}(t)$ (both scaling as $O(1/\sqrt{N_\theta(t)})$), we obtain
+\[
+\sum_{t=K+1}^T \E\!\left[\sum_\theta w_{t,\theta}\beta_{g,\theta}(t)\right]
+=
+\tilde O\!\left(\sqrt{KT\cdot d}\right),
+\qquad
+\sum_{t=K+1}^T \E\!\left[\sum_\theta w_{t,\theta}\beta_{h,\theta}(t)\right]
+=
+\tilde O\!\left(\sqrt{KT\cdot d}\right),
+\]
+and similarly $\E[\Delta_{1:T}]=\tilde O(\sqrt{KT\cdot d})$.
+
+\paragraph{Step F: bad event probability.}
+By construction of $\mathcal E$ we have $\Pr(\mathcal E^c)\le \delta_{\mathrm{tot}}=T^{-2}$, hence the total
+bad-event contribution is at most $O(R_{\max}/T)$.
+
+\paragraph{Conclusion.}
+Combining Steps B--F and recalling $R_T\le \tilde R_T$ yields
+\[
+\mathrm{Reg}^{\mathrm{mix}}(T)
+=
+T V^{\mathrm{mix}}(\bb)-\E[R_T]
+\le
+C_1\,\alpha\,\sqrt{KT\cdot d \log T}
++
+C_2\sqrt{T\log T}
++
+K R_{\max},
+\]
+for constants $C_1,C_2$ depending only on $(d,R_{\max},A_{\max},P_{\max},b_{\min},\|\bb\|_1)$.
+This completes the proof of Theorem~3. \qed
+
+\section{Implementation Notes}
+\label{app:implementation}
+
+
+\subsection{Compute Saddle Point via Linear Programming}
+Let 
+\begin{equation*}
+    L(\bw,\bp) = \bb^T\bp+\sum_{\theta\in\Theta}w_{\theta}\left(\frac{1}{N_{\theta}}\sum_{j=1}^{N_{\theta}}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp)^++\beta_{\theta}\right)
+\end{equation*}
+By Assumption \ref{assump:bounded} and arguments in Lemma \ref{lem:pmax-wlog}, we have
+\begin{equation*}
+    \max_{\bw\in\Delta_K}\min_{p\geq 0} L(\bw,\bp)=\max_{\bw\in\Delta_K}\min_{p\in\cP} L(\bw,\bp)=\min_{\bp\in\cP}\max_{\bw\in\Delta_K} L(\bw,\bp)=\min_{\bp\geq 0}\max_{\bw\in\Delta_K} L(\bw,\bp)
+\end{equation*}
+by solving Linear programs. Consider the following LP
+\begin{equation*}
+    \begin{array}{lll}
+       Min  &  \bb^Tp + z\\
+       S.T  &  z\geq \frac{1}{N_{\theta}}\sum_{j=1}^{N_{\theta}}y_{j,\theta} + \beta_{\theta} &\forall\theta\\
+       & y_{j,\theta}\geq r_{j,\theta} - {\ba_{j,\theta}}^Tp &\forall \theta,j\\
+       & p\geq 0,\;y_{j,\theta}\geq 0 & \forall \theta,j
+    \end{array}
+\end{equation*}
+Let $\bp^*$ be the optimal solution of this LP and let $\bw^{*}=\{w^*_{\theta}\}_{\theta\in\Theta}$ be optimal dual solution corresponding to the constraints $z\geq \frac{1}{N_{\theta}}\sum_{j=1}^{N_{\theta}}y_{j,\theta} + \beta_{\theta} \;\forall\theta$. Then, $(p^*,w^*)$ is a saddle point.
+\begin{proof}
+    By dual feasibility, we have $w^*_{\theta}\geq 0$ and $\sum_{\theta\in\Theta}w^*_{\theta}=1$. Thus, $\bw^*\in\Delta_K$. Let $z^*$ be the optimal solution of the LP. For any $\bw\in\Delta_K$,
+    \begin{equation*}
+        L(\bw,\bp^*)\leq \bb^T\bp^* + \max_{\theta\in\Theta}\frac{1}{N_{\theta}}\sum_{j=1}^{N_{\theta}}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp^*)^++\beta_{\theta}  = \bb^T\bp^* + z^*
+    \end{equation*}
+    Then,  By complementary slackness, $w^*_{\theta}$ is positive only if
+    \begin{equation*}
+        \frac{1}{N_{\theta}}\sum_{j=1}^{N_{\theta}}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp^*)^++\beta_{\theta} = z^*
+    \end{equation*}
+    Thus, 
+    \begin{equation*}
+        \sum_{\theta\in\Theta} w^*_{\theta}\left(\frac{1}{N_{\theta}}\sum_{j=1}^{N_{\theta}}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp^*)^++\beta_{\theta}\right) = z^*
+    \end{equation*}
+    Thus,
+    \begin{equation}\label{eqn: LP_Saddle_Point_1}
+        L(\bw,\bp^*)\leq L(\bw^*,\bp^*)\quad\forall \bw\in\Delta_K
+    \end{equation}
+    For any $\bp\geq 0$, 
+    \begin{equation*}
+        \begin{aligned}
+            L(\bw^*,\bp) = \bb^T\bp + \sum_{\theta\in\Theta}w^*_{\theta}\beta_{\theta}+ \sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\max_{0\leq \eta_{\theta,j}\leq\frac{w^*_{\theta}}{N_{\theta}}}\eta_{\theta,j}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp)
+        \end{aligned}
+    \end{equation*}
+    Let $\eta^*_{\theta,j}=\frac{w^*_{\theta,j}}{N_{\theta}}\mathbf{1}\{r_{j,\theta}>{a_{j,\theta}}^T\bp\}$. Then,
+    \begin{equation*}
+        \begin{aligned}
+            L(\bw^*,\bp^*) = \bb^T\bp^* + \sum_{\theta\in\Theta}w^*_{\theta}\beta_{\theta}+ \sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp^*)
+        \end{aligned}
+    \end{equation*}
+    In addition, for any $p\geq 0$,
+    \begin{equation*}
+        \begin{aligned}
+            L(\bw^*,\bp) & \geq  \bb^T\bp + \sum_{\theta\in\Theta}w^*_{\theta}\beta_{\theta}+ \sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}(r_{j,\theta}-{\ba_{j,\theta}}^T\bp)\\
+            &=\sum_{\theta\in\Theta}w^*_{\theta}\beta_{\theta}+ \sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}r_{j,\theta} + \bp^T(\bb-\sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}\ba_{j,\theta})
+        \end{aligned}
+    \end{equation*}
+    By dual feasibility and complementary slackness,
+    \begin{equation*}
+        \begin{aligned}
+            &\bb-\sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}\ba_{j,\theta}\geq 0\\
+            & {\bp^*}^T(\bb-\sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}\ba_{j,\theta}) = 0
+        \end{aligned}
+    \end{equation*}
+    Thus,
+    \begin{equation*}
+        \begin{aligned}
+            &L(\bw^*,\bp^*) = \sum_{\theta\in\Theta}w^*_{\theta}\beta_{\theta}+\sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}r_{j,\theta}\\
+            &{\bp}^T(\bb-\sum_{\theta\in\Theta}\sum_{j=1}^{N_{\theta}}\eta^*_{\theta,j}\ba_{j,\theta})\geq 0\quad\forall p\geq 0
+        \end{aligned}
+    \end{equation*}
+    Thus,
+    \begin{equation}\label{eqn: LP_Saddle_Point_2}
+        L(\bw^*,\bp^*)\leq L(\bw^*,\bp)\quad\forall \bp\geq 0
+    \end{equation}
+    (\ref{eqn: LP_Saddle_Point_1}) and (\ref{eqn: LP_Saddle_Point_2}) complete the proof.
+\end{proof}
+\subsection{Epoch/Doubling Schedule}
+
+For computational efficiency, one can update $(\bw_t, \bp_t)$ only when some $N_\theta$ doubles (i.e., at times $\tau \in \{1, 2, 4, 8, \ldots\}$ in $N_\theta$). This reduces the number of saddle problem solves from $T$ to $O(K \log T)$ while preserving the regret bound up to constants.
+
+\textbf{Rationale}: The confidence radius $\beta_\theta(t) \propto 1/\sqrt{N_\theta}$ changes by at most a factor of $\sqrt{2}$ between doubling updates, so the regret analysis remains valid with adjusted constants.
+
+\section{Experimental Details}
+\label{app:experiments}
+
+This section provides complete specifications for reproducibility.
+
+\subsection{Scenario Specifications}
+
+\paragraph{S4: Complementarity.}
+$K=2$ configurations with $d=2$ resources, designed as a near-deterministic diagnostic. Both configurations have reward $r = 1 + \xi$ with $\xi \sim \mathrm{Uniform}(-0.01, 0.01)$ (small noise satisfies the no-ties assumption). Consumption profiles are orthogonal:
+
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+$\theta$ & Reward & Consumption $\ba$ & Resource usage \\
+\midrule
+0 & $1.0 \pm 0.01$ & $[1.0, 0.0] \pm 0.01$ & Resource 1 only \\
+1 & $1.0 \pm 0.01$ & $[0.0, 1.0] \pm 0.01$ & Resource 2 only \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Budget}: $\bb_0 = [0.5, 0.5]$ (baseline per-period budget), so $\bb = \rho \cdot [0.5, 0.5]$. With $\rho = 0.7$, $\bb = [0.35, 0.35]$.
+
+\textbf{Oracle values}: $V^*(\bb) = 0.5$ (any fixed configuration wastes one resource), $V^{\mathrm{mix}}(\bb) = 1.0$ (alternating uses both), yielding gap $V^{\mathrm{mix}}/V^* = 2.0$.
+
+\textbf{Experiment}: $T = 5{,}000$, 10 seeds, $\alpha = 0.1$.
+
+\paragraph{S0: Theory-Compliant Regret Validation.}
+$K=5$ configurations with $d=3$ resources and truncated Gaussian arrivals. For each configuration $\theta$, rewards $r \sim \mathcal{N}(\mu_r^\theta, (\sigma_r^\theta)^2)$ are truncated to $[0.01, R_{\max}]$ and per-resource consumptions $a_j \sim \mathcal{N}(\mu_{a,j}^\theta, (\sigma_{a,j}^\theta)^2)$ are truncated to $[0.01, A_{\max}]$, with $R_{\max} = A_{\max} = 2.0$. This scenario is used for validating $\sqrt{T}$ regret scaling with the theory-compliant exploration parameter $\alpha = 1.5$ (Section~\ref{sec:theory-validation}).
+
+\begin{center}
+\small
+\begin{tabular}{ccccc}
+\toprule
+$\theta$ & $\mu_r$ & $\sigma_r$ & $\mu_a$ & $\sigma_a$ \\
+\midrule
+0 & 1.0 & 0.3 & [0.8, 0.2, 0.2] & [0.2, 0.2, 0.2] \\
+1 & 0.8 & 0.3 & [0.2, 0.7, 0.2] & [0.2, 0.2, 0.2] \\
+2 & 0.6 & 0.3 & [0.2, 0.2, 0.6] & [0.2, 0.2, 0.2] \\
+3 & 0.9 & 0.3 & [0.5, 0.5, 0.5] & [0.2, 0.2, 0.2] \\
+4 & 0.4 & 0.3 & [0.1, 0.1, 0.1] & [0.2, 0.2, 0.2] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Budget}: The baseline per-period budget $\bb_0$ is derived from the mean consumption of the most resource-intensive configuration (config~0: $\bar{\ba}_0 = [0.8, 0.2, 0.2]$); with $\rho = 0.7$, $\bb = 0.7 \cdot \bb_0$.
+
+\textbf{Algorithm parameters}: $\alpha = 1.5$, $R_{\max} = A_{\max} = 2.0$, $P_{\max} = 2.0$, $\delta = T^{-2}$, $\varepsilon = \sqrt{\log T / T}$, $c_g = 0.0707$, warm-start rounds $= K$, saddle-point solve on doubling schedule, $\rho = 0.7$, $T \in \{100, 200, 500, 1000, 2000\}$, 50 seeds.
+
+\paragraph{Boundedness enforcement.}
+In all synthetic experiments, we enforce the boundedness assumptions (Assumption~\ref{assump:bounded} in the main paper) by clipping rewards to $[0, R_{\max}]$ and per-coordinate consumptions to $[0, A_{\max}]$. To reduce empirical ties at threshold boundaries, we add continuous jitter $\xi \sim \mathrm{Unif}(-\eta, \eta)$ with $\eta = 10^{-6}$ to rewards. Note that hard clipping can create atoms at boundary values; in our experiments, boundary events are rare (clipping occurs in $<0.1\%$ of samples), so empirical tie frequency remains negligible. For stricter compliance with Assumption~\ref{assump:no-ties}, one could use truncation (rejection sampling) instead of clipping.
+
+\subsection{Algorithm Parameters}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+$R_{\max}$ & 10.0 \\
+$A_{\max}$ & 2.0 \\
+$P_{\max}$ & $2R_{\max} / b_{\min}$\footnote{The factor of 2 ensures strict inequality $P_{\max} > R_{\max}/b^{\mathrm{safe}}_{\min}$ when $\varepsilon < 1/2$ (e.g., $\varepsilon = \sqrt{\log T/T} < 1/2$ for $T \ge 9$).} \\
+$\delta$ & $1/T^2$ \\
+Slack $\varepsilon$ & $\sqrt{\log T / T}$ \\
+Warm start & First $K$ rounds (round-robin, no budget consumption) \\
+Saddle solve frequency & Doubling schedule (when any $N_\theta$ doubles) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Confidence Radius}
+
+The exploration parameter $\alpha$ scales the confidence radius:
+\[
+\beta_\theta(t) = \alpha \cdot c_g R_{\max} \cdot \sqrt{\frac{d \log\!\Big(\frac{c_0\,d\,P_{\max}\,A_{\max}\,T}{R_{\max}}\Big) + \log(KT/\delta)}{N_\theta(t)}},
+\]
+where $c_g, c_0 > 0$ are absolute constants from the concentration lemma (Lemma~\ref{lem:conc-g}). The factor $R_{\max}$ (not $R_{\max} + P_{\max} A_{\max}$) arises because $(r - \langle \bp, \ba \rangle)_+ \in [0, R_{\max}]$.
+
+Setting $\alpha = 0$ yields pure exploitation (greedy); $\alpha = 0.1$ is the standard UCB scaling. \emph{Note:} Theoretical guarantees (Theorem~\ref{thm:main} in the main paper) hold for $\alpha \ge 1$; values $\alpha < 1$ are heuristics that often improve empirical performance but are not covered by the high-probability analysis.
+
+\subsection{E1: Benchmark Validation (Complementarity Gap)}
+\label{app:e1-benchmark}
+
+A core claim is that the switching-aware benchmark $V^{\mathrm{mix}}$ properly upper-bounds all policies while the fixed-configuration benchmark $V^*$ can be beaten. We test this on S4 (Complementarity).
+
+\begin{table}[h]
+\centering
+\caption{E1: Benchmark Validation on S4 Complementarity (10 seeds each). CR$^* > 1$ confirms the fixed oracle is beatable; CR$^{\mathrm{mix}} \le 1$ confirms $V^{\mathrm{mix}}$ is a valid upper bound.}
+\label{tab:e1-full}
+\begin{tabular}{llccc}
+\toprule
+Algorithm & $\rho$ & CR$^{\mathrm{mix}}$ & CR$^*$ & Gap \\
+\midrule
+Greedy & 0.3 & $0.956 \pm 0.011$ & $1.908 \pm 0.022$ & 1.996 \\
+Greedy & 0.5 & $0.956 \pm 0.014$ & $1.904 \pm 0.027$ & 1.992 \\
+Greedy & 0.7 & $0.956 \pm 0.012$ & $1.900 \pm 0.023$ & 1.987 \\
+Greedy & 0.9 & $0.960 \pm 0.009$ & $1.902 \pm 0.018$ & 1.982 \\
+Greedy & 1.2 & $1.000 \pm 0.000$ & $1.652 \pm 0.000$ & 1.652 \\
+\midrule
+SP-UCB-OLP & 0.3 & $0.891 \pm 0.054$ & $1.778 \pm 0.109$ & 1.996 \\
+SP-UCB-OLP & 0.5 & $0.853 \pm 0.045$ & $1.700 \pm 0.090$ & 1.992 \\
+SP-UCB-OLP & 0.7 & $0.909 \pm 0.022$ & $1.807 \pm 0.043$ & 1.987 \\
+SP-UCB-OLP & 0.9 & $0.950 \pm 0.029$ & $1.883 \pm 0.057$ & 1.982 \\
+SP-UCB-OLP & 1.2 & $0.993 \pm 0.005$ & $1.640 \pm 0.009$ & 1.652 \\
+\midrule
+Random & 0.7 & $0.989 \pm 0.000$ & $1.965 \pm 0.000$ & 1.987 \\
+OneHot & 0.7 & $0.507 \pm 0.012$ & $1.007 \pm 0.022$ & 1.988 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Alibaba Trace Experiments}
+\label{app:alibaba}
+
+We validate SP-UCB-OLP on real-world cluster traces from Alibaba~\citep{alibaba2018}. The trace is processed in \emph{original temporal order}, preserving realistic non-stationary arrival patterns.
+
+\paragraph{Data Source.}
+Alibaba Cluster Trace v2018 (\texttt{batch\_task.csv}), containing 13.4 million task records over 8.9 days of cluster operations.
+
+\paragraph{Experimental Configuration.}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+$T$ (time horizon) & 5,000 \\
+$K$ (regimes) & 3 \\
+$d$ (resources) & 2 (CPU, Memory) \\
+Seeds & 42--91 (50 seeds) \\
+$\rho$ (budget scaling) & 1.0 \\
+Noise $\sigma$ & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Resource Consumption.}
+Real values from trace, normalized to $[0,1]$:
+\begin{itemize}
+    \item CPU: $\mathrm{cpu} = \mathrm{plan\_cpu}/100$, mean $= 0.836$, std $= 0.635$
+    \item Memory: $\mathrm{mem} = \mathrm{plan\_mem}/100$, mean $= 0.349$, std $= 0.299$
+\end{itemize}
+The consumption vector is $\ba = [\mathrm{cpu}, \mathrm{mem}]$.
+
+\paragraph{Reward Construction.}
+\[
+r[\theta] = c_1[\theta] \cdot \mathrm{cpu} + c_2[\theta] \cdot \mathrm{mem} + \epsilon, \quad \epsilon \sim \mathcal{N}(0, 0.01)
+\]
+
+This formula creates a stationary LP structure where the optimal regime depends on resource availability. Given the trace's CPU-heavy profile (mean CPU $>$ mean memory), Regime~0 (CPU-heavy) tends to dominate.
+
+\paragraph{Regime Specifications.}
+
+\begin{center}
+\begin{tabular}{llccl}
+\toprule
+Regime & Name & $c_1$ & $c_2$ & Description \\
+\midrule
+0 & CPU-heavy & 2.0 & 0.5 & High reward per CPU unit \\
+1 & Memory-heavy & 0.5 & 2.0 & High reward per memory unit \\
+2 & Balanced & 1.2 & 1.2 & Equal reward per resource \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Budget Computation.}
+Nominal budget: $\bb_0 = 0.5 \cdot T \cdot \bar{\ba}$, where $\bar{\ba}$ is mean consumption. Scaled budget: $\bb = \rho \cdot \bb_0$.
+
+\paragraph{Oracle Estimation.}
+$V^{\mathrm{mix}}$ estimated via Monte Carlo with 10,000 samples per regime, solving the dual LP (Section~\ref{app:implementation}).
+
+\paragraph{Complete Results.}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Algorithm & $\alpha$ & Mean CR & Std CR & Range \\
+\midrule
+Oracle & -- & 99.95\% & 0.02\% & [99.88\%, 100.00\%] \\
+SP-UCB-OLP & 0.01 & \textbf{97.38\%} & \textbf{0.59\%} & [94.72\%, 98.17\%] \\
+SP-UCB-OLP & 0.10 & 95.21\% & 0.52\% & [93.96\%, 96.03\%] \\
+SP-UCB-OLP & 1.00 & 91.98\% & 0.57\% & [90.52\%, 92.99\%] \\
+Greedy & 0.00 & 84.81\% & 14.24\% & [60.88\%, 98.03\%] \\
+Random & -- & 61.05\% & 0.25\% & [60.33\%, 61.55\%] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Key Findings.}
+\begin{enumerate}
+    \item \textbf{Exploration prevents lock-in}: Greedy ($\alpha=0$) has 14.2\% std with 10/50 seeds stuck below 70\% CR; $\alpha=0.01$ reduces std to 0.6\%.
+    \item \textbf{Minimal exploration suffices}: $\alpha=0.01$ achieves 97.4\% CR, only 2.6\% below Oracle.
+    \item \textbf{Diminishing returns}: Increasing $\alpha$ beyond 0.01 hurts performance (95.2\% at $\alpha=0.1$, 92.0\% at $\alpha=1.0$).
+    \item \textbf{Oracle validates benchmark}: 99.95\% CR confirms Monte Carlo estimation accuracy.
+    \item \textbf{Random baseline}: 61.1\% CR provides lower bound for uninformed policy.
+\end{enumerate}
+
+\section{Broader Impact}
+\label{app:ethics}
+
+Our framework for budgeted admission control has both beneficial applications and potential risks.
+
+\paragraph{Positive impacts.}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Energy efficiency}: Optimizing resource allocation under carbon budgets can reduce infrastructure emissions.
+    \item \textbf{Cost reduction}: Improved utilization reduces costs, democratizing compute access.
+    \item \textbf{Transparency}: Dual prices provide interpretable rejection signals, unlike cyan-box heuristics.
+\end{itemize}
+
+\paragraph{Risks and limitations.}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Fairness}: Reward-maximizing admission may disadvantage low-priority users; fairness constraints should supplement efficiency objectives.
+    \item \textbf{Strategic behavior}: Observable rejection patterns may incentivize priority inflation.
+    \item \textbf{Information leakage}: Publishing dual prices reveals system scarcity.
+\end{itemize}
+
+\paragraph{Recommendations for deployment.}
+\begin{enumerate}[leftmargin=*]
+    \item Incorporate fairness metrics alongside efficiency.
+    \item Provide clear explanations for rejections.
+    \item Monitor for strategic behavior.
+    \item Combine with absolute resource limits.
+\end{enumerate}
+
+
+
+
+\end{document}
