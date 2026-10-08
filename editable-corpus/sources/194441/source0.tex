@@ -1,0 +1,2144 @@
+% concatenated from Paper.tex
+\documentclass[11 pt]{article}
+\usepackage{style}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{subcaption}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{\bfseries Natural Hypergradient Descent: Algorithm Design, Convergence Analysis, and Parallel Implementation}
+
+\author{
+Deyi Kong$^{1}$ \quad
+Zaiwei Chen$^{2}$ \quad
+Shuzhong Zhang$^{1}$ \quad
+Shancong Mou$^{1}$\\[0.3em]
+{\small $^{1}$Department of Industrial and Systems Engineering, University of Minnesota}\\
+{\small $^{2}$School of Industrial Engineering, Purdue University}\\[0.3em]
+{\small \texttt{kong0280@umn.edu, chen5252@purdue.edu, zhangs@umn.edu, mou00006@umn.edu}}
+}
+
+
+\date{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+\maketitle
+\begin{abstract}
+In this work, we propose \emph{Natural Hypergradient Descent} (NHGD), a new method for solving bilevel optimization problems. To address the computational bottleneck in hypergradient estimation—namely, the need to compute or approximate Hessian inverse—we exploit the statistical structure of the inner optimization problem and use the empirical Fisher information matrix as an asymptotically consistent surrogate for the Hessian. This design enables a parallel \emph{optimize-and-approximate} framework in which the Hessian-inverse approximation is updated \emph{synchronously} with the stochastic inner optimization, reusing gradient information at negligible additional cost. Our main theoretical contribution establishes high-probability error bounds and sample complexity guarantees for NHGD that match those of state-of-the-art optimize-then-approximate methods, while significantly reducing computational time overhead. Empirical evaluations on representative bilevel learning tasks further demonstrate the practical advantages of NHGD, highlighting its scalability and effectiveness in large-scale machine learning settings.
+\end{abstract}
+
+\section{Introduction}
+Bilevel optimization is an important framework in modern machine learning, with applications including hyperparameter tuning~\cite{bae2020delta,franceschi2018bilevel}, hyper-data cleaning~\cite{franceschi2017forward}, 
+synthetic data generation and augmentation~\cite{mounsaveng2021learning,mou2025synth4seg},
+meta-learning~\cite{mishchenko2023convergence}, reinforcement learning~\cite{prakash2025bi}, and physics-informed learning~\cite{hao2023bi}. A general bilevel optimization problem can be formulated as
+\begin{align*}
+    \min_{v\in\mathbb{R}^{d_1}} \; \Phi(v):=f(v,\theta^*(v)),  
+   \quad\text{s.t.}\;\; &\theta^*(v) \in \argmin_{\theta\in\Theta} \ell(v,\theta),
+\end{align*}
+where $f:\mathbb{R}^{d_1}\times\mathbb{R}^{d_2}\to\mathbb{R}$ is the outer-level objective, 
+$\ell:\mathbb{R}^{d_1}\times\mathbb{R}^{d_2}\to\mathbb{R}$ is the inner-level objective, and 
+$\Theta := \{\theta \in \mathbb{R}^{d_2} \mid \|\theta\| \le R\}$.
+
+\textit{Hypergradient descent}~\cite{ghadimi2018approximation} is widely used for solving bilevel optimization problems. 
+Assuming the inner-level problem admits a unique minimizer $\theta^*(v)$, the hypergradient is given by
+\begin{align}\label{eq:gradient-derivation1}
+    \nabla \Phi(v) = \nabla_v f(v, \theta^*(v)) + \nabla \theta^*(v)^\top \nabla_\theta f(v, \theta^*(v)).
+\end{align}
+Under mild regularity conditions, the implicit function theorem~\cite{krantz2002implicit} yields
+\begin{align}\label{eq:implicit_function_theorem}
+    \nabla_{\theta,v}^2 \ell(v, \theta^*(v)) + H(\theta^*(v)) \nabla \theta^*(v) = 0,
+\end{align}
+where $H(\theta^*(v)) := \nabla^2_{\theta,\theta} \ell(v,\theta^*(v))$ denotes the (invertible) Hessian of the inner objective. 
+Eq.~\eqref{eq:gradient-derivation1} and Eq.~\eqref{eq:implicit_function_theorem} yield a closed-form expression for the hypergradient:
+\begin{align*}
+    \nabla \Phi(v) &= \nabla_v f(v,\theta^*(v)) - \left(\nabla_{\theta,v}^2 \ell (v,\theta^*(v))\right)^\top 
+    H(\theta^*(v))^{-1} \nabla_\theta f(v,\theta^*(v)).
+ \end{align*}
+
+Directly evaluating the Hessian inverse $H(\theta^*(v))^{-1}$ is prohibitively expensive for large-scale inner problems. 
+As a result, most existing hypergradient methods follow an \emph{optimize-then-approximate} paradigm: 
+the inner problem is first (approximately) solved to near-optimality, after which the Hessian inverse is approximated \emph{post hoc} using numerical or algorithmic techniques such as 
+Neumann series approximation~\cite{ghadimi2018approximation,lorraine2020optimizing,ji2021bilevel}, 
+conjugate gradient method~\cite{pedregosa2016hyperparameter,rajeswaran2019meta,yang2023accelerating}, 
+quadratic solver~\cite{arbel2021amortized}, or fixed-point iterations~\cite{grazzi2020iteration}. 
+However, these post hoc Hessian inverse approximations is inherently sequential and can remain computationally expensive, even when using efficient solvers. This raises a natural question:
+\begin{center}
+\emph{Can we do better by exploiting additional structure in inner-level optimization problems?}
+\end{center}
+
+\begin{figure*}[!t]
+    \centering
+    \begin{tikzpicture}
+        % Define the GPU and CPU boxes - enlarged to fit text better and with equal height
+        \draw[rounded corners, fill=gray!20] (-1.7,0.8) rectangle (4.6,5);
+        \node[align=center] at (1.5,5.4) {Device 1: Inner-level SGD};
+        \draw[rounded corners, fill=blue!20] (6.4,0.8) rectangle (13.0,5);
+        \node[align=center] at (9.5,5.4) {Device 2: Hypergradient Approximation};
+        
+        % Initial theta block with yellow background (inside gray box)
+        \draw[rounded corners, fill=yellow!20] (-1.5,4) rectangle (4.4,4.8) node[pos=.5] {$\theta_k^{0} = \theta_{k-1}^{T}, \textcolor{red}{v_k =v_{k+1}}$};
+        
+
+        \draw[rounded corners, fill=yellow!20] (-1.5,2.8) rectangle (4.4,3.6) node[pos=.5] {$\theta_k^{t+1} = \theta_k^t - \eta_t \nabla_\theta  l(\textcolor{red}{v_k},\theta_k^t,\xi_k^t)$};
+        
+
+        \draw[->, thick] (1.45,4) -- (1.45,3.6);
+        
+        \draw[rounded corners, fill=green!20] (6.6,2.6) rectangle (12.8,4.6) node[pos=.5, align=center] {Rank-1 update of EFIM inverse\\$A_k^{t+1} \leftarrow$ update$(A_k^t, \nabla_\theta  l_t)$\\Update of cross-derivatives\\$L_k^{t+1} \leftarrow$ update$(L_k^{t}, \nabla_{\theta,v}^2l_t)$};
+        
+
+        \draw[->, thick, dashed] (4.6,3.2) -- (6.4,3.2) node[midway, above] {$\nabla_\theta l_t$} node[midway, below] {$\nabla_{\theta,v}^2l_t$};
+        
+        % Additional yellow block connected with dashed line - increased vertical distance
+        \draw[rounded corners, fill=yellow!20] (-1.5,1) rectangle (4.4,1.9) node[pos=.5] {$\theta_k^T = \theta_k^{T-1} - \eta_{T-1} \nabla_\theta l(\textcolor{red}{v_k},\theta_k^{T-1},\xi_k^{T-1})$};
+        \draw[->, thick, dashed] (1.45,2.8) -- (1.45,1.9) node[midway, right] {$t=0,...,T-1$};
+        
+
+        \draw[rounded corners, fill=orange!20] (6.7,1) rectangle (12.5,2) node[pos=.5, align=center] {$\widehat{\nabla} \Phi(v_k) = \nabla_v f - (L_k^T)^\top A_k^T \nabla_\theta f$\\$\textcolor{red}{v_{k+1}} = \textcolor{red}{v_k} - \alpha \widehat{\nabla} \Phi(v_k)$};
+        
+
+        \draw[->, thick, dashed] (4.6,1.4) -- (6.4,1.4) node[midway, above] {$\nabla_v f$ } node[midway, below] {$\nabla_\theta f$};
+        
+
+        \draw[->, thick, dashed] (9.6,2.6) -- (9.6,2) node[midway, right] {$t=0,...,T-1$};
+        
+
+        \draw[->, thick, red] 
+            (12.5,1.6) -- (12.9,1.6) -- 
+            (12.9,4.7) -- 
+            (4.6,4.7) 
+            % node[midway, above]
+            node[pos=0.86, above, xshift=-6pt, yshift=0pt, red]
+            {update}
+            node[pos=0.86, below, xshift=-6pt, yshift=0pt, red]
+            {$\textcolor{red}{v_{k+1}}$};
+    \end{tikzpicture}
+    \caption{Overview of NHGD. The inner problem is solved using SGD on Device 1, while gradient information is sent to Device 2 for iterative rank-one updates of the EFIM inverse $A_t$ and the cross-derivatives $L_t$. After the inner loop, Device~1 sends gradient information to Device~2, which approximates the hypergradient and updates the outer variable. The updated $v_{k+1}$ is then returned to Device~1 to resume the inner optimization. This design enables synchronous hypergradient estimation alongside inner-loop optimization.}
+    \label{fig:nhgd_overview}
+\end{figure*}
+
+In this work, we provide an affirmative answer by focusing on an important class of bilevel optimization problems in which the inner objective corresponds to Kullback--Leibler (KL) divergence minimization—a ubiquitous setting in machine learning~\cite{kingma2013auto, murphy2022probabilistic}, with the following loss function:
+\begin{align*}
+    \ell(v,\theta) := \mathbb{E}_{\xi \sim q(\cdot)}[l(v,\theta,\xi)], 
+    \qquad l(v,\theta,\xi) := -\log p(\xi;v,\theta),
+\end{align*}
+where $\xi$ is drawn from the data distribution $q(\cdot)$ and $p(\cdot;v,\theta)$ denotes the model distribution parameterized by $(v,\theta)$.
+
+
+Under this setting, we adopt a fundamentally different perspective by exploiting the \emph{statistical structure} of the inner optimization problem.
+To this end, we recall two key quantities that characterize the statistical structure of inner-level objective: the Fisher information matrix (FIM) $I(\theta) := \mathbb{E}_{\xi \sim q(\cdot)}\!\left[\nabla_{\theta} l(v,\theta,\xi)\,\nabla_{\theta} l(v,\theta,\xi)^\top\right]$ and the empirical Fisher information matrix (EFIM) $I_t:=\frac1t \sum_{i=0}^{t-1}\nabla_{\theta} l(v,\theta,\xi_i)\,\nabla_{\theta} l(v,\theta,\xi_i)^\top$.
+Rather than relying on numerical or algorithmic approximations, we approximate the Hessian inverse asymptotically using the EFIM inverse. Crucially, the EFIM can be \emph{synchronously} updated alongside the stochastic inner-level optimization by reusing stochastic gradients at each iteration. 
+This enables a parallel \emph{optimize-and-approximate} paradigm that fundamentally differs from existing optimize-then-approximate methods, and avoids the computational time overhead associated with post hoc Hessian inverse estimation.
+
+In single-level optimization, using the FIM inverse as a surrogate for the Hessian inverse naturally leads to \emph{Natural Gradient Descent}~\cite{amari1998natural}. 
+Despite its success, this idea has been largely unexplored in bilevel optimization. 
+We term our approach \emph{Natural Hypergradient Descent} (NHGD; see Figure~\ref{fig:nhgd_overview}), and show that this approximation is in fact even \emph{more natural} in the bilevel setting, leading to favorable theoretical properties and significant practical advantages.
+
+\paragraph{Contributions.}
+Our contributions are as follows: 
+
+1. \textit{Practically}, we propose a novel perspective for approximating the Hessian inverse in bilevel optimization using the EFIM inverse. 
+This perspective offers several practical benefits:
+    (1) it avoids explicit Hessian construction; 
+    (2) it reuses stochastic gradients from the inner-level stochastic gradient descent (SGD) at negligible additional cost;
+    (3) it enables parallel hypergradient computation during inner-level optimization, eliminating post hoc Hessian inverse approximation overhead;
+    (4) it admits further acceleration via K-FAC~\cite{martens2015optimizing} for large-scale deep learning problems.  
+    
+2.\textit{ Theoretically}, we establish high-probability convergence guarantees for NHGD: 
+    (1) a high-probability sample complexity bound for the Hessian inverse approximation (Theorem~\ref{theorem:hessian_inv_approx}); and  
+    (2) a high-probability finite-sample convergence rate for the outer-level objective to reach an $\epsilon$-stationary point (Theorem~\ref{theorem:outer_convergence}).
+
+Overall, the NHGD matches the sample complexity of state-of-the-art \emph{optimize-then-approximate} hypergradient methods (see Table~\ref{tab:comparison}), while providing improved computational efficiency in practice. 
+
+
+
+
+
+\section{Related Works}
+
+\subsection{Hypergradient Descent}
+Hypergradient descent is a widely used method for bilevel optimization. But the key computational bottleneck lies in estimating hypergradients, which requires computing or approximating the Hessian inverse of the inner objective. To address this, several methods have been proposed.
+
+\begin{table*}[t]
+\centering
+\caption{Summary of stochastic bilevel algorithms. \textbf{Sample Complexity} counts the total number of samples used for estimating gradients and Jacobian(Hessian)–vector products.
+Since the outer-level problem is deterministic in our setting, baseline complexities are recomputed accordingly. The $\tilde{\mathcal{O}}$ notation omits the $\log\frac{1}{\epsilon}$ term. \textbf{MSE} and \textbf{H.P.} denote mean-square bounds and high-probability bounds, respectively. For Hessian inversion,  \textbf{Neumann} indicates truncated Neumann series approximation, while \textbf{SGD} solves the implicit linear system via SGD. \textbf{Serial}/\textbf{Parallel} specify whether inner-level optimization and hypergradient approximation can run in parallel. We omit the comparison with variance reduction-based methods: VRBO, MRBO~\cite{yang2021provably}; FLSA~\cite{li2022fully}, etc.
+}
+
+\begin{tabularx}{\textwidth}{@{\extracolsep{\fill}}c l c c c c}
+\toprule
+\makecell{Algorithm \\ Structure}
+&\makecell{Method}
+& \makecell{Sample \\ Complexity}
+& \makecell{Bound \\ Type}
+& \makecell{Hessian \\ Inversion}
+& \makecell{Batch \\ Size} 
+  \\
+\midrule
+\multirow{5}{*}{\makecell{Double \\ Loop}}
+&\makecell{BSA~\cite{ghadimi2018approximation}} 
+& $\tilde{\mathcal{O}}(\epsilon^{-3})$  
+& MSE 
+& Nuemman(Serial) 
+& $\tilde{\mathcal{O}}(1)$  \\
+
+&\makecell{stocBiO~\cite{ji2021bilevel}}  
+& $\tilde{\mathcal{O}}(\epsilon^{-2})$ 
+& MSE 
+&  Nuemman(Serial) & $\tilde{\mathcal{O}}(\epsilon^{-1})$\\
+
+&\makecell{ALSET~\cite{chen2021tighter}}  & $\tilde{\mathcal{O}}(\epsilon^{-2})$ & MSE & Nuemman(Serial) & $\tilde{\mathcal{O}}(1)$ \\
+
+&\makecell{AmIGO~\cite{arbel2021amortized}} & ${\mathcal{O}}(\epsilon^{-2})$ & MSE &  SGD(Serial) & $\mathcal{O}(\epsilon^{-1})$    \\
+
+&\makecell{\textbf{NHGD (Ours)}} & $\tilde{\mathcal{O}}(\epsilon^{-2})$ & H.P. &  EFIM(Parallel) & $\mathcal{O}(1)$   \\
+
+\midrule
+\multirow{2}{*}{\makecell{Single \\ Loop}}
+&\makecell{TTSA~\cite{hong2023two}}  & $\tilde{\mathcal{O}}(\epsilon^{-2.5})$ & MSE &  Nuemman(Serial) & $\tilde{\mathcal{O}}(1)$   \\
+
+&\makecell{SOBA~\cite{dagreou2022framework}}  & ${\mathcal{O}}(\epsilon^{-2})$ & MSE &  SGD(Parallel) & ${\mathcal{O}}(1)$    \\
+\bottomrule
+
+\end{tabularx}
+\label{tab:comparison}
+\end{table*}
+
+
+\textbf{Iterative Differentiation/Algorithm Unrolling (ITD)}  unrolls the computational graph of the inner problem and then differentiate through the trajectory using automatic differentiation (AD)~\cite{domke2012generic,maclaurin2015gradient,franceschi2017forward,franceschi2018bilevel}. However, the computational and memory costs of ITD scale with the number of inner optimization iterations, limiting the number of unrolled iterations used in practice~\cite{shaban2019truncated}. 
+
+
+
+\textbf{Approximate Implicit Differentiation (AID)} methods approximate the hypergradient by either explicitly approximating the Hessian inverse or approximately solving the linear system induced by the implicit differentiation condition in Eq.~\eqref{eq:implicit_function_theorem}.
+Explicit Hessian inverse approximations typically rely on truncated Neumann series approximation
+\cite{lorraine2020optimizing, ji2021bilevel, hong2023two}. Alternatively, Eq.~\eqref{eq:implicit_function_theorem} can be approximately solved using conjugate gradient (CG) method~\cite{pedregosa2016hyperparameter, rajeswaran2019meta, grazzi2020iteration, yang2023accelerating}, quadratic subproblem solver~\cite{grazzi2020iteration, arbel2021amortized}, or fixed-point iterations~\cite{grazzi2020iteration}. 
+
+From an algorithmic perspective, existing methods can be further categorized based on their iteration structure.
+Early approaches adopt a \emph{double-loop} or \emph{optimize-then-approximate} paradigm, in which the inner problem is first solved to a near-optimal point, followed by a separate hypergradient approximation step
+\cite{ghadimi2018approximation,lorraine2020optimizing, ji2021bilevel, arbel2021amortized}.
+More recent studies have proposed \emph{single-loop} methods that update the inner and outer variables simultaneously, including two-time-scale algorithms~\cite{hong2023two} and SOBA~\cite{dagreou2022framework}.
+Despite these advances, hypergradient estimation remains the central computational challenge, and existing methods still rely on numerical or algorithmic approximation for handling the Hessian inverse. 
+
+In this work, we take a first step toward exploring \emph{statistical} approximation of the Hessian inverse in the bilevel optimization setting, and focus on the classical double-loop structure for clarity of analysis. While the proposed approach can be extended to single-loop variants and enhanced with variance-reduction techniques, we leave these directions for future work. A summary of representative works is provided in Table~\ref{tab:comparison}.
+
+
+\subsection{Other Hessian Inverse Approximation Methods}
+Hessian inverse approximation under structural assumptions has been widely studied. Representative approaches include low-rank approximations such as Nyström methods~\cite{hataya2023nystrom} and Kronecker-factored schemes motivated by neural network architectures~\cite{martens2015optimizing}. While computationally efficient, these methods often lack statistical consistency or rigorous convergence guarantees. Quasi-Newton methods are also closely related. This branch of methods construct Hessian inverse approximations via low-rank updates satisfying the secant condition, including BFGS, DFP, SR1, and Broyden-type methods~\cite{nocedal2006numerical}. While such approaches have been explored for hypergradient computation (to approximate the Hessian inverse~\cite{hao2023bi}), they generally do not provide global convergence guarantees.
+
+\subsection{Natural Gradient Descent}
+Adopting the EFIM inverse to approximate the Hessian inverse is closely related to \emph{single-level} \emph{Natural Gradient Descent} (NGD)~\cite{amari1998natural, martens2020new} which preconditions gradient updates using the EFIM inverse for KL-divergence minimization. 
+
+
+For bilevel optimization, the hypergradient depends on the Hessian inverse evaluated at the inner optimum. At this point, the FIM coincides with the true Hessian of the inner-level objective (see Proposition~\ref{prop:hessian_fim_equal}), regardless of whether the overall problem has converged to its optimum. In contrast, for NGD, the FIM generally does not coincide with the true Hessian, except at the optimum of the overall problem. Therefore, in bilevel optimization, using the FIM as a Hessian surrogate is more appropriate and appealing. Moreover, as the number of inner-level SGD iterations increases, the EFIM converges asymptotically to the FIM, and consequently to the true Hessian. This property makes EFIM-based approximations especially well suited for bilevel optimization.
+
+
+
+\section{Natural Hypergradient Descent Algorithm}\label{sec:algo_design}
+
+In this section, we present the proposed NHGD algorithm, summarized in Algorithm~\ref{alg:hypergradient_descent}. 
+The overall algorithm follows a standard double-loop structure: the outer-loop performs gradient descent on the outer variable $v$, while the inner-loop approximately solves the inner problem using SGD algorithm. 
+Crucially, during the inner-loop, the Hessian inverse approximation is \emph{synchronously} updated using the EFIM inverse
+at each SGD step by reusing the stochastic gradients (Lines~7 of Algorithm~\ref{alg:hypergradient_descent}). 
+This design enables efficient parallel execution of inner problem optimization and hypergradient approximation, thereby avoiding the runtime overhead associated with post hoc hypergradient approximation approaches, and constitutes the main novelty of the proposed algorithm. Below, we describe the three core components of NHGD in detail.
+
+\paragraph{SGD algorithm for inner problem:}
+Given the outer variable $v_k$, at each iteration $t$ of the inner-loop, we sample data $\xi_k^t \sim q(\cdot)$ and apply projected SGD: 
+\begin{align}\label{eq:proj_sgd}
+    \theta_{k}^{t+1} = \Pi_{\Theta} \left(\theta_k^t - \eta_t \nabla_\theta l (v_k,\theta_k^t,\xi_k^t)\right),
+\end{align}
+where the stochastic gradient $\nabla_\theta l(v_k,\theta_k^t,\xi_k^t)$ is the unbiased estimator of the true gradient $\nabla_\theta \ell(v_k,\theta_k^t)$. Under standard assumptions, $\theta_k^t$ converges to the inner solution $\theta^*(v_k)$. A detailed convergence analysis is provided in Lemma~\ref{lemma:SGD_general}.
+
+\paragraph{Iterative approximation of the Hessian inverse:} 
+A key challenge in hypergradient descent lies in evaluating the Hessian inverse. 
+When the inner problem corresponds to KL-divergence minimization, the FIM coincides with the Hessian at the optimum, i.e.,
+$H(\theta^*(v)) = I(\theta^*(v))$ (see Proposition~\ref{prop:hessian_fim_equal}). 
+This Hessian--FIM equivalence motivates our approximation strategy: the FIM inverse serves as an efficient surrogate for the Hessian inverse. 
+We further approximate the FIM using the EFIM computed along the inner optimization trajectory $\{\theta_k^{0}, \ldots, \theta_k^{t}\}$:
+\begin{align*}
+    I_k^{t+1} &:= \frac{1}{t+1}\sum_{i=0}^{t}\nabla_\theta l(v_k,\theta_k^{i},\xi_k^i)\nabla_\theta l(v_k,\theta_k^{i},\xi_k^i)^\top \nonumber\\
+    &=\frac{t}{t+1}I_k^{t} + \frac{1}{t+1}\nabla_\theta \ell(v_k,\theta_k^{t},\xi_k^t)\nabla_\theta \ell(v_k,\theta_k^{t},\xi_k^t)^\top.
+\end{align*}
+
+Intuitively, by the convergence of the inner-loop SGD and the Law of Large Numbers, the EFIM $I_k^{t}$ converges to the FIM $I(\theta^*(v_k))$, which in turn equals the Hessian $H(\theta^*(v_k))$ at the inner optimum.
+ 
+
+Although the update of $I_k^t$ reuses stochastic gradients from the inner-loop SGD at negligible cost, explicitly inverting $I_k^t$ remains computationally expensive. A key observation is that each update of $I_k^t$
+ is a rank-one outer product, which allows its inverse to be updated efficiently via the Sherman--Morrison formula. Specifically, letting $A_k^t := (I_k^t)^{-1}$, the inverse can be updated as follows:
+\begin{align}\label{eq:inv_efim_update}
+    A_k^{t+1}=\frac{t+1}{t}A_k^{t} -\frac{\frac{t+1}{{t}^2}A_k^{t}\nabla_\theta l (v_k,\theta_k^{t},\xi_k^t)\left(A_k^{t}\nabla_\theta l (v_k,\theta_k^{t},\xi_k^t)\right)^\top}{1+\frac{1}{t}\nabla_\theta l (v_k,\theta_k^{t},\xi_k^t)^\top A_k^{t}\nabla_\theta l (v_k,\theta_k^{t},\xi_k^t)}.
+\end{align}
+
+As $I_k^t$ converges to $H(\theta^*(v_k))$, its inverse $A_k^t$ provides an efficient approximation of $H(\theta^*(v_k))^{-1}$. A non-asymptotic justification is established in Theorem~\ref{theorem:hessian_inv_approx}.
+
+\begin{remark}
+    The update of $A_k^t$ reuses stochastic gradients from the inner-loop SGD, making the procedure efficient and \emph{highly parallelizable}.
+    Specifically, stochastic gradients from inner-loop can be sent to a separate device for synchronous hypergradient updates, requiring only one-way communication during the inner-loop, as shown in Figure~\ref{fig:nhgd_overview}.
+\end{remark}
+
+
+
+
+\paragraph{Iterative approximation of the cross-partial derivative:} 
+We approximate the cross-partial derivative $\nabla_{\theta,v}^2\ell(v,\theta^*(v))$ using the sample average along the inner optimization trajectory $\{\theta_k^{0},\cdots,\theta_k^{t}\}$:
+\begin{align}\label{eq:l_21_update}
+     L_k^{t+1}&=\frac{1}{t+1}\sum_{i=0}^{t} \nabla_{\theta,v}^2l(v_k,\theta_k^{i},\xi_k^i)\nonumber\\
+     &=\frac{t}{t+1}L^{t}_k + \frac{1}{t+1}  \nabla_{\theta,v}^2l (v_k,\theta_k^t, \xi_k^t). 
+\end{align}
+
+Similarly, by the convergence of inner-loop SGD and the Law of Large Numbers, the $L_k^t$  is expected to converge to the $\nabla_{\theta,v}^2\ell(v,\theta^*(v))$. A non-asymptotic justification of this convergence is given in Proposition~\ref{prop:l_21_approx}.
+
+In practice, we can also approximate the cross-partial derivative using the sample average at the end of inner loop: $\hat{L}_k^{m}
+    =
+    \frac{1}{m}
+    \sum_{i=0}^{m-1}
+    \nabla_{\theta,v}^2 l(v_k,\theta_k^{T},\xi_k^{i})$. 
+
+Both estimators $L_k^t$ and $\hat{L}_k^{m}$ involve trade-offs.
+The trajectory-based estimator $L_k^t$ reuses inner-loop SGD samples and computational graphs to compute Jacobian–vector products, but requires storing the full inner-loop graph, which can be memory intensive.
+In contrast, $\hat{L}_k^{m}$ avoids retaining the inner-loop graph and is more memory efficient, at the cost of additional samples.
+Lemma~\ref{lemma:l_21_approx_practical} shows that with $m=\mathcal{O}(T)$, $\hat{L}_k^{m}$ achieves the same non-asymptotic convergence rate as $L_k^{T}$.
+
+Finally, with Eq.~\eqref{eq:inv_efim_update} and Eq.~\eqref{eq:l_21_update}, 
+the hypergradient can be approximated as:
+\begin{align*}
+\label{eq:hypergrad_update}
+    \widehat{\nabla} \Phi(v_k)=\nabla_v f(v_k, \theta_k^T)- (L_k^T)^\top A_k^T \ \nabla_\theta f(v_k,\theta_k^T),
+\end{align*}
+and the outer-level variable is updated as: $v_{k+1} =v_k -\alpha \widehat{\nabla} \Phi(v_k)$.
+
+
+\begin{algorithm}[htbp]
+    \caption{Natural Hypergradient Descent}
+    \label{alg:hypergradient_descent}
+    \begin{algorithmic}[1]
+    \STATE \textbf{Input:} $v_1$, $\theta_0^T$, $\alpha$, $\{\eta_t\}$, $T$, $K$, $A_0^T$ and $L_0^{T}$
+    \FOR{$k=1,\ldots, K$}
+        \STATE Initialize  $\theta_k^{0}=\theta_{k-1}^{T}$, $A_k^0=A_{k-1}^T$ and $L_k^0=L_{k-1}^T$ 
+        % (warm-start)  
+        \FOR{$t=0,\ldots,T-1$}
+            \STATE Sample data point $\xi_k^t$, and compute $\nabla_v l (v_k,\theta_k^t,\xi_k^t), \nabla_\theta l (v_k,\theta_k^t,\xi_k^t), \nabla_{\theta,v}^2 l (v_k,\theta_k^t, \xi_k^t)$
+            \STATE  Update the inner variable $\theta_{k}^{t} \to \theta_{k}^{t+1}$ via Eq.~\eqref{eq:proj_sgd}.
+            \STATE \colorbox{cyan!15}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut Update the EFIM inverse $A_k^{t} \to A_k^{t+1}$ for the iterative Hessian inverse approximation via Eq.~\eqref{eq:inv_efim_update}.}
+            }
+            \STATE Update the cross derivative $L^{t}_k \to L^{t+1}_k$ via Eq.~\eqref{eq:l_21_update}.
+        \ENDFOR
+        \STATE Calculate the hypergradient approximation:
+        $\widehat{\nabla} \Phi(v_k)=\nabla_vf(v_k, \theta_k^T)- (L_k^T)^\top A_k^T \nabla_\theta f(v_k,\theta_k^T)$.
+        \STATE Update $v_{k+1} = v_k - \alpha \widehat{\nabla} \Phi(v_k)$.
+    \ENDFOR
+    \end{algorithmic}
+    \end{algorithm}
+
+\paragraph{Practical Considerations}
+
+(1)~\textit{Synchronous and parallel hypergradient computation:}
+The EFIM inverse update~\eqref{eq:inv_efim_update} and the cross-partial derivative update~\eqref{eq:l_21_update} can both run in parallel with the inner SGD (see Figure~\ref{fig:nhgd_overview}). As a result, the hypergradient is approximated synchronously with the inner optimization, allowing immediate outer updates without extra runtime overhead.
+The formal parallel implementation of NHGD (Algorithm~\ref{alg:parallel_nhgd}) can be found in Appendix~\ref{app:parallel_implementation}.
+(2)~\textit{Memory-Efficient Approximation via K-FAC~\cite{martens2015optimizing}:} 
+K-FAC exploits the layer-wise structure of neural networks to
+construct a Kronecker-factored approximation of the FIM, enabling the EFIM inverse update to be performed in a block-wise manner. Incorporating K-FAC greatly reduces memory and computational cost, enabling NHGD to scale to larger models.  
+
+
+\section{Convergence Analysis}\label{sec:analysis}
+In this section, we present the convergence analysis of the proposed NHGD algorithm. The analysis is built upon two main theoretical results. Theorem~\ref{theorem:hessian_inv_approx} establishes the accuracy of the proposed Hessian inverse approximation, which serves as the key technical foundation of our method. Building on this result, Theorem~\ref{theorem:outer_convergence} characterizes the overall convergence rate of NHGD.
+
+Before presenting these two main theorems, we first introduce a set of standard assumptions commonly adopted in the analysis of bilevel optimization problems~\cite{ghadimi2018approximation, ji2021bilevel, arbel2021amortized, chen2021tighter, chen2022single, hong2023two}.
+
+\begin{assumption}\label{as:l_inner} 
+\begin{enumerate}[label=(\roman*)]
+\item  $ l(v,\theta,\xi)$ is $\mu$-strongly convex in $\theta$, twice continuous differentiable in $(v,\theta)$ and jointly $L$-smooth in $(v,\theta)$, uniformly for all $\xi$.
+
+\item  For any $v$,  $\nabla^2_{\theta,v}\ell(v,\cdot)$,  $\nabla^2_{\theta,\theta}\ell(v,\cdot)$ are  $L_{\ell_{\theta,v}}$, $L_{\ell_{\theta,\theta}}$-Lipschitz continuous. For any $\theta$,  $\nabla^2_{\theta,v}\ell(\cdot,\theta)$, $\nabla^2_{\theta,\theta}\ell(\cdot,\theta)$ are $\bar{L}_{\ell_{\theta,v}}$, $\bar{L}_{\ell_{\theta,\theta}}$-Lipschitz continuous.    
+\end{enumerate}
+\end{assumption}
+
+
+\begin{assumption}\label{as:f_smoothness}
+
+\begin{enumerate}[label=(\roman*)]
+    \item  For any $v$, $\nabla_v f(v,\cdot)$, $\nabla_\theta f(v,\cdot)$ is $L_{f_v}$, $L_{f_\theta}$-Lipschitz continuous. For any $\theta$, $\nabla_v f(\cdot,\theta)$, $\nabla_\theta f(\cdot,\theta)$ is $\bar{L}_{f_v}$, $\bar{L}_{f_\theta}$-Lipschitz continuous.
+    \item For any $v$ and $\theta$, there exists constant $D_1>0$ such that $\| \nabla_\theta f(v,\theta) \|\leq D_1$.
+\end{enumerate}
+\end{assumption}
+
+\begin{assumption}\label{as:unbias_grad}
+
+    For any $v$ and $\theta$, the stochastic derivative $\nabla_vl(v,\theta,\xi)$, $\nabla_\theta l(v,\theta,\xi)$, $\nabla_{v,\theta}^2l(v,\theta,\xi)$ and $\nabla_{\theta,\theta}^2l(v,\theta,\xi)$ are unbiased estimator of $\nabla_v\ell(v,\theta)$, $\nabla_\theta\ell(v,\theta)$, $\nabla_{v,\theta}^2\ell(v,\theta)$ and $\nabla_{\theta,\theta}^2\ell(v,\theta)$.
+\end{assumption}
+
+Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness} imply the Lipschitz continuity of the solution mapping $\theta^*(v)$ and the smoothness of the composite outer objective $\Phi(v)$, as formalized in Lemma~2.2 of~\citet{ghadimi2018approximation}. Since the outer objective $\Phi(v)$ is generally nonconvex, such smoothness properties are essential for establishing convergence guarantees toward stationary points. Assumption~\ref{as:unbias_grad} ensures unbiasedness of the stochastic first and second-order derivative estimators used in the proposed algorithm.
+
+
+\begin{assumption}\label{as:bound_grad_inner}
+There exist  constant $C_1>0$ such that $ \sup\limits_{v\in \mathbb{R}^{d_1},\theta\in \Theta,\xi} \| \nabla_\theta  l(v,\theta,\xi)- \nabla_\theta \ell(v,\theta)\| \leq C_1.$
+\end{assumption}
+
+Assumption~\ref{as:bound_grad_inner} is widely used in existing studies on general stochastic approximation algorithms, including, but not limited to, stochastic gradient descent \cite{karimi2019non} and other data-driven machine learning algorithms \cite{bertsekas1996neuro}. An interesting direction for future work is to investigate whether Assumption~\ref{as:bound_grad_inner} can be relaxed to allow unbounded but light-tailed (e.g., sub-Gaussian) noise.
+
+
+
+Finally, we introduce a structural assumption that is crucial for enabling an efficient Hessian inverse approximation.
+\begin{assumption}\label{as:inner_dist}
+     For any \(v\), the inner minimizer \(\theta^*(v)\) yields a model distribution that matches the true data distribution \(q(\cdot)\), i.e., $p(\cdot; v, \theta^*(v)) = q(\cdot)$.
+\end{assumption}
+This assumption guarantees the equivalence between the Hessian of the inner objective and the FIM evaluated at the inner-level optimum, which is critical for our Hessian inverse approximation strategy.
+\begin{remark}
+In practice, exact model specification may not hold. 
+Our analysis naturally extends to the misspecified setting in which $\mathrm{TV}\!\left(p(\cdot; v, \theta^*(v)),\, q(\cdot)\right) \le \epsilon_D$ for all $v$,
+where \(\mathrm{TV}(\cdot,\cdot)\) denotes the total variation distance. 
+\end{remark}
+
+
+\subsection{Analysis for Hessian Inverse Approximation Bound}
+In this section, we establish a high-probability sample complexity bound showing that the \emph{EFIM inverse} converges to the true \emph{Hessian inverse at the inner optimum}. This result is a key component of the convergence analysis of NHGD. We first state the result and then outline the proof sketch.
+
+\subsubsection{Hessian Inverse Approximation Bound}\label{sec:hess_inver_bnd}
+
+\begin{theorem}\label{theorem:hessian_inv_approx}
+Suppose Assumptions~\ref{as:l_inner},~\ref{as:unbias_grad},~\ref{as:bound_grad_inner} and~\ref{as:inner_dist} hold. For any outer iteration $k$, given the outer variable $v_k$ and set the inner stepsize as $\eta_t = 4/(\mu (t+\frac{8L^2}{\mu^2}))$.
+For any $\delta \in (0,1)$ and $T\geq T_0(\delta)$, the following holds with probability 
+at least $1-\delta$:
+\begin{align*}
+   \quad \big\|A_k^T - H(\theta^*(v_k))^{-1}\big\| =\mathcal{O}\!\left(\frac{1}{\sqrt{T}}\sqrt{1+\log\left(\frac{1+T}{\delta}\right)}\right),
+\end{align*}
+where $T_0(\delta)$ is defined in~\eqref{eq:condition_T0}.
+\end{theorem}
+Our analysis establishes convergence guarantee in a high-probability sense. In contrast, prior works such as \cite{ghadimi2018approximation,ji2021bilevel,arbel2021amortized,chen2021tighter,chen2022single,hong2023two} analyze convergence using expectation-based metrics. Consequently, our result is stronger in the sense that a high-probability bound with a light tail can be directly translated into a mean bound via the identity $\mathbb{E}[X] = \int_{0}^{\infty} \mathbb{P}(X > x)\,dx$ for any non-negative random variable $X$. By contrast, starting from a mean bound, standard tools such as Markov or Chebyshev inequalities typically yield only high-probability bounds with polynomial (power-law) tails.
+
+\subsubsection{Proof Sketch of Theorem~\ref{theorem:hessian_inv_approx}}
+\paragraph{Step 1: Reduction to EFIM error.}
+We aim to bound the error $\|A_k^T - H(\theta^*(v_k))^{-1}\|$, or equivalently $\|(I_k^T)^{-1} - I(\theta^*(v_k))^{-1}\|$, where the equivalence follows from $I(\theta^*(v_k)) = H(\theta^*(v_k))$ (stated in Proposition~\ref{prop:hessian_fim_equal}). 
+
+Under the $\mu$-strong convexity of the inner obejctive $\ell$ and by Weyl’s eigenvalue inequality, we further have  
+\begin{align*}
+    \bigl\|(I_k^{T})^{-1} - I(\theta^*(v_k))^{-1} \bigr\|
+\le 
+\frac{\|I_k^{T} - I(\theta^*(v_k))\|}{\bigl(\mu - \|I_k^{T} - I(\theta^*(v_k))\|\bigr)\mu}.
+\end{align*}
+
+Therefore, controlling the Hessian inverse approximation error $\|A_k^T - H(\theta^*(v_k))^{-1}\|$ reduces to bounding the 
+error $\|I_k^{T} - I(\theta^*(v_k))\|$.
+
+\paragraph{Step 2: Decomposition of the EFIM error.}
+The main challenge of bounding $\|I_k^{T} - I(\theta^*(v_k))\|$ lies in the fact that $I_k^{T}$ is computed along the trajectory 
+$\{\theta_k^0,\ldots,\theta_k^{T-1}\}$, whereas $I(\theta^*(v_k))$ is defined at the inner-level optimum.  
+Let $G_k^t:=\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top$, the EFIM error can be decomposed as:
+\begingroup
+\small
+\begin{align*}
+\|I_k^{T} - I(\theta^*(v_k))\|\leq \underbrace{\frac{1}{T}\left\|
+\sum_{t=0}^{T-1}
+\left(
+G_k^t -
+\mathbb{E}_t[G_k^t]
+\right)
+\right\|}_{\text{stochastic error}}+\underbrace{\frac{1}{T}\left\|
+\sum_{t=0}^{T-1}
+\left(
+\mathbb{E}_t[
+G_k^t]-
+I(\theta^*(v_k))
+\right)
+\right\|}_{\text{optimization error}},
+\end{align*}
+\endgroup
+where $\mathbb{E}_t[\cdot]:=\mathbb{E}[\cdot\mid \sigma\!( v_k,\, \theta_k^0,\, \xi_k^0,\, \ldots,\, \xi_k^{t-1} )]$ and $\sigma\{\cdot\}$ denotes the $\sigma$-algebra generated by the random variables.
+
+The stochastic error term captures the deviation introduced by stochastic sampling, while the optimization error quantifies the deviation of $\theta_k^t$ from the inner optimum $\theta^*(v_k)$.
+
+
+\paragraph{Step 3: Bounding stochastic and optimization errors.}
+The stochastic error is controlled via the matrix Azuma inequality. The optimization error depends on the convergence of the inner-level SGD. Under the smoothness and gradient noise assumptions for $l$, controlling the optimization error
+reduces to bounding $\sum_{t=0}^{T-1}\|\theta_k^{t} - \theta^*(v_k)\|$. Therefore, we establish a high-probability bound on the inner-level SGD trajectory in the following lemma.
+
+
+\begin{lemma}\label{lemma:SGD_general}
+Suppose Assumptions~\ref{as:l_inner},~\ref{as:unbias_grad} and~\ref{as:bound_grad_inner} hold. 
+For any outer iteration $k$, given the outer variable $v_k$ and set the inner stepsize as $\eta_t=4/(\mu(t+q))$ and $
+q \ge 8L^2/\mu^2$.
+Then, for any $\delta \in (0,1)$, with probability at least $1-\delta$,
+\begin{align*}
+\|\theta_k^{t}-\theta^*(v_k)\|^2
+&\le  \left(\frac{q}{t+q}\right)^2\|\theta_k^{0}-\theta^*(v_k)\|^2 +
+\frac{c'\log(e/\delta)}{t+q},
+\end{align*}
+where $c'$ is the constant defined in~\eqref{eq:def_c'}.
+\end{lemma}
+
+
+\begin{remark}
+The proof of Lemma~\ref{lemma:SGD_general} relies on bounding the moment-generating function
+of $\|\theta_k^{t}-\theta^*(v_k)\|^2$, which yields a significantly tighter
+\emph{high-probability} control than the mean-square bound
+$\mathbb{E}\!\left[\|\theta_k^{t}-\theta^*(v_k)\|^2\right]$. 
+The detailed proof is provided in Appendix~\ref{proof:SGD_general}. 
+\end{remark}
+
+
+Combining the bounds on the stochastic and optimization errors yields a high-probability bound on
+$\|I_k^{T} - I(\theta^*(v_k))\|$, and consequently the desired Hessian inverse approximation error, which completes the proof of Theorem~\ref{theorem:hessian_inv_approx}.
+Detailed derivations are deferred to Appendix~\ref{proof:theorem_hessian_inv_approx}.
+
+
+\subsection{Analysis for NHGD Convergence Rate}\label{sec:convergence_NHGD}
+
+In this section, building on the Hessian inverse approximation result established in Section~\ref{sec:hess_inver_bnd}, we characterize the convergence of the NHGD algorithm.  We present the main convergence theorem and then outline the proof sketch.
+
+\subsubsection{Convergence rate}
+
+\begin{theorem}\label{theorem:outer_convergence}
+    Suppose Assumptions~\ref{as:l_inner},~\ref{as:f_smoothness},~\ref{as:unbias_grad},~\ref{as:bound_grad_inner}  and~\ref{as:inner_dist} hold. Set the parameters for Algorithm~\ref{alg:hypergradient_descent} as $\alpha_k = 1/(4L_v)$ and $\eta_t=4/(\mu(t+\frac{8L^2}{\mu^2}))$, for any $\delta\in(0,1)$ and $T\geq T_1(\delta)$,
+the following holds with probability at least $1-\delta$:
+\begin{align*}
+    \quad \frac{1}{K} \sum_{k=0}^{K-1} \| \nabla \Phi(v_k) \|^2 = \mathcal{O}\left(\frac{1}{K}+\frac{1}{T}\log\left(\frac{KT}{\delta}\right) \right),
+\end{align*}
+where $L_v$ is defined in~\eqref{eq:L_v} and $T_1(\delta)$ is defined in~\eqref{eq:condition_T1}.
+
+Equivalently, by choosing $T = \mathcal{O}(\epsilon^{-1}\log(\delta^{-1}\epsilon^{-1}))$ and
+$K = \mathcal{O}(\epsilon^{-1})$, NHGD achieves an $\epsilon$-stationary point, with overall sample complexity $\tilde{\mathcal{O}}(\epsilon^{-2})$.
+\end{theorem}
+\begin{remark}
+NHGD achieves an $\epsilon$-stationary point with total sample complexity $\tilde{\mathcal{O}}(\epsilon^{-2})$, matching that of optimize-then-approximate methods (see Table~\ref{tab:comparison}). 
+Notably, the Hessian inverse approximation in NHGD can be performed in parallel with the inner-loop SGD, incurring no additional runtime overhead. 
+This computational efficiency is further validated by the numerical results in Section~\ref{sec:numerical_exp}.
+\end{remark}
+
+
+
+\subsubsection{Proof Sketch of Theorem~\ref{theorem:outer_convergence}}
+
+\paragraph{Step 1: Descent inequality for the outer level.}
+We begin by establishing a descent inequality for the outer-level objective. Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, the outer iterates satisfy 
+\[ \sum_{k=1}^{K} \|\nabla\Phi(v_k)\|^2 \le
+16L_v(\Phi(v_1) - \Phi^*) +
+3
+\sum_{k=1}^{K}
+\|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k)\|^2,
+\]
+where $\Phi^*$ denotes the optimal value of the overall problem. A formal statement of this result is provided in
+Lemma~\ref{lemma:outer1}. This shows that establishing convergence guarantee reduces to bounding the hypergradient approximation error
+$\|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k)\|$.
+
+\paragraph{Step 2: Decomposition of the hypergradient approximation error.}
+Under the regularity conditions imposed by our assumptions, the hypergradient approximation error admits the following decomposition:
+\begin{align*}
+\|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k)\|  
+&\le
+\mathcal{O}\left(
+\|\theta_k^{T} - \theta^*(v_k)\|\right)+ \mathcal{O}\left(
+\|A_k^{T} - H(\theta^*(v_k))^{-1}\|\right) \nonumber\\
+& \quad+ \mathcal{O}\left(
+\bigl\|
+(L_k^{T} - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))) A_k^{T}
+\bigr\|\right),
+\end{align*}
+where the formal statement of this result is provided in Lemma~\ref{lemma:grad_error_decompose}. Consequently, controlling the hypergradient error reduces to bound:  
+(i) the inner-level SGD deviation $\|\theta_k^{T} - \theta^*(v_k)\|$,  
+(ii) the Hessian inverse approximation error $\|A_k^{T} - H(\theta^*(v_k))^{-1}\|$,  
+and (iii) the cross-partial derivative approximation error  
+$\|L_k^{T} - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\|$. 
+
+We next bound the inner-level SGD deviation $\|\theta_k^{T} - \theta^*(v_k)\|$, whose error is coupled with
+$\|\nabla\Phi(v_k)\|$, reflecting the intrinsic coupling between the inner-level SGD deviation and the outer objective. The Hessian inverse and cross-partial approximation errors, however, admit bounds independent of $v_k$, and are therefore addressed separately at the end.
+
+\paragraph{Step 3: Bounding the inner-level SGD deviation.}
+Lemma~\ref{lemma:SGD_general} shows that inner-level SGD error depends on $\|\theta_k^0 - \theta^*(v_k)\|$. To further control this, we use the  
+warm-start technique $\theta_k^0 = \theta_{k-1}^T$, which yields the following recursion: $\|\theta_{k-1}^{T} - \theta^*(v_k)\|\le
+\|\theta_{k-1}^{T} - \theta^*(v_{k-1})\|+ \frac{\alpha L}{\mu}
+\|\widehat{\nabla}\Phi(v_{k-1}) - \nabla\Phi(v_{k-1})\| + \frac{\alpha L}{\mu}
+\|\nabla\Phi(v_{k-1})\|$. Applying this recursion yields a high-probability control of the hypergradient error, leaving only the Hessian inverse and cross-partial derivative approximation errors to be handled separately.
+
+
+\paragraph{Step 4: Bounding the cross-partial derivative approximation error.}
+Theorem~\ref{theorem:hessian_inv_approx} controls the Hessian inverse approximation error. An analogous argument yields the following sample-complexity bound for the cross-partial derivative approximation error, with detailed proof in Appendix~\ref{app:proof_l_21_approx}.
+
+
+\begin{proposition}
+\label{prop:l_21_approx}
+Under Assumptions~\ref{as:l_inner} and~\ref{as:unbias_grad}, for any 
+$\delta\in(0,1)$, with probability at least $1-\delta$, we have
+\begin{align*}
+    \;\|L_k^{T} - \nabla_{\theta,v}^2 \ell(v_k,\theta^*(v_k))\|
+=
+\mathcal{O}\!\left(
+\frac{1}{\sqrt{T}}
+\sqrt{1+\log\!\left(\frac{1+T}{\delta}\right)}
+\right).
+\end{align*}
+\end{proposition}
+
+
+Finally, combining the bounds on the inner-level SGD deviation, the Hessian inverse approximation error, the cross-partial derivative approximation error and the descent inequality 
+yields the stated convergence rate for the overall problem. 
+This completes the proof of Theorem~\ref{theorem:outer_convergence}. 
+The full details are provided in Appendix~\ref{app:outer_convergence}.
+
+
+\section{Numerical Experiments}\label{sec:numerical_exp}
+In this section, we evaluate NHGD on three representative bilevel optimization tasks: (1) hyper-data cleaning~\cite{franceschi2017forward}, 
+(2) data distillation~\cite{lorraine2020optimizing}, and 
+(3) physics-informed learning for PDE-constrained optimization~\cite{hao2023bi}. 
+We first demonstrate the superiority of the proposed Hessian inverse approximation over two commonly used alternatives in the standard double-loop framework: 
+a Neumann series approximation (\textbf{Neumann}) and a conjugate-gradient-based approximation (\textbf{CG}). 
+We then compare NHGD with state-of-the-art baselines, including double-loop methods such as \textbf{stocBiO}~\cite{ji2021bilevel} and \textbf{AmIGO}~\cite{arbel2021amortized}, 
+as well as single-loop methods including \textbf{TTSA}~\cite{hong2023two} and \textbf{SOBA}~\cite{dagreou2022framework}. \emph{Experimental details, including detailed problem setting and quantitative and additional results are provided in Appendix~\ref{app:experiments}.}
+
+
+
+
+
+\paragraph{Hyper-data Cleaning}
+
+Hyper--data cleaning learns sample weights to downweight corrupted labels (e.g., 0 for noisy samples and 1 for clean ones). Given a training set $\{(x_i^{\text{tr}}, y_i^{\text{tr}})\}_{i=1}^N$, 
+each label $y_i^{\text{tr}} \in \{1,\dots,C\}$ is corrupted independently with probability. Here, we consider the MNIST dataset~\cite{lecun2002gradient} with label noise injected at a corruption rate of $p=0.5$. 
+The inner-level problem trains a classifier on the weighted training set, while the outer-level problem updates the weights to maximize  performance on a clean validation set. 
+We report results on a held-out test set, where successful downweighting of corrupted samples should improve generalization and test accuracy. This problem can be formulated as the following bilevel problem:
+\begin{align*}
+    \min_{v \in \mathbb{R}^N} \quad 
+    & \frac{1}{|\mathcal{D}^{\mathrm{val}}|}
+      \sum_{(x,y)\in\mathcal{D}^{\mathrm{val}}}
+      -\log \hat{p}(x,y;\theta^*(v)), \\
+    \text{s.t.} \quad 
+    & \theta^*(v) 
+    = 
+    \argmin_{\theta \in \mathbb{R}^{C\times(d+1)}} 
+    \frac{1}{N}
+    \sum_{i=1}^N  
+    -\sigma(v_i)\log \hat{p}(x_i^{\mathrm{tr}},y_i^{\mathrm{tr}};\theta)
+    + \lambda\|\theta\|^2,
+\end{align*}
+where $\sigma(v)=\mathrm{Clip}(v,0,1)$ and softmax probability is $\hat{p}(x,y;\theta)
+=
+\frac{\exp(\langle \theta, (x;\mathbf{1})\rangle_y)}
+     {\sum_{j=1}^{N} \exp(\langle \theta, (x;\mathbf{1})\rangle_j)}$.
+
+Figure~\ref{fig:data_clean_combined} compares \textsc{NHGD} with Neumann and CG approximations (left), and with stocBiO, AmIGO, TTSA and SOBA (right). 
+In general, increasing the number of truncation terms improves the Neumann/CG Hessian inverse approximation. 
+Nevertheless, NHGD converges substantially faster and achieves the highest test accuracy, even when Neumann/CG use a large number of truncation terms (e.g., 40). 
+Moreover, compared with stocBiO, AmIGO, TTSA, and SOBA, \textsc{NHGD} consistently converges faster in terms of test accuracy and attains better final performance. 
+
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[t]{0.43\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_cleaning/outer_time_vs_test_acc_CGNeumann.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.43\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_cleaning/outer_time_vs_test_acc_baselines.png}
+    \end{subfigure}
+    \caption{Test accuracy for the Hyper-data Cleaning task.}
+    \label{fig:data_clean_combined}
+    \vspace{-0.6cm}
+\end{figure}
+
+\paragraph{Data Distillation}\label{exp:data_distillation}
+
+Data distillation aims to construct a small yet representative synthetic dataset that enables models trained on the distilled data to achieve performance comparable to training on the full dataset. We distill the Fashion-MNIST dataset~\cite{xiao2017fashion} and formulate the task as a bilevel optimization problem: the inner-level problem trains a linear classifier on the distilled dataset ($n=5$ samples per class), while the outer-level problem optimizes the distilled samples to maximize classifier's performance on the original training distribution. The quality of the distilled dataset is evaluated by test accuracy on a held-out test set. The outer variable $X \in \mathbb{R}^{d \times n \times C}$ encodes all distilled
+samples, where $X_i^k \in \mathbb{R}^d$ denotes the $i$-th distilled image of class $k$.
+The bilevel formulation is given by:
+\begin{align*}
+    \min_{X \in \mathbb{R}^{d \times n \times C}} \quad 
+    & \frac{1}{|\mathcal{D}^{\mathrm{val}}|}
+      \sum_{(x,y)\in\mathcal{D}^{\mathrm{val}}}
+      -\log \hat{p}(x,y;\theta^*(X)), \\
+    \text{s.t.} \quad
+    & \theta^*(X) = 
+    \argmin_{\theta \in \mathbb{R}^{C \times d}}
+      \frac{1}{nC} \sum_{k=1}^C \sum_{i=1}^n 
+      -\log \hat{p}(X_i^k, k; \theta)
+      + \lambda\|\theta\|^2,
+\end{align*}
+where the softmax probability is $\hat{p}(x,y;\theta)
+=
+\frac{\exp(\langle \theta, x\rangle_y)}
+     {\sum_{j=1}^N \exp(\langle \theta, x\rangle_j)}.$
+
+
+As shown in Figure~\ref{fig:data_dis_testacc_combined_5} (left), NHGD converges faster and achieves higher test accuracy, even when Neumann/CG use a large number of truncation terms (e.g., 40). Moreover, as shown in Figure~\ref{fig:data_dis_testacc_combined_5} (right), NHGD also consistently outperforms stocBiO, AmIGO, TTSA, and SOBA, converging faster in test accuracy and achieving superior final performance.
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[t]{0.46\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/outer_time_vs_test_acc_CGNeumann.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.46\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/outer_time_vs_test_acc_baselines.png}
+    \end{subfigure}
+    \caption{Test Accuracy for Data Distillation task.}
+    \label{fig:data_dis_testacc_combined_5}
+    \vspace{-0.6cm}
+\end{figure}
+\paragraph{PDE Constrained Optimization}
+
+Bilevel optimization has recently emerged as a promising approach for PDE-constrained optimization, particularly in physics-informed machine learning (PIML). In this formulation~\cite{hao2023bi}, the inner-level problem solves the PDE for a given control variable by training a state network, while the outer-level problem updates the control variable to minimize the target objective, yielding a large-scale bilevel problem with high-dimensional outer variables and a highly nonconvex inner objective.
+Among the baselines considered in~\citet{hao2023bi} (Truncated Unrolled Differentiation~\cite{shaban2019truncated}, T1--T2~\cite{luketina2016scalable}, and Neumann series~\cite{lorraine2020optimizing}), the Broyden-based method achieves the strongest performance and is therefore used as a state-of-the-art reference.
+We apply NHGD to the same PDE-constrained task of optimizing the time-varying temperature field of a 2D heat equation, to demonstrate its effectiveness beyond convex settings and directly compare it with the Broyden-based approach.
+
+The PDE-constrained optimization problem arising from the 2D heat equation is as follows:
+\begin{align*}
+    \min_{f}\;   \int_{\Omega \times [0,2]} &|u - u_\text{ref}|^{2}\, dxdydt \\[6pt]
+    \text{s.t. } \quad 
+    \frac{\partial u}{\partial t} - \nu \Delta u &= f, \quad (x,y,t) \in \Omega \times [0,2], \\[6pt]
+    u(x,y,t) &= 0, \quad (x,y,t) \in \partial\Omega \times [0,2], \\[6pt]
+    u(x,y,0) &= 0, \quad (x,y) \in \Omega .
+\end{align*}
+
+Let $u(x,y,t)$ denote the state function and $f(t)$ the control function to be optimized.  Following common practice in physics-informed machine learning, both the state and control are represented by neural networks: $u_\theta(x,y,t)$ (state network) and $f_v(t)$ (control network), parameterized by $\theta$ and $v$, respectively.  
+This enables reformulating the PDE-constrained problem as a bilevel optimization problem:
+\begin{align*}
+\min_{v} \quad & 
+\int_{\Omega\times[0,2]} |\,u_{\theta^*(v)}(x,y,t) - u_{\mathrm{ref}}(x,y,t)\,|^2 \, dx\, dt, \\
+\text{s.t.} \quad & 
+\theta^*(v)
+= \argmin_{\theta}\Bigg[
+\int_{\Omega\times[0,2]} 
+|\mathcal{F}(u_\theta, f_v)(x,y,t)|^2 \, dx\, dt
++
+\int_{\partial\Omega\times[0,2]} 
+|\mathcal{B}(u_\theta, f_v)(x,y,t)|^2 \, dS\, dt
+\Bigg],
+\end{align*}
+where the target state is $u_\text{ref}(x,y,t)=16x(1-x)y(1-y)\sin(\pi t)$, the PDE residual is $\displaystyle \mathcal{F}(u_\theta, f_v)
+:= \partial u_\theta/{\partial t} - \nu\Delta u_\theta - f_v$ and the boundary and initial conditions are enforced through
+\[
+\mathcal{B}(y_\theta, u_v)
+:= 
+\begin{pmatrix}
+u_\theta(x,y,t), & (x,y,t)\in\partial\Omega\times[0,2],\\[4pt]
+u_\theta(x,y,0), & (x,y)\in\Omega
+\end{pmatrix}.
+\]
+
+
+
+Figure~\ref{fig:piml_outerloss} reports the outer objective value (PDE constrained optimization objective) versus wall-clock time, showing that NHGD achieves a comparable final objective while converging  $3$--$4\times$ faster than the Broyden-based method. 
+\begin{figure}[h]
+    \centering    \includegraphics[width=0.46\linewidth]{exp_fig/piml/nocgneu_outer_time_vs_outer_loss_baseline2.png}
+    \caption{Outer loss for PDE Constrained Optimization task}
+    \label{fig:piml_outerloss} 
+    \vspace{-0.6cm}
+\end{figure}
+
+\section{Conclusion}
+We propose \emph{Natural Hypergradient Descent} (NHGD), an
+\textit{optimize-and-approximate} bilevel optimization algorithm that
+significantly reduces computational time overhead by parallelizing
+hypergradient estimation with inner-level optimization.
+NHGD leverages the statistical equivalence between the Hessian and the
+FIM at the inner optimum, enabling efficient
+Hessian inverse approximation via stochastic gradients already computed
+during inner-loop SGD.
+We established high-probability sample complexity guarantees, showing that NHGD
+matches the sample complexity of existing
+\textit{optimize-then-approximate} methods.
+Experiments on hyper–data cleaning, data distillation, and
+physics-informed learning for PDE-constrained optimization demonstrate
+that NHGD achieves comparable or superior performance to state-of-the-art
+baselines.
+
+NHGD represents an initial step toward leveraging statistical structure for algorithm design in bilevel optimization. Several directions remain open for future work, including extending the statistical Hessian inverse approximation framework to single-loop algorithms and developing efficient methods for settings in which the inner-level data distribution depends on the outer variable.
+
+\section*{Acknowledgment}
+The authors thank the NVIDIA Academic Grant Program and the UMN Data Science Initiative for their support.
+
+\bibliographystyle{apalike}
+\bibliography{ref}
+
+
+\newpage
+\appendix
+
+\section{Parallel Implementation of NHGD}\label{app:parallel_implementation}
+
+Algorithm~\ref{alg:hypergradient_descent} can be efficiently parallelized across two devices. Device 1 handles the inner-loop SGD, while Device 2 synchronously approximate the terms of hypergradient. This design requires only one-directional communication (from Device 1 to Device 2) at each inner iteration, making it highly efficient for distributed implementations. The parallel implementation is detailed in Algorithm~\ref{alg:parallel_nhgd}.
+
+\begin{algorithm*}[htbp]
+    \caption{Parallel Natural Hypergradient Descent}
+    \label{alg:parallel_nhgd}
+    \begin{minipage}[t]{0.48\textwidth}
+        \textbf{Device 1: Inner-loop SGD}
+        \begin{algorithmic}[1]
+        \STATE \textbf{Input:} $v_1$, $\theta_0^T$, $\{\eta_t\}$, $T$, $K$
+        \FOR{$k=1,\ldots, K$}
+            \STATE Initialize $\theta_k^{0}=\theta_{k-1}^{T}$
+            \FOR{$t=0,\ldots,T-1$}
+                \STATE Sample data point $\xi_k^t$
+                \STATE Compute gradients:
+                \STATE \quad $g_{\theta}^t = \nabla_\theta l (v_k,\theta_k^t,\xi_k^t)$
+                \STATE \quad $B_{\theta,v}^t = \nabla_{\theta,v}^2 l (v_k,\theta_k^t, \xi_k^t)$
+                \STATE Update inner variable:
+                \STATE \quad $\theta_{k}^{t+1} = \Pi_{\Theta} \left(\theta_k^t - \eta_t g_{\theta}^t\right)$
+                \STATE \colorbox{yellow!20}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut \textbf{Send} $g_{\theta}^t$, $B_{\theta,v}^t$ to Device 2\strut}}
+            \ENDFOR
+            \STATE Compute $\nabla_\theta f(v_k, \theta_k^T)$, $\nabla_v f(v_k, \theta_k^T)$
+            \STATE \colorbox{yellow!20}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut \textbf{Send} $\nabla_\theta f$, $\nabla_v f$ to Device 2\strut}}
+            \STATE \colorbox{green!20}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut \textbf{Receive} $\widehat{\nabla} \Phi(v_k)$ from Device 2\strut}}
+            \STATE Update outer variable:
+            \STATE \quad $v_{k+1} = v_k - \alpha \widehat{\nabla} \Phi(v_k)$
+        \ENDFOR
+        \end{algorithmic}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+\textbf{Device 2: Hypergradient Approximation}
+        \begin{algorithmic}[1]
+        \STATE \textbf{Input:} $A_0^T$, $L_0^{T}$
+        \FOR{$k=1,\ldots, K$}
+            \STATE Initialize $A_k^0=A_{k-1}^T$, $L_k^0=L_{k-1}^T$
+            \FOR{$t=0,\ldots,T-1$}
+                \STATE \colorbox{green!20}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut \textbf{Receive} $g_{\theta}^t$, $B_{\theta,v}^t$ from Device 1\strut}}
+                \STATE \colorbox{cyan!15}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut Update EFIM inverse via Eq.~\eqref{eq:inv_efim_update}:\strut}}
+                \STATE \colorbox{cyan!15}{\parbox{\dimexpr\linewidth-2\fboxsep}{
+                $A_k^{t+1}=\frac{t+1}{t}A_k^{t} - \frac{\frac{t+1}{{t}^2}A_k^{t}g_{\theta}^t\left(A_k^{t}g_{\theta}^t\right)^\top}{1+\frac{1}{t}(g_{\theta}^t)^\top A_k^{t}g_{\theta}^t}$
+                }}
+                \STATE Update cross-partial derivative via Eq.~\eqref{eq:l_21_update}:
+                \STATE \quad $L^{t+1}_k=\frac{t}{t+1}L^{t}_k + \frac{1}{t+1} B_{\theta,v}^t$
+            \ENDFOR
+            \STATE \colorbox{green!20}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut \textbf{Receive} $\nabla_\theta f$, $\nabla_v f$ from Device 1\strut}}
+            \STATE Compute hypergradient approximation:
+            \STATE \quad 
+            {\small$\widehat{\nabla} \Phi(v_k)=\nabla_vf(v_k, \theta_k^T)- (L_k^T)^\top A_k^T \nabla_\theta f(v_k,\theta_k^T)$}
+            \STATE \colorbox{yellow!20}{\parbox{\dimexpr\linewidth-2\fboxsep}{\strut \textbf{Send} $\widehat{\nabla} \Phi(v_k)$ to Device 1\strut}}
+        \ENDFOR
+        \end{algorithmic}
+    \end{minipage}
+    \vspace{0.5em}
+    
+    \noindent\textbf{Communication:} Yellow boxes indicate sending data; green boxes indicate receiving data. The cyan box highlights the EFIM inverse update, which is the computational bottleneck parallelized on Device 2.
+\end{algorithm*}
+
+The parallel implementation in Algorithm~\ref{alg:parallel_nhgd} demonstrates that NHGD naturally decomposes into two independent computational streams with minimal communication overhead. At each inner iteration, Device 1 only needs to send the computed gradients to Device 2, which independently performs the EFIM inverse and cross-partial derivative updates. This one-directional communication pattern minimizes synchronization costs and enables efficient scaling to distributed computing environments.
+
+
+\newpage
+\section{Auxiliary Lemmas}\label{app:prep}
+In this section, we present auxiliary lemmas used in the proof of the main result.
+\begin{lemma}\label{lemma:assumption} Assumptions~\ref{as:l_inner},~\ref{as:unbias_grad} and~\ref{as:bound_grad_inner} imply the following: 
+\begin{enumerate}[label=(\arabic*)]
+\item Gradient $\nabla_\theta l(v,\theta,\xi)$ and $\nabla_v l(v,\theta,\xi)$ are $L$-Lipschitz continuous with respect to $\theta$ for any $v,\xi$. $\nabla_\theta \ell(v,\theta)$ and $\nabla_v \ell(v,\theta)$ are $L$-Lipschitz continuous with respect to $\theta$ for any $v$.
+
+\item $\| \nabla_{\theta,v}^2l(v,\theta,\xi) \| \leq L$, for any $v, \theta,\xi.$
+
+\item $\| \nabla_\theta l(v,\theta,\xi) \| \leq LR+C_1$, for any $v, \theta,\xi.$
+
+\item Function $\ell(v,\theta)$ is $\mu$-strongly convex with respect to $\theta$ for any $v$.
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+    We first show part (1). Since function $ l(v,\theta,\xi)$ is jointly $L$-smooth with respect to $(\theta, v)$, we can concluded that $\nabla_\theta l(v,\theta,\xi)$ and $\nabla_v l(v,\theta,\xi)$ are both $L$-Lipschitz continuous with respect to $\theta$ and $v$ for any $\xi$. Then, by the unbiased gradient Assumption~\ref{as:unbias_grad} and Jensen's Inequality, we can obtain that $\nabla_\theta \ell(v,\theta)$ and $\nabla_v \ell(v,\theta)$ are $L$-Lipschitz continuous with respect to $\theta$ for any $v$.
+
+    Then, we show part (2). For any $x \in \mathbb{R}^{d_2}$ and unit vector $u$,
+    \begin{align*}
+        \| \nabla_{\theta,v}^2l(v,\theta,\xi)x \|&=\| \nabla_v\langle\nabla_\theta l(v,\theta,\xi),x\rangle \|\\
+        &=\left\| \lim_{\epsilon \to 0} \frac{\langle\nabla_\theta l(v+\epsilon u,\theta,\xi)-\nabla_\theta l(v,\theta,\xi),x\rangle}{\epsilon} \right \| \\
+        &= \lim_{\epsilon \to 0}   \frac{\left\|\langle \nabla_\theta l(v+\epsilon u,\theta,\xi)-\nabla_\theta l(v,\theta,\xi), x\rangle \right \|}{\epsilon} \\
+        & \leq \lim_{\epsilon \to 0}   \frac{\left\| \nabla_\theta l(v+\epsilon u,\theta,\xi)-\nabla_\theta l(v,\theta,\xi)\right\| \left\|x \right \|}{\epsilon} \tag{Cauchy–Schwarz Inequality} \\
+        & {\leq} \lim_{\epsilon \to 0}   \frac{L\epsilon \|u\| \left\|x \right \|}{\epsilon} \tag{L-Lipschitz continuity  of $\nabla_\theta l$ in $\theta$}\\
+        &= L\|x\|.
+    \end{align*}
+    By the definition of matrix operator norm, we have $\displaystyle \| \nabla_{\theta,v}^2l(v,\theta,\xi) \|= \max_{x\in \mathbb{R}^{d_1}} \frac{\| \nabla_{\theta,v}^2l(v,\theta,\xi)x \|}{\|x\|} \leq L$, 
+    which proves part (2).
+
+Next, we show part (3). By gradient noise Assumption~\ref{as:bound_grad_inner}, L-smoothness of $\ell$ and the boundedness of domain $\Theta$, we obtain 
+    \begin{align*}
+        \| \nabla_\theta l(v,\theta,\xi) \| 
+        &\leq \| \nabla_\theta l(v,\theta,\xi)-\nabla_\theta \ell(v,\theta) \|+\| \nabla_\theta \ell(v,\theta) - \nabla_\theta \ell(v,\theta^*(v)) \| \\
+        &\leq C_1+L\|\theta -\theta^*(v)\|   \leq LR+C_1.
+    \end{align*}
+    
+
+    Finally, we show part (4). The strongly convexity of $l(v,\theta,\xi)$ with respect to $\theta$, implies that, for any $\theta,\theta_1 \in \mathbb{R}^{d_2}$,
+    \begin{align*}
+        l(v,\theta,\xi) \geq l(v,\theta_1,\xi) + \langle \nabla_\theta l(v,\theta_1,\xi),\, \theta - \theta_1 \rangle + \frac{\mu}{2} \|\theta-\theta_1\|^2. 
+    \end{align*}
+    Taking expectation with respect to $\xi$ on both sides, and applying the unbiased stochastic gradient Assumption~\ref{as:unbias_grad}yields the strong convexity of $\ell(v,\theta)$.
+\end{proof}
+
+
+
+\begin{proposition}\label{prop:hessian_fim_equal}
+     Under Assumptions~\ref{as:l_inner},~\ref{as:unbias_grad} and~\ref{as:inner_dist}, we have \[
+I(\theta^*(v)) = H(\theta^*(v)), \qquad \forall\, v.
+\]
+\end{proposition}
+\begin{proof}
+\label{app:hessian_fim_equal}
+By the definition of the Hessian of the inner objective $\ell(v,\theta)$,
+\begin{align*}
+    H\big(\theta^*(v)\big)
+    = \nabla_{\theta,\theta}^2\ell(v,\theta^*(v))
+    = \nabla_{\theta,\theta}^2\mathbb{E}_{\xi\sim q(\cdot)}[l(v,\theta^*(v),\xi)]=-\nabla_{\theta,\theta}^2\mathbb{E}_{\xi\sim q(\cdot)}[\log p(\xi;v,\theta^*(v))].
+\end{align*}
+
+According to Assumption~\ref{as:unbias_grad}, $\nabla_{\theta,\theta}^2\ell(v,\theta)=\mathbb{E}[\nabla_{\theta,\theta}^2l(v,\theta,\xi)]$ , we have
+    \begin{align*}
+        H(\theta^*(v)) =\,& -\mathbb{E}_{\xi\sim q(\cdot)}[\nabla_{\theta,\theta}^2 \log p(\xi;v,\theta^*(v))]\\
+        =\,& -\mathbb{E}_{\xi\sim q(\cdot)}\left[\nabla_{\theta} \frac{\nabla_\theta p(\xi;v,\theta^*(v))}{p(\xi;v,\theta^*(v))}\right]\\
+         =\,& -\mathbb{E}_{\xi\sim q(\cdot)}\left[ \frac{\nabla_{\theta,\theta}^2 p(\xi;v,\theta^*(v))}{p(\xi;v,\theta^*(v))}\right]+ \mathbb{E}_{\xi\sim q(\cdot)}\left[\frac{\nabla_\theta p(\xi;v,\theta^*(v))\nabla_\theta p(\xi;v,\theta^*(v))^\top}{p^2(\xi;v,\theta^*(v))}\right]\\
+        =\,&-\mathbb{E}_{\xi\sim q(\cdot)}\left[ \frac{\nabla_{\theta,\theta}^2 p(\xi;v,\theta^*(v))}{p(\xi;v,\theta^*(v))}\right]+ \mathbb{E}_{\xi\sim q(\cdot)}\left[\nabla_\theta \left(-\log p(\xi;v,\theta^*(v))\right)\nabla_\theta \left(-\log p(\xi;v,\theta^*(v))\right)^\top\right]\\
+        =\,&-\mathbb{E}_{\xi\sim q(\cdot)}\left[ \frac{\nabla_{\theta,\theta}^2 p(\xi;v,\theta^*(v))}{p(\xi;v,\theta^*(v))}\right]+ I(\theta^*(v)).
+    \end{align*}
+    To prove $H(\theta^*(v))=I(\theta^*(v))$, it remains to show that the first term on the right-hand side of the previous inequality vanishes. Since $q(\cdot)=p(\cdot,v,\theta^*(v))$ (Assumption~\ref{as:inner_dist}), we have
+\begin{align*}
+    \mathbb{E}_{\xi\sim q(\cdot)}\left[ \frac{\nabla_{\theta,\theta}^2 p(\xi;v,\theta^*(v))}{p(\xi;v,\theta^*(v))}\right]&=\int \frac{\nabla_{\theta,\theta}^2 p(\xi;v,\theta^*(v))}{p(\xi;v,\theta^*(v))} q(\xi) d\xi\\
+    & = \int \nabla_{\theta,\theta}^2 p(\xi;v,\theta^*(v)) d\xi \\
+    & =  \nabla_{\theta,\theta}^2 \int  p(\xi;v,\theta^*(v)) d\xi\\
+    &=\nabla_{\theta,\theta}^21\\
+    &=0.
+\end{align*}
+Therefore, \( H(\theta^*(v)) = I(\theta^*(v)) \), completing the proof. 
+\end{proof}
+
+\newpage
+\section{Proofs for the Inner-level Analysis}\label{app:inner}
+In this section, we focus on the inner loop of the algorithm.  We first establish the convergence rate of the inner-level SGD (Lemma~\ref{lemma:SGD_general}).  We then characterize the sample complexity of the Hessian inverse approximation (Theorem~\ref{theorem:hessian_inv_approx}) and the cross-partial derivative approximation (Proposition~\ref{prop:l_21_approx}).
+
+
+We consider a projected SGD algorithm for minimizing the inner objective function $\ell (v,\theta)=\mathbb{E}_{\xi\sim q(\cdot)}\left[ l(v,\theta,\xi)\right]$:
+\begin{align}\label{eq:SGD_general}
+    \theta_k^{t+1}=\Pi_{\Theta}\left(\theta_k^t-\eta_t \nabla_\theta l(v_k,\theta_k^t,\xi_k^t)\right),\quad \,t=0,1,...,T-1.
+\end{align}
+where $\Pi_\Theta$ denotes the projection onto $\Theta=\{\theta\in\mathbb{R}^{d_2}\mid \|\theta\|\leq R\}$. 
+
+We denote by $\mathcal{F}_k^{t-1} := \sigma\!\left( v_k,\, \theta_k^0,\, \xi_k^0,\cdots,\xi_k^{t-1} \right)$, 
+the $\sigma$-algebra representing all information available up to iteration $(k,t-1)$. Consequently, under the conditional expectation 
+$\mathbb{E}\!\left[\cdot \mid \mathcal{F}_k^{t-1}\right]$, 
+the only remaining source of randomness is the fresh sample $\xi_k^{t}$ drawn at the 
+$t$-th inner iteration.
+
+In the subsequent analysis of the inner problem, the upper-level variable $v_k$ is fixed. For notational simplicity, we therefore omit the subscript $k$ and $v_k$. We use the simplified notation: $l(\theta_t,\xi_t) := l(v_k,\theta_k^t,\xi_k^t)$, $\;\ell(\theta_t):=\ell(v_k,\theta_k^t)$,
+$\;\theta^*:=\theta^*(v_k)$,
+$\;\mathcal{F}_{t}:=\mathcal{F}_k^t$,
+$\;\mathbb{E}_{t}[\cdot] :=
+\mathbb{E}_{\Xi\sim q(\cdot)}\!\left[\,\cdot\,\middle|\,\mathcal{F}_{k}^{t-1}\right]$,
+$\;I_t:=I_k^t$,
+$\;A_t:=A_k^t$ and $\;L_t:=L_k^t$. We further define the stochastic gradient noise: $e_t = \nabla_\theta l(\theta_t,\xi_t) - \mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]$.
+
+
+The algorithm for solving the inner problem is restated as follows.
+\begin{algorithm}[h]
+    \caption{Solving Inner Problem with SGD}
+    \label{alg:inner_loop}
+    \begin{algorithmic}[1]
+        \FOR{$t=0,\ldots,T-1$}
+            \STATE Sample data point $\xi_t$ from dataset and calculate $ \nabla_v l (\theta_{t},\xi_t), \nabla_\theta l (\theta_{t},\xi_t)$, and cross-partial derivative $\nabla_{\theta,v}^2 l (\theta_{t}, \xi_t)$
+            \STATE Update $\theta_{t+1} = \Pi_\Theta \left(\theta_{t} - \eta_t \nabla_\theta l (\theta_{t},\xi_t)\right)$
+            \STATE Update $A_{t+1}=\frac{t+1}{t}A_t-\frac{\frac{t+1}{t^2}A_t\nabla_\theta l (\theta_{t},\xi_t)\left(A_t\nabla_\theta l (\theta_{t},\xi_t)\right)^\top}{1+\frac{1}{t}\nabla_\theta l (\theta_{t},\xi_t)^\top A_t\nabla_\theta l (\theta_{t},\xi_t)}$
+            \STATE Update
+            $L_{t+1}=\frac{t}{t+1}L_{t} + \frac{1}{t+1}  \nabla_{\theta,v}^2l (\theta_{t}, \xi_t) $
+        \ENDFOR
+    \end{algorithmic}
+    \end{algorithm}
+    
+\subsection{Proof of Lemma~\ref{lemma:SGD_general}}
+\begin{proof} \label{proof:SGD_general}
+By the update Eq.~\eqref{eq:SGD_general}, we have
+\begin{align*}
+\|\theta_{t+1}-\theta^*\|^2=\,&\|\Pi_\Theta(\theta_t-\eta_t \mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]-\eta_t e_t)-\Pi_\Theta(\theta^*)\|^2\\
+    \leq\,&\|\theta_t-\theta^*-\eta_t \mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]-\eta_t e_t\|^2\tag{$\Pi_\Theta$ is non-expansive w.r.t. $\|\cdot\|$}\\
+    = \,&\|\theta_t-\theta^*\|^2+\eta_t^2\|\mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]\|^2+\eta_t^2\|e_t\|^2\\
+    &-2\eta_t (\theta_t-\theta^*)^\top \mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]-2\eta_t(\theta_t-\theta^*)^\top e_t+2\eta_t^2\mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]^\top e_t\\
+    {\leq} \,&\|\theta_t-\theta^*\|^2+2\eta_t^2\|\mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]\|^2+2\eta_t^2\|e_t\|^2\\
+    &-2\eta_t (\theta_t-\theta^*)^\top \mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]-2\eta_t(\theta_t-\theta^*)^\top e_t. \tag{$a^\top b\leq \frac12\left( \|a\|^2+\|b\|^2\right)$}
+\end{align*}
+Next, by the Assumption~\ref{as:unbias_grad} and the $L$-smoothness of $\ell$ in $\theta$,
+\begin{align*}
+    \|\mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]\|^2&=\|\mathbb{E}_{t}\left[\nabla_\theta l(\theta_{t},\xi_t)-\nabla_\theta l(\theta^*,\xi_t)\right]\|^2 \\
+    &=\|\nabla_\theta\ell(\theta_t)-\nabla_\theta\ell(\theta^*) \|^2 \\
+    &\leq L^2\|\theta_t-\theta^*\|^2.
+\end{align*}
+The $\mu$-strong convexity of $\ell$ further implies
+\begin{align*}
+    (\theta_t-\theta^*)^\top \mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]=(\theta_t-\theta^*)^\top (\mathbb{E}_{t}[\nabla_\theta l(\theta_{t},\xi_t)]-\mathbb{E}_{t}[\nabla_\theta l(\theta^*,\xi_t)])\geq \mu\|\theta_t-\theta^*\|^2.
+\end{align*}
+Combining the preceding inequalities yields
+\begin{align*}
+    \|\theta_{t+1}-\theta^*\|^2
+    \leq\,& (1-2\mu\eta_t+2L^2\eta_t^2)\|\theta_t-\theta^*\|^2+2\eta_t^2\|e_t\|^2-2\eta_t(\theta_t-\theta^*)^\top e_t\\
+    {\leq} \,&(1-\mu\eta_t)\|\theta_t-\theta^*\|^2+2\eta_t^2\|e_t\|^2-2\eta_t(\theta_t-\theta^*)^\top e_t. \tag{$\eta_t\leq \mu/(2L^2)$}
+\end{align*}
+
+For any $\lambda >0$, since $e^{\lambda x}$ is monotone increasing in $x$, applying this to the previous inequality gives
+\begin{align}\label{eq:mgf_sgd_error}
+    \exp(\lambda \|\theta_{t+1}-\theta^*\|^2)
+    \leq \,&\exp(\lambda(1-\mu\eta_t)\|\theta_t-\theta^*\|^2)\exp(2\lambda\eta_t^2\|e_t\|^2-2\lambda\eta_t(\theta_t-\theta^*)^\top e_t).
+\end{align}
+Taking conditional expectations of \eqref{eq:mgf_sgd_error} with respect to $\mathcal{F}_t$, and allowing the choice of $\lambda$ to depend on $t$, we obtain
+\begin{align*}
+    &\mathbb{E}_t[\exp(\lambda_{t+1} \|\theta_{t+1}-\theta^*\|^2)]\\
+    &\leq \,\exp(\lambda_{t+1}(1-\mu\eta_t)\|\theta_t-\theta^*\|^2)\mathbb{E}_t[\exp(2\lambda_{t+1}\eta_t^2\|e_t\|^2-2\lambda_{t+1}\eta_t(\theta_t-\theta^*)^\top e_t)]\\
+    &\leq \,\exp(\lambda_{t+1}(1-\mu\eta_t)\|\theta_t-\theta^*\|^2)\left(\mathbb{E}_t[\exp(4\lambda_{t+1}\eta_t^2\|e_t\|^2)]\right)^{1/2}\\
+    &\quad\times \left(\mathbb{E}_t[\exp(-4\lambda_{t+1}\eta_t(\theta_t-\theta^*)^\top e_t)]\right)^{1/2}\tag{conditional Cauchy–Schwarz Inequality}.
+\end{align*}
+
+Next, we bound the moment-generating function terms $\mathbb{E}_t[\exp(4\lambda_{t+1}\eta_t^2\|e_t\|^2)]$ and $\mathbb{E}_t[\exp(-4\lambda_{t+1}\eta_t(\theta_t-\theta^*)^\top e_t)]$.
+
+By Lemma~\ref{lemma:assumption} and Jensen's Inequality, we have $\|e_t\|\leq\| \nabla_\theta l(\theta_t,\xi_t)\|+\| \mathbb{E}_t[\nabla_\theta l(\theta_t,\xi_t)]\|\leq 2(LR+C_1).$
+
+Thus, we have $|(\theta_t-\theta^*)^Te_t|\leq 2\|\theta_t-\theta^*\|(LR+C_1)$, which implies that $(\theta_t-\theta^*)^Te_t$ is Sub-Gaussian with variance parameter $\|\theta_t-\theta^*\|^2(LR+C_1)^2$. By Proposition 2.5.2 in \cite{vershynin2018high}, there exist an absolute constant $C_a>0$, such that 
+\begin{align}\label{eq:mgf_bound1}
+\mathbb{E}_t[\exp(-4\lambda_{t+1}\eta_t(\theta_t-\theta^*)^\top e_t)]\leq \exp\left(32C_a^2(LR+C_1)^2\lambda_{t+1}^2\eta_t^2\|\theta_t-\theta^*\|^2\right).
+\end{align}
+
+Moreover, since $(\mathbb{E}\|e_t \|^p)^{\frac{1}{p}}\leq 2(LR+C_1)\sqrt{p}, \; \forall \, p\geq 1$, by Proposition 2.5.2 in \cite{vershynin2018high}, there exist an absolute constant $C_b>0$, such that
+\begin{align}\label{eq:mgf_bound2}
+\mathbb{E}_t[\exp(4\lambda_{t+1}\eta_t^2\|e_t\|^2)]\leq \exp(16C_b^2(LR+C_1)^2\lambda_{t+1}\eta_t^2),
+\end{align}
+with $\lambda_{t+1}$ satisfy,
+\begin{align}\label{eq:lambda_0}
+    \lambda_{t+1} \leq \frac{1}{16C_b^2(LR+C_1)^2\eta_t^2}.
+\end{align}
+
+Taking expectations with respect to $\mathcal{F}_t$ and applying the bounds~\eqref{eq:mgf_bound1} and~\eqref{eq:mgf_bound2}, we have
+\begin{align}
+    &\log\mathbb{E}[\exp(\lambda_{t+1} \|\theta_{t+1}-\theta^*\|^2)] \nonumber\\
+    &\quad \le \log \mathbb{E}\!\Bigg[
+   \exp\!\Bigg(
+   \frac{\lambda_{t+1}}{\lambda_t}\lambda_t
+   \big(1-\mu \eta_t + 16 C_a^2 (LR+C_1)^2 \lambda_{t+1}\eta_t^2\big)
+   \|\theta_t-\theta^*\|^2
+   \Bigg) \nonumber \\
+&\quad \quad \quad \quad \times \exp\!\big(8 C_b^2 (LR+C_1)^2 \lambda_{t+1}\eta_t^2\big)
+\Bigg] \nonumber\\
+& \quad\overset{(d)}{\leq} \frac{\lambda_{t+1}}{\lambda_t}(1-\mu\eta_t+16C_a^2(LR+C_1)^2\lambda_{t+1}\eta_t^2)\log\mathbb{E}[\exp(\lambda_t\|\theta_t-\theta^*\|^2)] \nonumber\\
+& \quad \quad +8C_b^2(LR+C_1)^2\lambda_{t+1}\eta_t^2 \nonumber\\
+& \quad \overset{(e)}{\leq} \frac{\lambda_{t+1}}{\lambda_t}\left(1-\frac{\mu\eta_t}{2}\right)\log\mathbb{E}[\exp(\lambda_t\|\theta_t-\theta^*\|^2)]+8C_b^2(LR+C_1)^2\lambda_{t+1}\eta_t^2,\label{eq:mgf_sgd_error2}
+\end{align}
+where Inequality (d) uses the choice of $\lambda_t$ ensuring 
+\begin{align}\label{eq:lambda_1}
+    \frac{\lambda_{t+1}}{\lambda_t}(1-\mu\eta_t+16C_a^2(LR+C_1)^2\lambda_{t+1}\eta_t^2)\in (0,1),
+\end{align}
+together with Jensen’s inequality. Inequality (e) follows from choosing $\lambda_t$ such that 
+\begin{align}\label{eq:lambda_2}
+    16C_a^2(LR+C_1)^2\lambda_{t+1}\eta_t\leq \frac{\mu}{2}.
+\end{align}
+
+Telescoping~\eqref{eq:mgf_sgd_error2} over $t$ yields
+\begin{align*}
+    \log\mathbb{E}[\exp(\lambda_t \|\theta_t-\theta^*\|^2)]&\leq \lambda_t\prod_{j=0}^{t-1}\left(1-\frac{\mu\eta_j}{2}\right)\|\theta_0-\theta^*\|^2+8C_b^2(LR+C_1)^2\lambda_t\sum_{i=0}^{t-1}\eta_i^2\prod_{j=i+1}^{t-1}\left(1-\frac{\mu\eta_j}{2}\right).
+\end{align*}
+Then, applying Markov inequality, for any $\gamma>0$, we have
+\begin{align*}
+    \mathbb{P}\left(\|\theta_t-\theta^*\|\geq \gamma\right)=\,&\mathbb{P}\left(\exp(\lambda_t \|\theta_t-\theta^*\|^2)\geq \exp(\lambda_t \gamma^2)\right)\\
+    \leq \,&\frac{\mathbb{E}[\exp(\lambda_t \|\theta_t-\theta^*\|^2)]}{\exp(\lambda_t \gamma^2)}\\
+    \leq \,&\exp\Big(\lambda_t\prod_{j=0}^{t-1}\left(1-\frac{\mu\eta_j}{2}\right)\|\theta_0-\theta^*\|^2 \\ &+8C_b^2(LR+C_1)^2\lambda_t\sum_{i=0}^{t-1}\eta_i^2\prod_{j=i+1}^{t-1}\left(1-\frac{\mu\eta_j}{2}\right)-\lambda_t\gamma^2\Big).
+\end{align*}
+Equivalently, for any $\delta\in (0,1)$,  with probability at least $1-\delta$, we have
+\begin{align}
+    \|\theta_t-\theta^*\|^2\leq \gamma^2=\prod_{j=0}^{t-1}\left(1-\frac{\mu\eta_j}{2}\right)\|\theta_0-\theta^*\|^2 +8C_b^2(LR+C_1)^2\sum_{i=0}^{t-1}\eta_i^2\prod_{j=i+1}^{t-1}\left(1-\frac{\mu\eta_j}{2}\right)+\frac{\log(1/\delta)}{\lambda_t}.\label{eq:sgd_error1}
+\end{align}
+
+
+Substituting the diminishing stepsize $\eta_t=\frac{4}{\mu(t+q)}$ and choosing $\displaystyle \lambda_t=\frac{\mu}{32(LR+C_1)^2\beta\eta_{t-1}}$ (where $\beta=\max\{2C_b^2,C_a^2\}$) ensures that conditions \eqref{eq:lambda_0},  \eqref{eq:lambda_1} and \eqref{eq:lambda_2} are satisfied. Thus, telescoping \eqref{eq:sgd_error1} over t yields 
+\begin{align*}
+    \gamma^2&=\|\theta_0-\theta^*\|^2\prod_{i=0}^{t-1}\left(1-\frac{2}{i+q} \right) +\frac{128}{\mu^2}C_b^2(LR+C_1)^2\sum_{i=0}^{t-1}\frac{1}{(i+q)^2} \prod_{j=i+1}^{t-1}\left(1-\frac{2}{j+q}\right) \\
+    & \quad +\frac{128}{\mu^2}\beta(LR+C_1)^2 \frac{1}{t+q-1} \log(1/\delta)\\
+    &= \|\theta_0-\theta^*\|^2\frac{(q-2)(q-1)}{(t+q-2)(t+q-1)} +\frac{128C_b^2(LR+C_1)^2}{\mu^2(t+q-2)(t+q-1)}\sum_{i=0}^{t-1}\frac{i+q-1}{i+q}  \\
+    & \quad +\frac{128}{\mu^2}\beta(LR+C_1)^2 \frac{1}{t+q-1} \log(1/\delta) \\
+    & \leq  \|\theta_0-\theta^*\|^2\frac{(q-2)(q-1)}{(t+q-2)(t+q-1)} +\frac{128C_b^2(LR+C_1)^2t}{\mu^2(t+q-1)^2} \tag{$\sum_{i=0}^{t-1}\frac{i+q-1}{i+q} \leq t\cdot \frac{t+q-2}{t+q-1}$}  \\  
+    & \quad +\frac{128}{\mu^2}\beta(LR+C_1)^2 \frac{1}{t+q-1} \log(1/\delta) \\
+    & \leq \|\theta_0-\theta^*\|^2\left(\frac{t}{t+q} \right)^2+\frac{256}{\mu^2}C_b^2(LR+C_1)^2\frac{1}{t+q} +\frac{256}{\mu^2}\beta(LR+C_1)^2 \frac{1}{t+q} \log(1/\delta) \\
+    & \overset{(a)}{\leq} \|\theta_0-\theta^*\|^2\left(\frac{t}{t+q} \right)^2+\frac{256}{\mu^2}\beta(LR+C_1)^2\left(1+\log(1/\delta)\right)\frac{1}{t+q}\tag{$C_b^2\leq\beta=\max\{2C_b^2,C_a^2 \}$}. 
+    \end{align*}
+
+Finally, we obtain that, with probability at least $1-\delta$,
+\begin{align*}
+    \|\theta_t-\theta^*\|^2\leq \left(\frac{q}{t+q}\right)^2\|\theta_0-\theta^*\|^2+\frac{c'}{t+q}(1+\log(1/\delta)),
+\end{align*}
+and 
+\begin{align*}
+    \|\theta_t-\theta^*\|\leq \frac{q}{t+q}\|\theta_0-\theta^*\|+\sqrt{\frac{c'(1+\log(1/\delta))}{t+q}},
+\end{align*}
+where 
+\begin{align}\label{eq:def_c'}
+    c':=\frac{256}{\mu^2}(LR+C_1)^2\max\{2C_b^2,C_a^2\}.
+\end{align}
+This completes the proof.
+\end{proof}
+
+\subsection{Statements and Proofs of Lemma~\ref{lemma:thm_Hinv_stochastic_error} and Lemma~\ref{lemma:thm_Hinv_optimization_error}}
+\begin{lemma}\label{lemma:thm_Hinv_stochastic_error}
+Suppose Assumptions~\ref{as:l_inner}, \ref{as:unbias_grad} and~\ref{as:bound_grad_inner} hold. For any outer iteration $k$, given the outer variable $v_k$, for any $\delta \in (0,1)$, with probability at least $1-\delta$, we have
+\begin{align*}
+\frac{1}{T}\Bigl\|
+\sum_{t=0}^{T-1}
+\bigl(
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top
+-
+\mathbb{E}_t[
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top
+]
+\bigr)
+\Bigr\|  \leq 4\sqrt{2}\, (C_1 + LR)^2\, \sqrt{\frac{1}{T}\log\left(2d_2/\delta\right)}.
+\end{align*} 
+\end{lemma}
+\begin{proof}\label{app:proof_thm_Hinv_stochastic_error}
+
+
+Define the martingale increment 
+\[
+\Delta_t := \nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top - \mathbb{E}_{t}[\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top].
+\]
+Each $\Delta_t$ is a $d_2\times d_2$ symmetric matrix with zero conditional mean. By the gradient boundedness from Lemma~\ref{lemma:assumption} and Jensen's Inequality, we have
+\begin{align*}
+    \|\Delta_t\| &\leq \|\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top\| + \|\mathbb{E}_{t}[\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top] \| \\
+    &\leq  \|\nabla_\theta l(\theta_k^t,\xi_k^t) \|^2+ \mathbb{E}_{t}[\|\nabla_\theta l(\theta_k^t,\xi_k^t)\|^2] \leq 2(LR+C_1)^2,
+\end{align*}
+which implies 
+\begin{align*}
+    \Delta_t^2 \preceq 4(LR+C_1)^4 \mathbf{I}.
+\end{align*}
+Applying Matrix Azuma's inequality~\cite{tropp2012user}[Theorem 7.1], with variance parameter 
+\[
+\sigma^2:=\left\|\sum_{t=0}^{T-1} 4(LR+C_1)^4\mathbf{I} \right\|=4T(LR+C_1)^4,
+\] 
+we have that for any $u\geq 0$,
+\begin{align}\label{eq:azuma_E1}
+    \mathbb{P}\left( \lambda_{\text{max}}\left(\sum_{t=0}^{T-1}\Delta_t\right)\geq u\right)\leq d_2 \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align}
+
+Since $\{-\Delta_t\}_{t=0}^{T-1}$ satisfies the same conditions, we have
+\begin{align}\label{eq:azuma_E1neg}
+    \mathbb{P}\left( \lambda_{\text{max}}\left(-\sum_{t=0}^{T-1}\Delta_t\right)\geq u\right)\leq d_2 \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align}
+
+Using the bounds~\eqref{eq:azuma_E1} and~\eqref{eq:azuma_E1neg}, we have
+\begin{align*}
+    \mathbb{P}\left( \left\| \sum_{t=0}^{T-1}\Delta_t \right \|\geq u\right)&= \mathbb{P}\left( \max\{\lambda_{\text{max}}(\sum_{t=0}^{T-1}\Delta_t),\lambda_{\text{max}}(-\sum_{t=0}^{T-1}\Delta_t)\}\geq u\right)\tag{symmetry of $\Delta_t$} \\
+    &\leq \mathbb{P}\left( \lambda_{\text{max}}\left(\sum_{t=0}^{T-1}\Delta_t\right)\geq u\right) + \mathbb{P}\left( \lambda_{\text{max}}\left(-\sum_{t=0}^{T-1}\Delta_t\right)\geq u\right) \tag{Union Bound} \\
+    &\leq 2d_2 \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+
+Thus, for any $\delta \in (0,1)$, with probability at least $1-\delta$,
+\begin{align*}
+    \frac1T \left\| \sum_{t=0}^{T-1} \Delta_t\right\|  \leq 4\sqrt{2}\, (C_1 + LR)^2\, \sqrt{\frac{1}{T}\log\left(2d_2/\delta\right)}.
+\end{align*}
+
+This completes the proof.
+\end{proof}
+
+
+\begin{lemma}\label{lemma:thm_Hinv_optimization_error}
+Suppose Assumptions~\ref{as:l_inner}, \ref{as:unbias_grad} and~\ref{as:bound_grad_inner} hold. For any outer iteration $k$, given the outer variable $v_k$ and set stepsize as $\displaystyle \eta_t = \frac{4}{\mu\left(t+\frac{8L^2}{\mu^2}\right)}$, for any $\delta \in (0,1)$, with probability at least $1-\delta$, we have
+\begin{align*}
+\frac{1}{T}\Bigl\|
+\sum_{t=0}^{T-1}
+\bigl(
+\mathbb{E}_t[
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top]
+-
+I(\theta^*(v_k))
+\bigr)
+\Bigr\|  \leq \frac{1}{\sqrt{T}}\frac{4\sqrt2L^2(C_1+LR)}{\mu}\left(\frac{8L^2R}{\mu^2}+2\sqrt{c'(1+\log(1/\delta))}\right).
+\end{align*} 
+\end{lemma}
+\begin{proof}\label{app:proof_thm_Hinv_optimization_error}
+By the definition of the FIM $I(\theta^*)$,
+\begin{align*}
+&\sum_{t=0}^{T-1} \left\|\mathbb{E}_{t}[\nabla_\theta l(\theta_t, \xi_t) \nabla_\theta l(\theta_t, \xi_t)^\top] - I(\theta^*)\right\| \\
+     &=\sum_{t=0}^{T-1} \left\|\mathbb{E}_{t}[\nabla_\theta l(\theta_t, \xi_t) \nabla_\theta l(\theta_t, \xi_t)^\top] - \mathbb{E}_{\xi \sim q^*(\cdot)}[\nabla_\theta l(\theta^*,\xi)\nabla_\theta l(\theta^*,\xi)^\top]\right\| \\
+    &= \sum_{t=0}^{T-1} \left\| \mathbb{E}_t \left[ \nabla_\theta l(\theta_t, \xi_t) \nabla_\theta l(\theta_t, \xi_t)^\top - \nabla_\theta l(\theta^*, \xi_t) \nabla_\theta l(\theta^*, \xi_t)^\top  \right] \right\| \\
+    &\leq  \sum_{t=0}^{T-1}\mathbb{E}_t \left[\left\| \left( \nabla_\theta l(\theta_t, \xi_t) - \nabla_\theta l(\theta^*, \xi_t) \right) \nabla_\theta l(\theta_t, \xi_t)^\top + \nabla_\theta l(\theta^*, \xi_t) \left( \nabla_\theta l(\theta_t, \xi_t) - \nabla_\theta l(\theta^*, \xi_t) \right)^\top \right\|\right] \\
+    &\leq \sum_{t=0}^{T-1} \mathbb{E}_t \left[ \left\| \nabla_\theta l(\theta_t, \xi_t) - \nabla_\theta l(\theta^*, \xi_t) \right\| \cdot \left\| \nabla_\theta l(\theta_t, \xi_t) \right\| \right]  + \sum_{t=0}^{T-1} \mathbb{E}_t \left[ \left\| \nabla_\theta l(\theta_t, \xi_t) - \nabla_\theta l(\theta^*, \xi_t) \right\| \cdot \left\| \nabla_\theta l(\theta^*, \xi_t) \right\| \right] \\
+    &\leq \sum_{t=0}^{T-1} \left( L \| \theta_t - \theta^* \|(LR+C_1) + L \| \theta_t - \theta^* \|(LR+C_1) \right) \tag{L-smoothness of $l$ with respect to $\theta$}\\
+    &= 2L(C_1+LR)\sum_{t=0}^{T-1}   \| \theta_t - \theta^* \|.
+    \end{align*}
+
+
+
+For diminishing stepsize $\displaystyle \eta_t = \frac{4}{\mu\left(t+q\right)},\; q=\frac{8L^2}{\mu^2}$, by Lemma~\ref{lemma:SGD_general} and the projection on $\Theta$, we obtain
+\begin{align*}
+    \frac{1}{T}\sum_{t=0}^{T-1}\|\theta_t-\theta^*\| &\leq \frac{1}{T}\left( R\sum_{t=0}^{T-1}\frac{q}{t+q}+ \sqrt{c'(1+\log(1/\delta))} \sum_{t=0}^{T-1}\frac{1}{\sqrt{t+q}}\right)\\
+    &\overset{(a)}{\leq} 
+    qR\frac{\log(1+\frac{T}{q-1})}{T} + 2\sqrt{c'(1+\log(1/\delta))}\frac{\sqrt{T+q-1}}{T} \\
+    & \overset{(b)}{\leq} \frac{\sqrt{q}}{\sqrt{T}}\left(qR + 2\sqrt{c'(1+\log(1/\delta))}\right),
+\end{align*}
+where $c'$ is an absolute constant defined in \eqref{eq:def_c'}. Inequality (a) uses 
+\[  \sum\limits_{t=0}^{T-1} \frac{1}{q+t}\leq \log (1+\frac{T}{q-1})\quad \text{and} \quad \sum\limits_{t=0}^{T-1} \frac{1}{\sqrt{t+q}}\leq 2\sqrt{T+q-1}. \]
+Inequality (b) follows from
+\[ \log\left(1+\frac{T}{q-1}\right)\leq \sqrt{T+q-1}\quad \text{and} \quad \sqrt{1+\frac{q-1}{T}}\leq \sqrt{q}, \;\; \forall T\geq 1.  \]
+
+
+Therefore, by applying the union bound, we obtain that with probability at least $1-T\delta$,
+\begin{align*}
+    \sum_{t=0}^{T-1} \left\|\mathbb{E}_{t}[\nabla_\theta l(\theta_t, \xi_t) \nabla_\theta l(\theta_t, \xi_t)^\top] - I(\theta^*)\right\|\leq \frac{1}{\sqrt{T}}\frac{4\sqrt2L^2(C_1+LR)}{\mu}\left(\frac{8L^2R}{\mu^2}+2\sqrt{c'(1+\log(1/\delta))}\right).
+\end{align*}
+
+This completes the proof.
+\end{proof}
+
+
+\subsection{Proof of Theorem~\ref{theorem:hessian_inv_approx}} \label{proof:theorem_hessian_inv_approx}
+\begin{proof}
+\textbf{Step 1: Reduction to EFIM error.} We aim to bound the error 
+\[
+\|A_k^T - H(\theta^*(v_k))^{-1}\|=\|(I_k^T)^{-1} - H(\theta^*(v_k))^{-1}\|,
+\]
+where the equality is due to $I(\theta^*(v_k)) = H(\theta^*(v_k))$ (formally stated in Proposition~\ref{prop:hessian_fim_equal}).
+Observe that
+\begin{align}
+\|(I_k^T)^{-1} - I(\theta^*(v_k))^{-1}\| &= \|(I_k^T)^{-1}(I_k^T-I(\theta^*(v_k)))I(\theta^*(v_k))^{-1}\| \nonumber\\
+&\leq \|(I_k^T)^{-1}\| \|I_k^T-I(\theta^*(v_k))\| \|I(\theta^*(v_k))^{-1}\| \nonumber\\
+&\leq \frac{\|I_k^T- I(\theta^*(v_k))\|}{\sigma_{\min}(I_T)\,\mu} \tag{$\mu$-strongly convex of $\ell$ by Lemma~\ref{lemma:assumption}} \\
+&\leq \frac{\|I_k^T - I(\theta^*(v_k)\|}{\lambda_{\min}(I_T)\,\mu}.\label{eq:hessian_inv_error1}
+\end{align}
+Since $I(\theta^*(v_k))$ and $I_k^T$ are symmetric matrix, Weyl's eigenvalue inequality yields
+\begin{align}\label{eq:lambda_IT}
+\lambda_{\text{min}}(I_k^T)&\geq 
+    \lambda_{\text{min}}(I(\theta^*(v_k))) - \lambda_{\text{max}}(I(\theta^*(v_k))-I_k^T) \nonumber \\
+    & \geq \lambda_{\text{min}}(I(\theta^*(v_k)))-\|I(\theta^*(v_k))-I_k^T\| \nonumber\\
+    &\geq \mu-\|I(\theta^*(v_k))-I_k^T\|. \tag{ $\mu$-strongly convexity of $\ell$} 
+\end{align}
+
+Combining the above bound with bound~\eqref{eq:hessian_inv_error1}, we obtain
+\begin{align*}
+    \|(I_k^T)^{-1} - I(\theta^*(v_k))^{-1}\| \leq \frac{\|I_k^T - I(\theta^*(v_k))\|}{(\mu-\|I_k^T - I(\theta^*(v_k))\|)\,\mu}.
+\end{align*}
+
+Thus, controlling the Hessian inverse approximation error reduces to bounding the error $\| I_k^T-I(\theta^*(v_k))\|$. 
+
+
+\textbf{Step 2: Decomposition of EFIM error.} 
+The main challenge of bounding $\| I_k^T-I(\theta^*(v_k))\|$ lies in the fact that
+\[
+I_k^{T}=\frac{1}{T}\sum_{t=0}^{T-1}
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top
+\]
+is computed along the stochastic inner-level SGD trajectory 
+$\theta_k^0,\ldots,\theta_k^{T-1}$, whereas
+\[
+I(\theta^*(v_k))
+= \mathbb{E}_{\xi\sim q(\cdot)}\!\left[ 
+\nabla_\theta l(\theta^*(v_k),\xi)
+\nabla_\theta l(\theta^*(v_k),\xi)^\top 
+\right]
+\]
+is defined at the inner optimum. To address this mismatch, we decompose the error into a stochastic error and an optimization error as follows:
+\begin{align*}
+\|I_k^{T} - I(\theta^*(v_k))\|
+&\le 
+\underbrace{
+\frac{1}{T}\Bigl\|
+\sum_{t=0}^{T-1}
+\bigl(
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top
+-
+\mathbb{E}_t[
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top]
+\bigr)
+\Bigr\|
+}_{\text{stochastic error term $E_1$}}
+\\
+&\quad+
+\underbrace{
+\frac{1}{T}\Bigl\|
+\sum_{t=0}^{T-1}
+\bigl(
+\mathbb{E}_t[
+\nabla_\theta l(\theta_k^{t},\xi_k^t)\nabla_\theta l(\theta_k^{t},\xi_k^t)^\top]
+-
+I(\theta^*(v_k))
+\bigr)
+\Bigr\|
+}_{\text{optimization error term $E_2$}},
+\end{align*} 
+where the inequality follows from triangular inequality.
+
+ \textbf{Step 3: Bounding stochastic and optimization error.}
+The stochastic error term $E_1$ is controlled using the matrix Azuma inequality. A shown in Lemma~\ref{lemma:thm_Hinv_stochastic_error},  with probability at least $1-\delta$, we have
+\begin{align*}
+E_1 \leq 4\sqrt{2}\, (C_1 + LR)^2\, \sqrt{\frac{1}{T}\log\left(2d_2/\delta\right)}.
+\end{align*} 
+
+The optimization error term $E_2$, however, depends on how fast the inner-level SGD trajectory approaches 
+$\theta^*(v_k)$. Under the smoothness and bounded-gradient assumptions on $l$, the bias reduces to bounding $\sum_{t=0}^{T-1}\|\theta_k^{t} - \theta^*(v_k)\|$. This requires a high-probability control of the SGD iterates, by Lemma~\ref{lemma:thm_Hinv_optimization_error}, we have with probability at least $1-T\delta$,
+\begin{align*}
+    E_2 \leq \frac{4\sqrt2L^2(C_1+LR)}{\mu}\frac{1}{\sqrt{T}}\left(\frac{8L^2}{\mu^2}R+2\sqrt{c'(1+\log(1/\delta))}\right).
+\end{align*}
+The detailed proof of Lemmas~\ref{lemma:thm_Hinv_stochastic_error} and~\ref{lemma:thm_Hinv_optimization_error} are provided in Appendix~\ref{app:proof_thm_Hinv_stochastic_error} and~\ref{app:proof_thm_Hinv_optimization_error}.
+
+Therefore, by applying the union bound, we obtain that with probability at least $1-(1+T)\delta$,
+\begin{align*}
+    \|I_k^T - I(\theta^*(v_k))\|     \leq \frac{1}{\sqrt{T}}\,\Bigg(4\sqrt{2}(C_1 + LR)^2\sqrt{\log\left(2d_2/\delta\right)}  + \frac{4\sqrt2L^2(C_1+LR)}{\mu}\left(\frac{8L^2}{\mu^2}R+2\sqrt{c'(1+\log(1/\delta))}\right)\Bigg).
+\end{align*}
+
+Equivalently, for any $\delta \in (0,1)$, with probability at least $1-\delta$, we have
+\begin{align}
+        \|I_k^T - I(\theta^*(v_k))\| \leq \frac{4\sqrt{2}(C_1 + LR)}{\sqrt{T}}\,\Bigg((C_1 + LR)\sqrt{\log\left(2d_2\frac{1+T}{\delta}\right)}  + \frac{2L^2}{\mu}\sqrt{c'(1+\log\left(\frac{1+T}{\delta}\right))}+\frac{8L^4R}{\mu^3}\Bigg)\nonumber.
+\end{align}
+
+\textbf{Step 4: Error aggregation and sample complexity condition.}
+Define
+\begin{align}\label{eq:def_gamma}
+    \gamma(t,\delta)&:=\frac{4\sqrt{2}(C_1 + LR)}{\sqrt{t}}\,\Bigg((C_1 + LR)\sqrt{\log\left(2d_2\frac{1+t}{\delta}\right)} \Bigg)\nonumber\\
+    &\qquad+ \frac{4\sqrt{2}(C_1 + LR)}{\sqrt{t}}\left(\frac{2L^2}{\mu}\sqrt{c'(1+\log\left(\frac{1+t}{\delta}\right))}+\frac{8L^4R}{\mu^3}\right),
+\end{align}
+and 
+\begin{align}\label{eq:condition_T0}
+T_0(\delta) =\min \left\{t \in \mathbb{N}\mid \gamma(t,\delta)\leq \frac{\mu}{2} \right\}.
+\end{align}
+
+Then, for any $\delta \in (0,1)$, when $T\geq T_0(\delta)$,  
+with probability at least $1-\delta$, we have $\left\| I_k^T-I(\theta^*(v_k)) \right\| \leq \gamma(T,\delta) \leq \frac{\mu}{2}$, and consequently,
+\[
+\|(I_k^T)^{-1} - I(\theta^*(v_k))^{-1}\|\leq\frac{\|I_k^T - I(\theta^*(v_k))\|}{(\mu-\|I_k^T - I(\theta^*(v_k))\|)\,\mu} 
+\leq \frac{2}{\mu^2}\gamma(T,\delta).
+\]
+
+Finally, with probability at least $1-\delta$, we have
+\begin{align*}
+    &\|A_k^T-H(\theta^*(v_k))^{-1}\|=\| (I_k^T)^{-1}-I(\theta^*(v_k))^{-1}\|\\
+    &\leq \frac{\|I_k^T - I(\theta^*(v_k))\|}{(\mu-\|I_k^T - I(\theta^*(v_k))\|)\,\mu} = \mathcal{O}\left( \frac{1}{\sqrt{T}}\sqrt{1+\log\left(\frac{1+T}{\delta}\right)} \right).
+\end{align*}
+This completes the proof.
+\end{proof}
+
+
+
+
+
+
+\subsection{Statements and Proofs of Proposition~\ref{prop:l_21_approx} and Lemma~\ref{lemma:l_21_approx_practical}}
+\begin{proof}\label{app:proof_l_21_approx}
+\begin{align*}
+    \left\|L_T - \nabla_{\theta,v}^2\ell(\theta^*) \right\|
+    = &\left\| \frac1T\sum_{t=0}^{T-1} \nabla_{\theta,v}^2l(\theta_t,\xi_t)-\frac1T\sum_{t=0}^{T-1}\nabla_{\theta,v}^2\ell(\theta_t)+\frac1T\sum_{t=0}^{T-1}\nabla_{\theta,v}^2\ell(\theta_t)-\nabla_{\theta,v}^2\ell(\theta^*)\right\|\\
+    \leq & \frac1T\Bigg\| \sum_{t=0}^{T-1}\left(\nabla_{\theta,v}^2l(\theta_t,\xi_t)-\nabla_{\theta,v}^2\ell(\theta_t)\right)\Bigg\|+\frac1T\left\|\sum_{t=0}^{T-1}\left(\nabla_{\theta,v}^2\ell(\theta_t)-\nabla_{\theta,v}^2\ell(\theta^*)\right) \right\|\\
+    \overset{(a)}{\leq} & \underbrace{\frac1T\Bigg\| \sum_{t=0}^{T-1}\left(\nabla_{\theta,v}^2l(\theta_t,\xi_t)-\mathbb{E}_t[\nabla_{\theta,v}^2l(\theta_{t}, \xi_t)]\right)\Bigg\|}_{E_1}+\underbrace{\frac1T\left\|\sum_{t=0}^{T-1}\left(\nabla_{\theta,v}^2\ell(\theta_t)-\nabla_{\theta,v}^2\ell(\theta^*)\right) \right\|}_{E_2},
+\end{align*}
+where Inequality (a) follows from unbiaseness Assumption~\ref{as:unbias_grad}.
+
+To bound the term $E_1$, we follow a similar argument to the proof of Proposition~\ref{theorem:hessian_inv_approx}. We first define
+\begin{align*}
+\bar{\Delta}_t:=\nabla_{\theta,v}^2l(\theta_{t}, \xi_t)-\mathbb{E}_t[\nabla_{\theta,v}^2l(\theta_{t}, \xi_t)],
+\end{align*}
+so that by (2) of Lemma~\ref{lemma:assumption}, we have $\|\bar{\Delta}_t\| \leq 2L.$ 
+
+Consider the self-adjoint dilation of $\bar{\Delta}_t$: 
+\begin{align*}
+\mathscr{S}(\bar{\Delta}_t) := 
+\begin{bmatrix}
+0 & \bar{\Delta}_t \\
+\bar{\Delta}_t^\top & 0
+\end{bmatrix}\in \mathbb{R}^{(d_2+d_1)\times (d_2+d_1)}.
+\end{align*}
+By $\lambda_{\text{max}}(\mathscr{S}(\bar{\Delta}_t))=\|\mathscr{S}(\bar{\Delta}_t)\|=\|\bar{\Delta}_t\|$  \cite{tropp2012user}[(2.12)], we have $\lambda_{\text{max}}(\mathscr{S}(\bar{\Delta}_t))\leq 2L$ and hence
+\begin{align*}
+    \mathscr{S}(\bar{\Delta}_t)^2 \preceq 4L^2\mathbf{I}.
+\end{align*}
+Applying Matrix Azuma's inequality~\cite{tropp2012user}[Theorem 7.1], with variance parameter 
+\[
+\sigma^2:=\|\sum_{t=0}^{T-1} 4L^2\mathbf{I} \|=4L^2T,
+\]
+yields, for any $u\geq 0$,
+\begin{align*}
+    \mathbb{P}\left( \lambda_{\text{max}}\left(\sum_{t=0}^{T-1}\mathscr{S}(\bar{\Delta}_t)\right)\geq u\right)\leq (d_1+d_2) \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+
+Repeating the symmetrization argument used in the proof of Proposition~\ref{theorem:hessian_inv_approx}, we obtain
+\begin{align*}
+    \mathbb{P}\left( \left\| \sum_{t=0}^{T-1}\mathscr{S}(\bar{\Delta}_t) \right\|\geq u\right)\leq 2(d_1+d_2) \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+Since $\| \sum_{t=0}^{T-1}\mathscr{S}(\bar{\Delta}_t)\|=\|\mathscr{S}(\sum_{t=0}^{T-1}\bar{\Delta}_t)\|=\|\sum_{t=0}^{T-1} \bar{\Delta}_t\|$, it follows that
+\begin{align*}
+    \mathbb{P}\left( \left\| \sum_{t=0}^{T-1}\bar{\Delta}_t \right\|\geq u\right)\leq 2(d_1+d_2) \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+
+Therefore, for any $\delta\in(0,1)$, with probability at least $1-\delta$, 
+\begin{align*}
+E_1=\frac1T\left\|\sum_{t=0}^{T-1}\bar{\Delta}_t\right\| \leq \frac{4\sqrt{2}L}{\sqrt{T}} \sqrt{\log\left(2(d_1+d_2)/\delta\right)}.
+\end{align*}
+
+We now bound the term $E_2$. By Assumption~\ref{as:l_inner} , ${\nabla}^2_{2,1}\ell(v,\theta)$ is Lipschitz continuous in $\theta$, therefore 
+\begin{align*}
+E_2\leq\frac{1}{T}\sum_{t=0}^{T-1}\left\| \nabla_{\theta,v}^2\ell(\theta_t)-\nabla_{\theta,v}^2\ell(\theta^*) \right\|
+\leq \frac{L_{l_{\theta,v}}}{T}\sum_{t=0}^{T-1}\|\theta_{t}-\theta^*\|.
+\end{align*}
+Applying Lemma~\ref{lemma:SGD_general}, with stepsize $\eta_t=4/{\mu(t+\frac{8L^2}{\mu^2})}$, we obtain that, for any $\delta\in(0,1)$, with probability at least $1-T\delta$,
+\begin{align*}
+    E_2\leq \frac{2\sqrt2L_{l_{\theta,v}}}{\sqrt{T}}\frac{L}{\mu}\left(\frac{8L^2R}{\mu^2}+2\sqrt{c'(1+\log(1/\delta))}\right), 
+\end{align*}
+where $c'$ is an absolute constant and defined in~\eqref{eq:def_c'}.   
+
+
+Finally, combining the bounds for $E_1$ and $E_2$,  applying the union bound, we have that with probability at least $1-(1+T)\delta$, 
+\begin{align*}
+        \left\|L_T - \nabla_{\theta,v}^2\ell( \theta^*) \right\|
+        & \leq \frac{4\sqrt{2}L}{\sqrt{T}}\sqrt{\log(2(d_1+d_2)/\delta)} \;+\; \frac{2\sqrt2L_{l_{\theta,v}}}{\sqrt{T}}\frac{L}{\mu}\left(\frac{8L^2R}{\mu^2}+2\sqrt{c'(1+\log(1/\delta))}\right) \\
+        &= \mathcal{O}(\frac{1}{\sqrt{T}}\sqrt{1+\log(1/\delta)}).
+\end{align*} 
+Equivalently, for any $\delta \in (0,1)$, with probability at least $1-\delta$, we have
+\begin{align*}
+    \left\|L_T - \nabla_{\theta,v}^2\ell( \theta^*) \right\| = \mathcal{O}\left(\frac{1}{\sqrt{T}}\sqrt{1+\log\left(\frac{1+T}{\delta}\right)}\right).
+\end{align*}
+
+This completes the proof.
+\end{proof}
+
+\begin{lemma}\label{lemma:l_21_approx_practical}
+Under Assumptions~\ref{as:l_inner} and~\ref{as:unbias_grad}, for any 
+$\delta\in(0,1)$, with probability at least $1-\delta$,
+\[
+\|\hat{L}_k^M - \nabla_{\theta,v}^2 \ell(v_k,\theta^*(v_k))\|
+=
+\mathcal{O}\!\left(\frac{1}{\sqrt{M}}+
+\sqrt{\frac{1+\log(1/\delta)}{T}}
+\
+\right).
+\]
+\end{lemma}
+
+\begin{proof}\label{app:proof_l_21_approx_practical}
+\begin{align*}
+    & \left\|\hat{L}_M - \nabla_{\theta,v}^2\ell(\theta^*) \right\|\\
+    = &\left\| \frac1M\sum_{i=1}^{M} \nabla_{\theta,v}^2l(\theta_T,\xi_i)-\nabla_{\theta,v}^2\ell(\theta_T)+\nabla_{\theta,v}^2\ell(\theta_T)-\nabla_{\theta,v}^2\ell(\theta^*)\right\|\\
+    \leq & \frac1M\Bigg\| \sum_{i=1}^{M}\left(\nabla_{\theta,v}^2l(\theta_T,\xi_i)-\nabla_{\theta,v}^2\ell(\theta_T)\right)\Bigg\|+\left\|\nabla_{\theta,v}^2\ell(\theta_T)-\nabla_{\theta,v}^2\ell(\theta^*) \right\|\\
+    \overset{(a)}{\leq} & \underbrace{\frac1M\Bigg\| \sum_{i=1}^{M}\left(\nabla_{\theta,v}^2l(\theta_T,\xi_i)-\mathbb{E}_t[\nabla_{\theta,v}^2l(\theta_T, \xi_i)]\right)\Bigg\|}_{E_1}+L_{\ell_{\theta,v}}\left\|\theta_T-\theta^*\right\|,
+\end{align*}
+where Inequality (a) follows from the unbiaseness Assumption~\ref{as:unbias_grad} and the Lipschitz continuity of $\nabla_{\theta,v}^2\ell$ from Assumption~\ref{as:l_inner}.
+
+We now bound the term $E_1$. We first define
+\begin{align*}
+\bar{\Delta}_i:= \nabla_{\theta,v}^2l(\theta_T, \xi_i)-\mathbb{E}_t[\nabla_{\theta,v}^2l(\theta_T, \xi_i)],
+\end{align*}
+so that by (2) of Lemma~\ref{lemma:assumption}, we have $\|\tilde{\Delta}_i\| \leq 2L.$
+
+Consider the self-adjoint dilation of $\tilde{\Delta}_i$: 
+\begin{align*}
+\mathscr{S}(\tilde{\Delta}_i) := 
+\begin{bmatrix}
+0 & \tilde{\Delta}_i \\
+\tilde{\Delta}_i^\top & 0
+\end{bmatrix}\in \mathbb{R}^{(d_2+d_1)\times (d_2+d_1)}.
+\end{align*}
+By $\lambda_{\text{max}}(\mathscr{S}(\tilde{\Delta}_i))=\|\mathscr{S}(\tilde{\Delta}_i)\|=\|\tilde{\Delta}_i\|$  \cite{tropp2012user}[(2.12)], we have $\lambda_{\text{max}}(\mathscr{S}(\bar{\Delta}_i))\leq 2L$, and hence
+\begin{align*}
+    \mathscr{S}(\bar{\Delta}_i)^2 \preceq 4L^2\mathbf{I}.
+\end{align*}
+Applying Matrix Hoeffding inequality~\cite{tropp2012user}[Theorem 1.3], with variance parameter 
+\[
+\sigma^2:=\|\sum_{i=1}^M 4L^2\mathbf{I} \|=4L^2M,
+\]
+yields, for any $u\geq 0$,
+\begin{align*}
+    \mathbb{P}\left( \lambda_{\text{max}}\left(\sum_{i=1}^{M}\mathscr{S}(\tilde{\Delta}_i)\right)\geq u\right)\leq (d_1+d_2) \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+
+Repeating the symmetrization argument used in the proof of Proposition~\ref{theorem:hessian_inv_approx}, we obtain
+\begin{align*}
+    \mathbb{P}\left( \left\| \sum_{i=1}^{M}\mathscr{S}(\tilde{\Delta}_i) \right\|\geq u\right)\leq 2(d_1+d_2) \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+Since $\| \sum_{i=1}^{M}\mathscr{S}(\tilde{\Delta}_i)\|=\|\mathscr{S}(\sum_{i=1}^{M}\tilde{\Delta}_i)\|=\|\sum_{i=1}^{M} \tilde{\Delta}_i\|$, it follows that
+\begin{align*}
+    \mathbb{P}\left( \left\| \sum_{i=1}^{M}\tilde{\Delta}_i \right\|\geq u\right)\leq 2(d_1+d_2) \exp\left(-\frac{u^2}{8\sigma^2}\right).
+\end{align*}
+
+Therefore, for any $\delta\in(0,1)$, with probability at least $1-\delta$, 
+\begin{align*}
+E_1=\frac1M\left\|\sum_{i=1}^{M}\tilde{\Delta}_i\right\| \leq \frac{4\sqrt{2}L}{\sqrt{M}} \sqrt{\log\left(2(d_1+d_2)/\delta\right)}.
+\end{align*}
+
+We now bound the term $L_{\ell_{\theta,v}}\left\|\theta_T-\theta^*\right\|$. Applying Lemma~\ref{lemma:SGD_general}, with diminishing stepsize $\displaystyle \eta_t=\frac{4}{\mu(t+\frac{8L^2}{\mu^2})}$, we obtain that, for any $\delta\in(0,1)$, with probability at least $1-\delta$,
+\begin{align*}
+    \|\theta_T-\theta^*\|\leq \frac{\frac{8L^2}{\mu^2}}{T+\frac{8L^2}{\mu^2}}\|\theta_0-\theta^*\|+\sqrt{\frac{c'(1+\log(1/\delta))}{T+\frac{8L^2}{\mu^2}}},
+\end{align*}
+where $c'$ is defined in~\eqref{eq:def_c'}.   
+
+
+Finally, applying the union bound, we see that with probability at least $1-2\delta$, 
+\begin{align*}
+        &\left\|L_M - \nabla_{\theta,v}^2\ell( \theta^*) \right\|\\
+        & \leq \frac{4\sqrt{2}L}{\sqrt{M}}\sqrt{\log(2(d_1+d_2)/\delta)} \;+\; \frac{\frac{8L^2R}{\mu^2}}{T+\frac{8L^2}{\mu^2}}+\sqrt{\frac{c'(1+\log(1/\delta))}{T+\frac{8L^2}{\mu^2}}} \\
+        &= \mathcal{O}(\frac{1}{\sqrt{M}}+\frac{1}{\sqrt{T}}\sqrt{1+\log(1/\delta)}).
+\end{align*} 
+This completes the proof.
+\end{proof}
+
+
+\newpage
+\section{Proofs for the NHGD Convergence Rate}\label{app:outer}
+
+We begin by recalling two results from Lemma 2.2 of \cite{ghadimi2018approximation}, which will be used in our analysis. Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, the following properties hold:
+
+\begin{enumerate}
+    \item  The mapping $\theta^*(v)$ is $\frac{L}{\mu}$-Lipschitz continuous with respect to $v$.
+    \item The function $\Phi(v):=f(v,\theta^*(v))$ is $L_{v}$-smooth with respect to $v$, where 
+\end{enumerate}
+\begin{align}\label{eq:L_v}
+        L_v:=\bar{L}_{f_v} + \frac{L}{\mu}\left(L_{f_v}+\bar{L}_{f_\theta} \right)+\frac{L^2}{\mu^2}L_{f_\theta}+D_1\left( \frac{\bar{L}_{\ell_{\theta,v}}}{\mu}+ \frac{L}{\mu^2}(\bar{L}_{\ell_{\theta,\theta}}+L_{\ell_{\theta,v}}) +\frac{L^2L_{\ell_{\theta,\theta}}}{\mu^3} \right).      
+    \end{align}
+
+Recall that the approximate hypergradient is defined as
+\begin{align}\label{eq:apprx_f_v}
+    \widehat{\nabla}\Phi(v_k) :=   \nabla_v f(v_k,\theta_k^T) + L_k^T\cdot A_k^T \cdot \nabla_{\theta}f(v_k,\theta_k^T),
+\end{align}
+and the true hypergradient is given by
+\begin{align}\label{eq:f_v}
+    \nabla \Phi(v_k) = \nabla_v f(v_k,\theta^*(v_k)) + \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\cdot H(\theta^*(v_k))^{-1} \cdot \nabla_{\theta}f(v_k,\theta^*(v_k)).
+\end{align}
+
+Accordingly, the outer-level update can be written as 
+\begin{align*}
+v_{k+1} = v_k - \alpha \widehat{\nabla}\Phi(v_k).
+\end{align*}
+
+
+
+\subsection{Statements and Proofs of Lemma~\ref{lemma:outer1} and Lemma~\ref{lemma:grad_error}}
+\begin{lemma} \label{lemma:outer1} Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, and with outer stepsize $\alpha = \tfrac{1}{4L_v}$, we have {\small \begin{align} \label{eq:outer1} \frac{1}{16L_v} \sum_{k=1}^{K} \|\nabla\Phi(v_k)\|^2 &\le\; \Phi(v_1) - \Phi^*  + \frac{3}{16L_v} \sum_{k=1}^{K} \|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k)\|^2, \end{align}} where $L_v$ is denoted in~\eqref{eq:L_v} and $\Phi^*$ denotes the optimal value of the outer objective. \end{lemma}
+\begin{proof}\label{app:proof_outer1}
+    Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, $\Phi(v)$ is $L_v$-smooth with respect to $v$. Thus, we have
+\begin{align}
+     \Phi(v_{k+1}) &\leq \Phi(v_{k}) + \langle \nabla\Phi(v_k), v_{k+1} - v_k \rangle + \frac{L_v}{2} \|v_{k+1} - v_k\|^2 \nonumber\\
+    &= \Phi(v_{k}) + \langle \nabla\Phi(v_k), -\alpha \widehat{\nabla}\Phi(v_k) \rangle + \frac{L_v}{2} \alpha^2 \|\widehat{\nabla}\Phi(v_k)\|^2 \nonumber\\
+    &= \Phi(v_{k}) + \alpha \langle \nabla\Phi(v_k), \nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k) \rangle - \alpha \|\nabla\Phi(v_k)\|^2 + \frac{L_v \alpha^2}{2}  \| \widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)+\nabla\Phi(v_k) \|^2 \nonumber\\
+    & \overset{(a)}{\leq} \Phi(v_{k}) + \alpha \langle \nabla\Phi(v_k), \nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k) \rangle  - (\alpha - L_v \alpha^2) \| \nabla\Phi(v_k) \|^2 
+    + L_v \alpha^2  \| \nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k) \|^2 \nonumber\\
+    & \overset{(b)}{\leq} \Phi(v_{k})+ (\frac{\alpha}{2}+L_v \alpha^2 ) \|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k) \|^2 
+  - (\frac{\alpha}{2} - L_v \alpha^2) \| \nabla\Phi(v_k) \|^2, \label{eq:outer_iter}
+\end{align}
+where Inequality (a) follows that $\| a+b\|^2 \leq  2\|a\|^2 + 2\|b\|^2,\,\,\, \forall a,b\in \mathbb{R}^{d_1}$. Inequality (b) follows that $\langle a,b \rangle \leq \frac12 \|a\|^2+\frac12 \|b\|^2,\,\,\, \forall a,b\in \mathbb{R}^{d_1}$.
+
+Telescoping \eqref{eq:outer_iter} over $k$ from $1$ to $K$ and let $\alpha =\frac{1}{4L_v}$, we have
+\begin{align}
+\frac{1}{16L_v}\sum_{k=1}^{K} \| \nabla\Phi(v_k) \|^2 
+ &\leq \Phi(v_1) - \Phi(v_k)  
+ + \frac{3}{16L_v}\sum_{k=1}^{K}  \| \nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k) \|^2 \nonumber\\
+ &\leq \Phi(v_1) - \Phi^*+ \frac{3}{16L_v}\sum_{k=1}^{K}  \| \nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k) \|^2, \label{eq:grad_sum}
+\end{align}
+where $\Phi^*$ denotes the finite optimal value of the bi-level problem. This completes the proof.
+\end{proof}
+
+\begin{lemma}\label{lemma:grad_error_decompose}
+Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, we have that 
+\begin{align*}
+    \|\widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\|&\leq\left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\left\| \theta_k^T-\theta^*(v_k) \right\| + (LR+C_1)\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\| \\
+    &\quad +  L(LR+C_1) \left\| A_k^T -  H(\theta^*(v_k))^{-1} \right\|.
+\end{align*}
+
+\end{lemma}
+\begin{proof}\label{app:proof_grad_error_decompose}
+
+We bound the difference of the approximate and true hypergradient as follows
+\begin{align}
+   & \|\widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\|\nonumber\\
+   &=\|\nabla_v f(v_k,\theta_k^T) - L_k^T\, A_k^T \,\nabla_{\theta}f(v_k,\theta_k^T)- \nabla_v f (v_k,\theta^*(v_k)) +\nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\, H(\theta^*(v_k))^{-1} \, \nabla_{\theta}f(v_k,\theta^*(v_k))\|\nonumber\\
+   &\leq  \left\|\nabla_v f(v_k,\theta_k^T) -  \nabla_v f (v_k,\theta^*(v_k))\right\|  + \|L_k^T\, A_k^T \, \nabla_{\theta}f(v_k,\theta_k^T) - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\, H(\theta^*(v_k))^{-1} \, \nabla_{\theta}f(v_k,\theta^*(v_k))\|\nonumber\\
+   &\overset{(a)}{\leq} L_{f_v} \left\| \theta_k^T - \theta^*(v_k) \right\| + \left\|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \ \nabla_\theta f(v_k,\theta_k^T)\right\| \nonumber\\
+    &\quad + \left\|\nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))  \left( A_k^T -  H(\theta^*(v_k))^{-1} \right)  \nabla_\theta f(v_k,\theta_k^T)\right\|\nonumber\\
+    &\quad +\left\|\nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))   H(\theta^*(v_k))^{-1} \left(\nabla_\theta f(v_k,\theta_k^T) - \nabla_\theta f(v_k,\theta^*(v_k))
+     \right)\right\|\nonumber\\
+     &\leq L_{f_v} \left\| \theta_k^T - \theta^*(v_k) \right\| + \left\|\nabla_\theta f(v_k,\theta_k^T)\right\|\left\|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T\right\| \nonumber\\
+    &\quad + \left\|\nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\right\| \left\| \nabla_\theta f(v_k,\theta_k^T)\right\|\left\|  A_k^T -  H(\theta^*(v_k))^{-1}\right\|\nonumber\\
+    &\quad +\left\|\nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\right\| \left\|H(\theta^*(v_k))^{-1} \right\| \left\|    \nabla_\theta f(v_k,\theta_k^T) - \nabla_\theta f(v_k,\theta^*(v_k))\right\|\nonumber\\
+     &\overset{(b)}{\leq} L_{f_v} \left\| \theta_k^T - \theta^*(v_k) \right\| + (LR+C_1)\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\|\nonumber\\
+    &\quad +L(LR+C_1) \left\| A_k^T -  H(\theta^*(v_k))^{-1} \right\|  +  \frac{L}{\mu} \left\| \nabla_\theta f(v_k,\theta_k^T) - \nabla_\theta f(v_k,\theta^*(v_k))\right\|\nonumber\\
+    & \overset{(c)}{\leq} \left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\left\| \theta_k^T-\theta^*(v_k) \right\| + (LR+C_1)\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\| \nonumber\\
+    &\quad+  L(LR+C_1) \left\| A_k^T -  H(\theta^*(v_k))^{-1} \right\|\nonumber,
+\end{align}
+where Inequality (a) follows from the Lipschitz continuity of $\nabla_v f(v,\theta)$ (Assumption~\ref{as:f_smoothness}) and $\|A_1B_1C_1-A_2B_2C_1\|\leq \|(A_1-A_2)B_1C_1\|+\|A_2(B_1-B_2)C_1\|+\|A_2B_2(C_1-C_1)\|$. Inequality (b) follows from the boundedness of $\nabla_\theta f$ (Assumption~\ref{as:f_smoothness}), the boundedness of $\nabla_{\theta,v}^2\ell$ ((2) of Lemma~\ref{lemma:assumption}) and strongly convexity of $\ell$ ((4) of Lemma~\ref{lemma:assumption}). Inequality (c) follows from Lipschitz continuity of $\nabla_\theta f$ (Assumption~\ref{as:f_smoothness}).
+\end{proof}
+
+\begin{lemma}
+\label{lemma:grad_error}
+Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, for any $\delta\in(0,1)$, with probability at least $1-(k-1)\delta$, we have
+\begin{align*}
+\left\| \widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\right\|^2 &\leq \psi \Lambda_1(T)^{k-1} \left\| \theta_1^T - \theta^*(v_1) \right\|^2 + \; \psi\Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \ \left\|\nabla \Phi(v_j)\right\|^2 \nonumber \\
+    &\quad+ \;\psi\Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \left( D_j^T + F_j^T \right)+\psi b(T,\delta)\sum_{j=0}^{k-2}\Lambda_1(T)^j+3D_k^T+3F_k^T
+\end{align*}
+where $D_j^{T}$, $F_j^{T}$, $\Lambda_1(T))$, $\Lambda_2(T)$ and   $b(T,\delta)$ are defined in~\eqref{eq:def_DkT},~\eqref{eq:def_FkT},~\eqref{eq:def_Lambda1},~\eqref{eq:def_Lambda2} and~\eqref{eq:def_bT}. $\psi$ is a constant defined in~\eqref{eq:def_psi}.
+\end{lemma}
+\begin{proof}\label{app:proof_grad_error}
+Recall the bound provides in Lemma~\ref{lemma:grad_error_decompose},
+\begin{align}
+    \|\widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\|&\leq\left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\left\| \theta_k^T-\theta^*(v_k) \right\| + (LR+C_1)\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\| \nonumber\\
+    &\quad +  L(LR+C_1) \left\| A_k^T -  H(\theta^*(v_k))^{-1} \right\|\label{eq:grad_to_theta}.
+\end{align}
+It implies that controlling the hypergradient error reduces to bounding:  
+(i) the inner-level SGD deviation $\|\theta_k^{T} - \theta^*(v_k)\|$,  
+(ii) the Hessian inverse approximation error $\|A_k^{T} - H(\theta^*(v_k))^{-1}\|$, 
+and (iii) the cross-partial derivative approximation error  
+$\|L_k^{T} - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\|$. We now bound the inner-loop SGD error $\|\theta_k^T-\theta^*(v_k)\|$ in this lemma. The Hessian inverse and cross-partial approximation errors, however, admit bounds independent of $v_k$, and
+are therefore addressed separately. 
+
+For diminishing stepsize $\eta_t = 4/{\mu(t+\frac{8L^2}{\mu^2})}$, Lemma~\ref{lemma:SGD_general} implies that, for any $\delta\in(0,1)$, with probability of at least $1-\delta$,
+\begin{align}
+    \|\theta_k^T - \theta^*(v_k)\| 
+    &\leq \frac{\frac{8L^2}{\mu^2}}{T+\frac{8L^2}{\mu^2}}\left\| \theta_k^{0} - \theta^*(v_k)\right\| + \sqrt{\frac{c'(1+\log(1/\delta))}{T+\frac{8L^2}{\mu^2}}}\nonumber\\
+    & \overset{(d)}{\leq} \frac{\frac{8L^2}{\mu^2}}{T+\frac{8L^2}{\mu^2}}\left\| \theta_{k-1}^{T} - \theta^*(v_k)\right\| + \sqrt{\frac{c'(1+\log(1/\delta))}{T+\frac{8L^2}{\mu^2}}}\label{eq:thm4_theta_connect},
+\end{align}
+where Inequality (d) is due to the warm-start strategy $\theta_k^0=\theta_{k-1}^T$ for the inner variable.
+
+Furthermore, we have
+\begin{align}
+    \left\| \theta_{k-1}^{T} - \theta^*(v_k)\right\|&=\left\| \theta_{k-1}^{T} - \theta^*(v_{k-1})+\theta^*(v_{k-1})-\theta^*(v_k)\right\| \nonumber\\
+    &\leq \left\|\theta_{k-1}^{T} - \theta^*(v_{k-1}) \right\|  +  \left\|\theta^*(v_{k-1}) - \theta^*(v_k) \right\| \nonumber\\
+    &\leq \left\|\theta_{k-1}^{T} - \theta^*(v_{k-1}) \right\|  +  \frac{L}{\mu}\left\|v_{k-1}-v_k\right\| \tag{ $\theta^*(v)$ is $\frac{L}{\mu}$-Lipschitz continuous}\\
+    &\leq \left\|\theta_{k-1}^{T} - \theta^*(v_{k-1}) \right\|  +  \frac{\alpha L}{\mu}\left\| \widehat{\nabla}\Phi(v_{k-1}) \right\| \nonumber\\
+    & \leq  \left\|\theta_{k-1}^{T} - \theta^*(v_{k-1}) \right\|  +  \frac{\alpha L}{\mu}\left\| \widehat{\nabla}\Phi(v_{k-1})-\nabla\Phi(v_{k-1})\right\|  + \frac{\alpha L}{\mu} \left\| \nabla\Phi(v_{k-1}) \right\|. \label{eq:theta_kk-1}
+\end{align}
+
+Combining inequalities \eqref{eq:grad_to_theta}, \eqref{eq:thm4_theta_connect} and \eqref{eq:theta_kk-1}, we obtain that with probability at least $1-\delta$,
+\begin{align}
+    \left\| \theta_k^T-\theta^*(v_k)\right\|^2
+    &\leq  \Lambda_1(T)\left\| \theta_{k-1}^{T}-\theta^*(v_{k-1}) \right\|^2  + \Lambda_2(T)\left(\left\| \nabla\Phi(v_{k-1})\right\|^2+D_{k-1}^T  +  F_{k-1}^T\right)  +  b(T,\delta), \label{eq:theta_recursion}
+\end{align}
+where
+\begin{align}
+&\Lambda_1(T):= 5\left( 1 + \frac{\alpha L}{\mu}   \left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\right)^2\left(\frac{\frac{8L^2}{\mu^2}}{T+\frac{8L^2}{\mu^2}} \right)^2,\label{eq:def_Lambda1}\\
+&\Lambda_2(T):=\frac{5\alpha^2 L^2}{\mu^2}\left(\frac{\frac{8L^2}{\mu^2}}{T+\frac{8L^2}{\mu^2}} \right)^2,\label{eq:def_Lambda2}\\
+&b(T,\delta):=\frac{5c'(1+\log(1/\delta))}{T+\frac{8L^2}{\mu^2}},\label{eq:def_bT}\\
+    &D_k^T:=(LR+C_1)^2\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\|^2,\label{eq:def_DkT}\\
+    &F_k^T:=L^2(LR+C_1)^2 \left\| A_k^T -  H(\theta^*(v_k))^{-1} \right\|^2.\label{eq:def_FkT}
+\end{align}
+
+Telescoping Inequality \eqref{eq:theta_recursion} over $k$, we have that with probability at least $1-(k-1)\delta$,
+\begin{align}
+    \left\| \theta_k^T-\theta^*(v_k) \right\|^2 &\leq \Lambda_1 (T)^{k-1} \left\| \theta_1^T - \theta^*(v_1) \right\|^2 +  \Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \left( \left\|\nabla\Phi(v_j)\right\|^2 + D_j^T + F_j^T \right) \nonumber\\
+    &\qquad   +  b(T,\delta)\sum_{j=0}^{k-2}\Lambda_1(T)^{j}. \label{eq:theta_bound_to0}
+\end{align}
+
+
+Finally, substituting \eqref{eq:theta_bound_to0} into \eqref{eq:grad_to_theta}, we obtain the corresponding bound on the hypergradient approximation error. With probability at least $1-(k-1)\delta$, we have
+\begin{align}
+    \left\| \widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\right\|^2 
+    &\leq \psi \Lambda_1(T)^{k-1} \left\| \theta_1^T - \theta^*(v_1) \right\|^2 + \; \psi\Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \ \left\|\nabla \Phi(v_j)\right\|^2 \nonumber \\
+    &\quad+ \;\psi\Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \left( D_j^T + F_j^T \right)+\psi b(T,\delta)\sum_{j=0}^{k-2}\Lambda_1(T)^j+3D_k^T+3F_k^T, \label{eq:grad_bound_to0}
+\end{align}
+where
+\begin{align}\label{eq:def_psi}
+    \psi:=3\left(L_{f_v}+\frac{LL_{f_\theta}}{\mu}\right)^2.
+\end{align}
+This completes the proof.
+\end{proof}
+
+
+\subsection{Proof of Theorem~\ref{theorem:outer_convergence}}
+\begin{proof}\label{app:outer_convergence}
+
+\textbf{Step 1: Descent inequality for the outer level.}
+We begin by establishing a descent inequality for the outer-level objective. Under Assumptions~\ref{as:l_inner} and~\ref{as:f_smoothness}, the over-all objective is $L_v$-smooth. With the outer stepsize
+$\alpha = \tfrac{1}{4L_v}$, this can give us the following descent inequality
+\begin{align}
+\frac{1}{16L_v}\sum_{k=1}^{K} \|\nabla\Phi(v_k)\|^2 \le
+\Phi(v_1) - \Phi^* +
+\frac{3}{16L_v}
+\sum_{k=1}^{K}
+\|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k)\|^2,
+\end{align}
+where $L_v$ is defined in~\eqref{eq:L_v} and $\Phi^*$ denotes the optimal value of the overall problem. A formal statement of this result are provided in
+Lemma~\ref{lemma:outer1}. This shows that establishing convergence guarantee reduces to bounding the hypergradient approximation error
+$\|\nabla\Phi(v_k) - \widehat{\nabla}\Phi(v_k)\|$.
+
+\textbf{Step 2: Decomposition of the hypergradient approximation error.}
+Under the regularity conditions imposed by our assumptions, the hypergradient approximation error admits the following decomposition:
+\begin{align*}
+    \|\widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\|&\leq\left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\left\| \theta_k^T-\theta^*(v_k) \right\| + (LR+C_1)\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\|\\
+    &\quad +  L(LR+C_1) \left\| A_k^T -  H(\theta^*(v_k))^{-1} \right\|,
+\end{align*}
+where the detailed statement and proof is provided in Lemma~\ref{lemma:grad_error_decompose}. Consequently, controlling the hypergradient error reduces to bounding:  
+(i) the inner-level SGD deviation $\|\theta_k^{T} - \theta^*(v_k)\|$,  
+(ii) the Hessian inverse approximation error $\|A_k^{T} - H(\theta^*(v_k))^{-1}\|$,  
+and (iii) the cross-partial derivative approximation error  
+$\|L_k^{T} - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))\|$. 
+
+We next bound the inner-level SGD deviation, whose error remains coupled with
+$\|\nabla\Phi(v_k)\|$, reflecting the intrinsic coupling between the inner SGD deviation and the outer objective. The Hessian inverse and cross-partial approximation errors, however, admit bounds independent of $v_k$, and are therefore addressed separately at the end.
+
+\textbf{Step 3: Bounding the inner-level SGD deviation.}
+Lemma~\ref{lemma:SGD_general} shows that inner-level SGD error depends on $\|\theta_k^0 - \theta^*(v_k)\|$. To further control this, we use the standard 
+warm-start technique $\theta_k^0 = \theta_{k-1}^T$, and the hypergradient approximation error can be further bounded as:
+\begin{align}
+\left\| \widehat{\nabla}\Phi(v_k)-\nabla\Phi(v_k)\right\|^2 &\leq \psi \Lambda_1(T)^{k-1} \left\| \theta_1^T - \theta^*(v_1) \right\|^2 +  \psi\Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \ \left\|\nabla \Phi(v_j)\right\|^2 \nonumber \\
+    &\quad+ \;\psi\Lambda_2(T)\sum_{j=1}^{k-1} \Lambda_1(T)^{k-j-1} \left( D_j^T + F_j^T \right)+\psi b(T,\delta)\sum_{j=0}^{k-2}\Lambda_1(T)^j+3D_k^T+3F_k^T,\label{eq:grad_error_bound2}
+\end{align}
+where $D_j^{T} = (LR+C_2)\|(L_j^{T} - \nabla_{\theta,v}^2\ell(v_j,\theta^*(v_j)))A_j^{T}\|$, $F_j^{T} = L(LR+C_2)\|A_j^{T} - (H_j^*)^{-1}\|$
+ and $\Lambda_1(T)=\mathcal{O}(\frac{1}{T^2})$ is defined in~\eqref{eq:def_Lambda1},  $\Lambda_2(T)=\mathcal{O}(\frac{1}{T^2})$ is defined in~\eqref{eq:def_Lambda2}, $b(T,\delta)=\mathcal{O}(\frac{\log(1/\delta)}{\sqrt{T}})$ is defined in~\eqref{eq:def_bT} and $\psi$ is a constant defined in~\eqref{eq:def_psi}.
+The detailed statement and proof is provided in Lemma~\ref{lemma:grad_error}.
+
+
+
+Telescoping \eqref{eq:grad_error_bound2} over $k$ from $2$ to $K$ and \eqref{eq:grad_to_theta} (deterministic bound) for $k=1$, applying union bound, we obtain that, with probability at least $1-\frac{K(K-1)}{2}\delta$,
+\begin{align}
+    \sum_{k=1}^{K}\left\| \nabla\Phi(v_k)-\widehat{\nabla}\Phi(v_k) \right\|^2 &\leq \psi \left\| \theta_1^T - \theta^*(v_1) \right\|^2 \sum_{k=0}^{K-1} \Lambda_1(T)^k + \psi b(T,\delta)\sum_{k=1}^{K-1}\sum_{j=0}^{k-1} \Lambda_1(T)^j \nonumber\\
+    &\qquad +\psi \Lambda_2(T) \sum_{k=2}^{K}\sum_{j=1}^{k-1}\Lambda_1(T)^{k-j-1}\left(  D_j^T + F_j^T \right)  + 3\sum_{k=1}^{K}\left( D_k^T+F_k^T \right) \nonumber \\
+    &\qquad +\psi \Lambda_2(T)\sum_{k=2}^{K}\sum_{j=1}^{k-1}\Lambda_1(T)^{k-j-1} \left\|\nabla \Phi(v_j)\right\|^2.\label{eq:grad_sum_bound}
+\end{align}
+
+For the last term in~\eqref{eq:grad_sum_bound}, 
+\begin{align*}
+    \sum_{k=2}^{K}\sum_{j=1}^{k-1}\Lambda_1(T)^{k-j-1}\left\|\nabla \Phi(v_j)\right\|^2 \leq \sum_{k=0}^{K-2}\Lambda_1(T)^{k} \sum_{j=1}^{K-1}\left\|\nabla \Phi(v_j)\right\|^2 \leq \frac{1}{1-\Lambda_1(T)}\sum_{j=1}^{K}\left\|\nabla \Phi(v_j)\right\|^2.
+\end{align*}
+Combining the above bound with~\eqref{eq:grad_sum_bound} and descent inequality~\eqref{eq:grad_sum},
+\begin{align}
+    &\left(\frac{1}{16L_v}-\frac{3\psi}{16L_v} \frac{\Lambda_2(T)}{1-\Lambda_1(T)}  \right)\sum_{k=1}^{K}\|\nabla\Phi(v_k) \|^2 \nonumber\\
+    &\leq \Phi(v_0)-\Phi^* + \frac{3\psi}{16L_v} \left\| \theta_1^T - \theta^*(v_1) \right\|^2 \sum_{k=0}^{K-1} \Lambda_1(T)^k + \frac{3\psi}{16L_v} b(T,\delta)\sum_{k=1}^{K-1}\sum_{j=0}^{k-1} \Lambda_1(T)^j \nonumber\\
+    &\qquad +\frac{3\psi}{16L_v} \Lambda_2(T) \sum_{k=2}^{K}\sum_{j=1}^{k-1}\Lambda_1(T)^{k-j-1}\left( D_j^T + F_j^T \right) + \frac{9}{16L_v}\sum_{k=1}^{K}\left( D_k^T+F_k^T \right).\label{eq:grad_bound1}
+\end{align}
+
+If $\displaystyle \; T \geq \hat{T}_0:= \frac{8L^2}{\mu^2}\sqrt{\frac{45L^2}{8L_v^2\mu^2}\left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)^2+5\left( 1 + \frac{L}{4L_v\mu}   \left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\right)^2}\, - \frac{8L^2}{\mu^2}$, we have the coefficient of left hand side satisfies
+\[
+\frac{1}{32L_v} \leq \frac{1}{16L_v}-\frac{3\psi}{16L_v} \frac{\Lambda_2(T)}{1-\Lambda_1(T)}.  
+\]
+
+
+\textbf{Step 4: Bounding the cross-partial derivative approximation error.}
+Now, we derive the high-probability bound for term $D_k^T$ and $F_k^T$, which are related to the Hessian inverse approximation error and cross-partial derivative approximation error. 
+
+First, recall Proposition~\ref{prop:l_21_approx} implies that, exist constant $M_1>0$, with probability at least $1-\delta$, 
+\begin{align*}
+    \left\| L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k)) \right\|^2\leq M_1\frac{1}{T}\left(1+\log\left(\frac{1+T}{\delta}\right)\right), \quad \forall\  k,T\geq 1.
+\end{align*}
+
+Theorem~\ref{theorem:hessian_inv_approx} implies that, when $T\geq T_0(\delta)$ (where $T_0(\delta)$ is define at~\eqref{eq:condition_T0}), exist constant $M_2>0$, with probability at least $1-\delta$,
+\begin{align*}
+    \left\| A_k^T-(H(\theta^*(v_k)))^{-1} \right\|^2 \leq M_2 \frac{1}{T}\left(1+\log\left(\frac{1+T}{\delta}\right)\right), \quad \forall\  k.
+\end{align*}
+
+Thus, applying union bound, for any $k\geq1$, with probability at least $1-2\delta$,
+\begin{align}
+    D_k^T&=(LR+C_1)^2\left \|\left(L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k))
+    \right) A_k^T \right\|^2 \nonumber \\
+    &\leq (LR+C_1)^2 \left\| L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k)) \right\|^2 \left\|A_k^T \right\|^2 \nonumber \\
+    &\leq (LR+C_1)^2 \left\| L_k^T - \nabla_{\theta,v}^2\ell(v_k,\theta^*(v_k)) \right\|^2 \left( 2\left\| (H(\theta^*(v_k)))^{-1}\right\|^2 + 2\left\| A_k^T- (H(\theta^*(v_k)))^{-1}\right\|^2 \right) \nonumber \\
+    & \leq (LR+C_1)^2M_1 \frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right)\left( \frac{2}{\mu^2} +2M_2 \frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right)\right).\nonumber
+    %\label{eq:D_T_bound}
+\end{align}
+
+For any $k\geq1$, with probability at least $1-\delta$,
+\begin{align}
+    F_k^T &= L^2(LR+C_1)^2 \left\| A_k^T -  (H(\theta^*(v_k)))^{-1} \right\|^2\leq M_2L^2(LR+C_1)^2 \frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right).\nonumber
+    %\label{eq:F_T_bound}
+\end{align}
+We apply the above high-probability bounds for $D_1^T,\cdots,D_{K}^T,F_1^T,\cdots,F_1^T$ for bound~\eqref{eq:grad_bound1}. By union bound, with probability at least $1-\frac{K(K+5)}{2}\delta$,
+when $T\geq T_1(\delta)$ we have 
+\begin{align}
+    &\frac{1}{32L_v}\frac{1}{K}\sum_{k=1}^{K}\|\nabla\Phi(v_k) \|^2 \nonumber \\
+    % &\leq\left(\frac{1}{16L_v}-\frac{3\psi}{16L_v} \frac{\Lambda_2(T)}{1-\Lambda_1(T)}  \right)\frac{1}{K}\sum_{k=0}^{K-1}\|\nabla\Phi(v_k) \|^2 \nonumber\\
+    &\leq \frac{\Phi(v_0)-\Phi^*}{K} + \frac{3\psi R}{16L_v} \frac{1}{K} \underbrace{ \sum_{k=0}^{K-1} \Lambda_1(T)^k}_{=:E_2} + \frac{3\psi}{16L_v}\frac1K \underbrace{b(T,\delta)\sum_{k=1}^{K-1}\sum_{j=0}^{k-1} \Lambda_1(T)^j}_{=:E_3} \nonumber\\
+    &\qquad +\frac{3\psi M_3}{16L_v} \frac1K \frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right)\left( \frac{2+\mu^2}{\mu^2} + \frac{2M_2}{T}\left(1+\log(\frac{1+T}{\delta})\right)\right)  \underbrace{\Lambda_2(T) \sum_{k=2}^{K}\sum_{j=1}^{k-1}\Lambda_1(T)^{k-j-1}}_{=:E_4}  \nonumber \\
+    &\qquad + \frac{3M_3}{16L_v}\frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right)\left( \frac{2+\mu^2}{\mu^2} + \frac{2M_2}{T}\left(1+\log(\frac{1+T}{\delta})\right)\right)\nonumber,
+\end{align}
+where $M_3=\max\{M_1(LR+C_1)^2,M_2L^2(LR+C_1)^2\}$ and 
+\begin{align}\label{eq:condition_T1}
+    T_1(\delta)=\min\left\{t\in \mathbb{N} \mid  \gamma(t,\delta)\leq \frac{\mu}{2} \;\ \text{and} \;\ t\geq \hat{T}_0\right\}, \end{align}
+and $\gamma(t,\delta)$ in defined in~\eqref{eq:def_gamma}.
+
+By the definitions of $\Lambda_1(T),\Lambda_2(T)$ and $b(T,\delta)$ in~\eqref{eq:def_Lambda1}.~\eqref{eq:def_Lambda2} and~\eqref{eq:def_bT}, we have
+\begin{align*}
+    E_2 &= \frac{1-\Lambda_1(T)^K}{1-\Lambda_1(T)}\leq \frac{1}{1-\hat{\beta}\left(\frac{q}{T+q}\right)^2},\\
+    E_3&= b(T,\delta)\sum_{k=1}^{K-1}\frac{1-\Lambda_1(T)^k}{1-\Lambda_1(T)}\leq b(T,\delta)K\frac{1}{1-\Lambda_1(T)}= \frac{5c'K\left( 1+\log(1/\delta)\right)}{T+q-\frac{\hat{\beta}q^2}{T+q}},\\
+    E_4 & \leq \Lambda_2(T)K\frac{1}{1-\Lambda_1(T)}= \frac{\hat{\varphi}q^2K}{(T+q)^2-\hat{\beta}q^2},
+\end{align*}
+where 
+\[
+\hat{\beta}:=5\left( 1 + \frac{\alpha L}{\mu}   \left(L_{f_v}+\frac{LL_{f_\theta}}{\mu} \right)\right)^2\quad \text{and} \quad \hat{\varphi}:=\frac{5\alpha^2 L^2}{\mu^2}.
+\]
+
+Thus, with probability at least $1-\frac{K(K+5)}{2}\delta$,
+when $T\geq T_1(\delta)$, we have
+\begin{align*}
+    &\frac{1}{32L_v}\frac{1}{K}\sum_{k=1}^{K}\|\nabla\Phi(v_k) \|^2 \nonumber \\
+    &\leq \frac{\Phi(v_0)-\Phi^*}{K} + \frac{3\psi R}{16L_v} \frac{1}{K} \frac{1}{1-\hat{\beta}\left(\frac{q}{T+q}\right)^2} + \frac{15\psi c'}{16L_v} \frac{\left( 1+\log(1/\delta)\right)}{T+q-\frac{\hat{\beta}q^2}{T+q}} \nonumber\\
+    &\quad +\frac{3\psi M_3}{16L_v} \frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right)\left( \frac{2+\mu^2}{\mu^2} + \frac{2M_2}{T}\left(1+\log(\frac{1+T}{\delta})\right)\right)  \frac{\hat{\varphi}q^2}{(T+q)^2-\hat{\beta}q^2}  \nonumber \\
+    &\quad + \frac{3}{16L_v}\frac{1}{T}\left(1+\log(\frac{1+T}{\delta})\right)\left( \frac{2+\mu^2}{\mu^2} + \frac{2M_2}{T}\left(1+\log(\frac{1+T}{\delta})\right)\right).
+\end{align*}
+
+Equivalently, for any $\delta\in (0,1)$, with probability at least $1-\delta$, 
+\begin{align*}
+    \frac{1}{K}\sum_{k=1}^{K}\|\nabla\Phi(v_k) \|^2 
+    &\leq \frac{32L_v}{K}\left( \Phi(v_0)-\Phi^*\right) +  \frac{6\psi R}{K} \frac{1}{1-\hat{\beta}\left(\frac{q}{T+q}\right)^2} +  \frac{30\psi c'}{T+q-\frac{\hat{\beta}q^2}{T+q}} \left( 1+\log\left(\frac{K(K+5)}{2\delta} \right)\right)\nonumber\\
+    &\quad +\frac{6\psi M_3(2+\mu^2)}{\mu^2T}\left(1+\log\left(\frac{K(K+5)(T+1)}{\delta}\right)\right) \frac{\hat{\varphi}q^2}{(T+q)^2-\hat{\beta}q^2}  \nonumber \\
+    &\quad +\frac{12\psi M_2M_3}{T^2}\left(1+\log\left(\frac{K(K+5)(T+1)}{\delta}\right)\right)^2  \frac{\hat{\varphi}q^2}{(T+q)^2-\hat{\beta}q^2}  \nonumber \\
+    &\quad + \frac{6}{T}\left(1+\log\left(\frac{K(K+5)(T+1)}{\delta}\right)\right)\left( \frac{2+\mu^2}{\mu^2} + \frac{2M_2}{T}\left(1+\log\left(\frac{K(K+5)(T+1)}{\delta}\right)\right)\right) \nonumber \\
+    &=\mathcal{O}\left({\frac{1}{K}+\frac{\log(KT/\delta)}{T}}\right).
+\end{align*}
+This completes the proof.
+\end{proof}
+
+
+
+
+\newpage
+\section{Details on Experiments}\label{app:experiments}
+\textbf{Baselines.}  First, we include two \emph{controlled} baselines that share the same overall algorithmic structure as NHGD (e.g., batch size and iteration budget), differing only in the Hessian-inverse approximation strategy:
+\textbf{(1) CG}~\cite{grazzi2020iteration,yang2023accelerating} solves the linear system
+$\nabla_\theta^2 \ell\, x = \nabla_\theta f$
+using $K$ iterations of the conjugate gradient method.
+\textbf{(2) Neumann}~\cite{ji2021bilevel,lorraine2020optimizing} estimates the inverse Hessian via a truncated Neumann series.
+Following standard practice, we apply a scaling parameter $\varphi$: $ H^{-1} v
+\approx
+\varphi \sum_{t=0}^{T} (I - \varphi H)^t v$, $
+0 < \varphi < 2/{\lambda_{\max}(H)}$.
+
+We also compare the NHGD with several representative hypergradient-based methods. \textbf{(3) stocBiO}~\cite{ji2021bilevel} adopts a double-loop structure. 
+It approximates the Hessian inverse using a truncated Neumann series with $K$ iterations and an exponentially decaying batch size 
+$B_{\text{stocBiO}} K (1-\varphi \mu_{\text{stocBiO}})^k$ at the $k$-th Neumann step, where $\varphi$ also serves as the Neumann scaling parameter. \textbf{(4) AmIGO}~\cite{arbel2021amortized} also follows a double-loop structure.
+It approximates the Hessian inverse by performing $K$ additional SGD steps to solve the quadratic subproblem
+$\min_x \tfrac{1}{2} x^\top \nabla_\theta^2 \ell\, x - x^\top \nabla_\theta f$,
+with stepsize $\beta_{\text{amigo}}$. \textbf{(5) TTSA}~\cite{hong2023two} is a single-loop, two-time-scale method. At each epoch, it performs $K\sqrt{1+\text{epoch}}$ Neumann-series iterations with scaling parameter $\varphi$ to approximate the Hessian inverse. \textbf{(6) SOBA}~\cite{dagreou2022framework} is another single-loop method that updates the inner and outer variables simultaneously. 
+
+
+Unless otherwise specified (e.g., the adaptive batch-size rule in stocBiO), all stochastic derivative estimates (including gradients, Hessian--vector products, and Jacobian--vector products) use a fixed batch size $D$.
+
+\textbf{Implementation Details for NHGD.} In practice, we adopt a smoothed rank-one update for the Hessian inverse approximation, rather than the exact update in~\eqref{eq:inv_efim_update}. Specifically, we use
+\begin{align*}
+    A_k^{t+1}=\frac{1}{\beta}A_k^t-\frac{\frac{1-\beta}{\beta^2}A_k^t\nabla_\theta l (v_k,\theta_k^t,\xi_k^t)\left(A_k^t\nabla_\theta l (v_k,\theta_k^t,\xi_k^t)\right)^\top}{1+\frac{1-\beta}{\beta}\nabla_\theta l (v_k,\theta_k^t,\xi_k^t)^\top A_k^t\nabla_\theta l (v_k,\theta_k^t,\xi_k^t)}.
+\end{align*}
+We denote by $M$ the batch size used to estimate the cross-partial derivative $\hat{L}_k^{M}
+    =
+    \frac{1}{M}
+    \sum_{i=0}^{M-1}
+    \nabla_{\theta,v}^2 l(v_k,\theta_k^{T},\xi_k^{i})$ as discussed in Section~\ref{sec:algo_design}. 
+
+\textbf{Parameters Setting.} For all methods, we perform grid search over the inner stepsize $\eta$ and outer stepsize $\alpha$  in $\{0.001,\; 0.005,\; 0.01,\; 0.05,\; 0.1,\; 0.5,\; 1.0\}$. Additional hyperparameters are selected as follows:
+for NHGD, $\beta \in \{0.7, 0.8, 0.9, 0.95, 0.99\}$;
+for Neumann-series approximations, the scaling factor
+$\varphi \in \{0.001, 0.005, 0.01, 0.05, 0.1\}$;
+for AmIGO, $\beta_{\text{amigo}} \in \{0.001, 0.01, 0.1, 1.0\}$;
+and for stocBiO, $B_{\text{stocBiO}} \in \{5, 10, 50, 100, 200, 500\}$.
+
+\textbf{Hardware Setup.}  
+All experiments are conducted on NVIDIA A100-SXM4-80GB GPUs.  
+The NHGD algorithm is implemented in a parallel two-GPU setting:  
+the first GPU executes the inner-level SGD, while the second GPU 
+simultaneously updates the Hessian inverse approximation.  
+
+
+The implementation adapts code from the open-source project
+\url{https://github.com/Cranial-XIX/BOME}~\cite{liu2022bome}.
+For the PIML experiments, the code is further based on
+\url{https://github.com/HaoZhongkai/Bi-level-PINN}~\cite{hao2023bi}.
+
+\subsection{Hyper-data Cleaning}\label{app:experiments_datacleaning}
+
+\textbf{Experimental Setup.}  
+We evaluate all methods on the MNIST dataset. The inner problem is solved using the full $50000$ training samples with $50\%$ label noise, a batch size $D=1024$, $10$ inner iterations and $\lambda=0.0001$ for the  regularization coefficient. Based on the grid search the parameters for different method are set as:  % \alpha is for outer, \eta is for inner
+\textbf{NHGD (M=5)}: $\eta = 0.01$, $\alpha = 0.5$, $\beta = 0.8$;  
+\textbf{stocBiO}: $\eta = 0.01$, $\alpha = 1.0$, $B_\text{stocBiO}=100$, $\varphi=0.01$, $\mu_\text{stocBiO}=10^{-4}$; 
+\textbf{AmIGO}: $\eta = 0.01$, $\alpha = 0.5$, $\beta_\text{amigo} = 0.001$; 
+\textbf{TTSA}: $\eta = 0.01$, $\alpha = 0.5$, $K=10$;  %$c_\text{in}=0$, $c_\text{out}=0$, 
+\textbf{SOBA}: $\eta = 0.1$, $\alpha = 0.5$; %, $c_\text{in}=0$, $c_\text{out}=0$
+ \textbf{Neumann10 (M=5)}: $\eta = 0.005$, $\alpha = 1.0$, $\varphi = 0.1$;  
+\textbf{Neumann40 (M=5)}: $\eta = 0.01$, $\alpha = 1.0$, $\varphi = 0.1$;  
+\textbf{CG10 (M=5)}: $\eta = 0.01$, $\alpha = 0.5$;  
+\textbf{CG40 (M=5)}: $\eta = 0.01$, $\alpha = 0.1$.
+
+
+\textbf{Additional Results.} The outer objective (outer loss) is shown in Figure~\ref{fig:data_clean_outerloss_combined}, and the quantitative test loss is shown in Table~\ref{tb:data_clean_quant}. The proposed NHGD algorithm achieves the fastest convergence in terms of the outer objective and attains the highest test accuracy
+\begin{figure}[h]
+\centering
+\begin{minipage}[h]{0.48\linewidth}
+    \centering
+    \begin{subfigure}[h]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_cleaning/outer_time_vs_outer_loss_CGNeumann.png}
+    \end{subfigure}
+\hfill
+    \begin{subfigure}[h]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_cleaning/outer_time_vs_outer_loss_baselines.png}
+    \end{subfigure}
+    \caption{Outer loss for the Hyper-data Cleaning task.}
+\label{fig:data_clean_outerloss_combined}
+\end{minipage}
+\hfill
+\begin{minipage}[h]{0.48\linewidth}
+    \centering
+    \captionof{table}{Quantitative results for Hyper-data Cleaning.
+    \textbf{Outer Loss} and \textbf{Test Accuracy} are averaged over the last 50 epochs.}
+    \label{tb:data_clean_quant}
+    \begin{tabular}{lcc}
+    \toprule
+    \textbf{Method} & \textbf{Outer Loss} & \textbf{Test Accuracy} \\
+    \midrule
+    stocBiO     
+& $0.4253 \pm 0.0170$ 
+& $0.9060 \pm 0.0004$  \\
+
+AmIGO       
+& $0.1925 \pm 0.0200$ 
+& $0.9101 \pm 0.0002$ \\
+
+TTSA        
+& $0.2350 \pm 0.0202$ 
+& $0.9172 \pm 0.0002$ \\
+
+SOBA        
+& $0.1055 \pm 0.0092$ 
+& $0.8924 \pm 0.0005$ \\
+
+CG10        
+& $0.1880 \pm 0.0143$ 
+& $0.9127 \pm 0.0003$ \\
+
+CG40        
+& $0.1488 \pm 0.0130$
+& $0.9067 \pm 0.0003$ \\
+
+Neumann10  
+& $0.2627 \pm 0.0194$ 
+& $0.9168 \pm 0.0002$ \\
+
+Neumann40  
+& $0.2244 \pm 0.0205$ 
+& $0.9170 \pm 0.0003$ \\
+
+\textbf{NHGD}        
+& $0.2765 \pm 0.0197$ 
+& $0.9180 \pm 0.0003$  \\
+    \bottomrule
+    \end{tabular}
+\end{minipage}
+\end{figure}
+\subsection{Data Distillation}\label{app:experiments_datadis}
+
+\textbf{Experimental Setup.}
+We perform dataset distillation on the FashionMNIST dataset, which contains $10$ classes
+and $60000$ training samples. 
+For the experiments with $n=5$ distilled samples per class, the distilled dataset contains only $50$ samples in total, so we use full-batch updates without stochastic sampling. For the regularization coefficient, we choose $\lambda=1/15680$. Due to the small dataset size, stocBiO reduces to a constant–batch-size variant, making it equivalent to the Neumann baseline in this case. 
+Based on the grid search the paramters
+for different method are set as: \textbf{NHGD (M=1)}: $\eta = 1.0$, $\alpha = 0.01$, $\beta = 0.00$; 
+\textbf{AmIGO}: $\eta = 0.001$, $\alpha = 0.005$, $\beta_\text{amigo} = 1.0$; 
+\textbf{TTSA}: $\eta = 10$, $\alpha = 0.01$, $c_\text{in}=0$, $c_\text{out}=0$, $K=10$; 
+\textbf{SOBA}: $\eta = 2.0$, $\alpha = 1.9$, $c_\text{in}=0.8$, $c_\text{out}=0.2$; 
+ \textbf{Neumann10 (M=1)}: $\eta = 0.1$, $\alpha = 0.005$, $\varphi = 0.1$;  
+\textbf{Neumann40 (M=1)}: $\eta = 1.0$, $\alpha = 0.001$, $\varphi = 0.1$;  
+\textbf{CG10 (M=1)}: $\eta = 0.001$, $\alpha = 0.001$;  
+\textbf{CG40 (M=1)}: $\eta = 0.001$, $\alpha = 0.001$.
+
+
+We we also conduct the experiment with distilled $n=100$ samples for each class. For this setting, we use batch size $D=128$, and 30 inner iterations.
+Based on the grid search the parameters
+for different method are set as: \textbf{NHGD (M=5)}: $\eta = 1.0$, $\alpha = 0.5$, $\beta = 0.99$; 
+\textbf{stocBiO}: $\eta = 1.0$, $\alpha = 1.0$, $B_\text{stocBiO}=5$, $\varphi=0.01$, $\mu_\text{stocBiO}=10^{-4}$; 
+\textbf{AmIGO}: $\eta = 0.001$, $\alpha = 1.0$, $\beta_\text{amigo} = 1.0$; 
+\textbf{TTSA}: $\eta = 1.0$, $\alpha = 0.1$, $K=10$; 
+\textbf{SOBA}: $\eta = 0.5$, $\alpha = 1.0$; 
+ \textbf{Neumann10 (M=5)}: $\eta = 1.0$, $\alpha = 0.5$, $\varphi = 0.05$;  
+\textbf{Neumann40 (M=5)}: $\eta = 1.0$, $\alpha = 0.1$, $\varphi = 0.1$;  
+\textbf{CG10 (M=5)}: $\eta = 0.005$, $\alpha = 0.5$;  
+\textbf{CG40 (M=5)}: $\eta = 0.005$, $\alpha = 0.5$.  
+
+
+
+\textbf{Additional Results.} 
+For the experiments with $n=5$ distilled samples per class, the distilled dataset contains only $50$ samples in total, so we use full-batch updates without stochastic sampling. Due to the small dataset size, stocBiO reduces to a constant–batch-size variant, making it equivalent to the Neumann baseline in this case.
+Figure~\ref{fig:data_dis_outerloss_combined_5} compares the outer loss of NHGD with different baselines, while Table~\ref{tb:data_dis_quant_5} reports the corresponding quantitative results.
+
+We also report results for the setting with $n=100$ distilled samples per class in Figure~\ref{fig:data_dis_combined}. 
+Detailed quantitative results are summarized in Table~\ref{tb:data_dis_quant}. 
+Compared with the baselines, \textsc{NHGD} maintains fast convergence speed (see Figure~\ref{fig:data_dis_combined}(a) and (c)) while achieving comparable final test accuracy (see Table~\ref{tb:data_dis_quant}).
+
+
+
+\begin{figure}[h]
+\begin{minipage}[h]{0.48\linewidth}
+    \centering
+    \begin{subfigure}[t]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/outer_time_vs_outer_loss_CGNeumann_smoothed.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/outer_time_vs_outer_loss_baselines_smoothed.png}
+    \end{subfigure}
+
+    \caption{Outer Loss for Data Distillation task with $n=5$ distilled samples per class.}
+    \label{fig:data_dis_outerloss_combined_5}
+\end{minipage}
+\hfill
+\begin{minipage}[h]{0.48\linewidth}
+\centering
+\captionof{table}{Quantitative results for Data Distillation with $n=5$ distilled samples per class. \textbf{Outer Loss} and \textbf{Test Accuracy} are the averaged over  the last 50 epochs.}
+\label{tb:data_dis_quant_5}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method}  & \textbf{Outer Loss} & \textbf{Test Accuracy}\\
+\midrule
+AmIGO       
+& $0.8072 \pm 0.0644$  
+& $0.6934 \pm 0.0071$ \\ 
+
+TTSA        
+& $0.6569 \pm 0.1105$  
+& $0.8015 \pm 0.0045$ \\ 
+
+SOBA        
+& $1.1215 \pm 0.0632$  
+& $0.5847 \pm 0.0018$ \\ 
+
+CG10        
+& $0.6288 \pm 0.0679$  
+& $0.7820 \pm 0.0010$ \\ 
+
+CG40        
+& $0.6227 \pm 0.0686$  
+& $0.7745 \pm 0.0015$ \\ 
+
+Neumann10  
+& $0.8450 \pm 0.1526$  
+& $0.7840 \pm 0.0015$ \\  
+
+Neumann40  
+& $0.4895 \pm 0.0885$  
+& $0.8216 \pm 0.0017$ \\ 
+
+\textbf{NHGD}        
+& $0.4733 \pm 0.0941$  
+& $0.8256 \pm 0.0047$ \\ 
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{figure}
+
+
+\begin{figure}[h]
+\begin{minipage}[h]{0.48\linewidth}
+    \centering
+    \begin{subfigure}[t]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/2_outer_time_vs_outer_loss_CGNeumann_smoothed.png}
+        \caption{Outer Loss.}
+        \label{fig:data_dis_outerloss_CN}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/2_outer_time_vs_test_acc_CGNeumann.png}
+        
+        \caption{Test accuracy.}
+        \label{fig:data_dis_testacc_CN}
+    \end{subfigure}
+    \hfill
+    % ---------- Second row ----------
+    \begin{subfigure}[t]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/2_outer_time_vs_outer_loss_baselines_smoothed_same_window.png}
+        \caption{Outer Loss.}
+    \label{fig:data_dis_outerloss_baselines}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{exp_fig/data_distillation/2_outer_time_vs_test_acc_baselines.png}
+        \caption{Test accuracy.}
+        \label{fig:data_dis_testacc_baselines}
+    \end{subfigure}
+
+    \caption{Results for the Data Distillation task with $n=100$ distilled samples per class. The outer loss curves are smoothed using a moving average with window size 10 for visualization. }
+    \label{fig:data_dis_combined}
+    \vspace{-0.3cm}
+\end{minipage}
+\hfill
+\begin{minipage}[h]{0.48\linewidth}
+\centering
+\captionof{table}{Quantitative results for Data Distillation with $n=100$ distilled samples per class. \textbf{Outer Loss} and \textbf{Test Accuracy} are averaged over last 50 epochs} 
+\label{tb:data_dis_quant}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method}  & \textbf{Outer Loss} & \textbf{Test Accuracy}\\
+\midrule
+stocBiO       
+& $0.4778 \pm 0.0851$ 
+& $0.8279 \pm 0.0015$ \\
+
+AmIGO       
+& $0.4899 \pm 0.0786$ 
+& $0.8312 \pm 0.0004$ \\
+
+TTSA        
+& $0.7495 \pm 0.1357$ 
+& $0.7710 \pm 0.0006$ \\
+
+SOBA        
+& $0.5591 \pm 0.1311$ 
+& $0.8010 \pm 0.0007$ \\
+
+CG10        
+& $0.4601 \pm 0.0792$ 
+& $0.8332 \pm 0.0012$ \\
+
+CG40        
+& $0.5092 \pm 0.0789$ 
+& $0.8206 \pm 0.0022$ \\
+
+Neumann10  
+& $0.4529 \pm 0.0858$ 
+& $0.8359 \pm 0.0006$ \\
+
+Neumann40  
+& $0.4538 \pm 0.0891$ 
+& $0.8337 \pm 0.0020$ \\
+
+\textbf{NHGD}        
+& $0.4701 \pm 0.0941$ 
+& $0.8281 \pm 0.0022$ \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{figure}
+
+
+
+
+\subsection{PDE Constrained Optimization}\label{app:experiments_piml}
+\textbf{Experimental Setup.}   
+The spatio-temporal domain is $\Omega = [0,1]\times[0,1]$ over the time interval $[0,2]$.
+We sample 1024 interior collocation points and 256 boundary points on each spatial boundary
+$(x=0, x=1, y=0, y=1)$ across the full time interval using Sobol quasi-random sequences.
+An additional 256 points are sampled at $t=0$ to enforce the initial condition $u(x,y,0)=0$.
+For evaluating the outer-level objective, we use 512 uniformly spaced test points.
+
+The state network $u_\theta$ is a fully connected neural network with architecture
+$[3,\,64,\,64,\,64,\,64,\,1]$ (approximately 12.8k parameters), which takes $(x,y,t)$ as input and outputs $u(x,y,t)$.
+The state network is pretrained for 2000 epochs before bilevel optimization.
+The control network $f_v$ has a smaller architecture $[1,\,32,\,32,\,1]$ and maps time $t$ to the source term $f(t)$.
+
+\textbf{Additional Results.} We compare \textsc{NHGD} with the Broyden-based Hessian-inverse approximation method proposed in~\cite{hao2023bi} for this challenging task. 
+Table~\ref{tb:piml_quant} reports the outer objective (PDE-constrained optimization loss) averaged over the last 50 epochs. 
+\textsc{NHGD} achieves a comparable final outer loss while requiring substantially less computation time.
+
+\begin{table}[h]
+\centering
+\caption{Quantitative Performance Results for PIML.  \textbf{Outer Loss} is the averaged over the last 50 epochs.}
+\label{tb:piml_quant}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method}  & \textbf{Outer Loss} \\
+\midrule
+Broyden       
+& $0.0237 \pm 0.0003$  \\ 
+
+\textbf{NHGD}        
+& $0.0266 \pm 0.0005$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+	
+\end{document}
