@@ -1,0 +1,1285 @@
+% concatenated from subreg.tex
+\documentclass{article}
+\usepackage{fullpage}
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{wrapfig}
+\usepackage{multirow}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+
+\title{Deep Learning for Subspace Regression}
+
+\author{Vladimir Fanaskov\\
+AXXX, AIC\\
+\texttt{fanaskov.vladimir@gmail.com} \and
+Vladislav Trifonov\\
+AI4Science, AIC  \and 
+Alexander Rudikov \\
+AXXX, INM \and
+Ekaterina Muravleva\\
+AI4Science, AIC \and 
+Ivan Oseledets\\
+AXXX, INM
+}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+It is often possible to perform reduced order modelling by specifying linear subspace which accurately captures the dynamics of the system. This approach becomes especially appealing when linear subspace explicitly depends on parameters of the problem. A practical way to apply such a scheme is to compute subspaces for a selected set of parameters in the computationally demanding offline stage and in the online stage approximate subspace for unknown parameters by interpolation. For realistic problems the space of parameters is high dimensional, which renders classical interpolation strategies infeasible or unreliable. We propose to relax the interpolation problem to regression, introduce several loss functions suitable for subspace data, and use a neural network as an approximation to high-dimensional target function. To further simplify a learning problem we introduce redundancy: in place of predicting subspace of a given dimension we predict larger subspace. We show theoretically that this strategy decreases the complexity of the mapping for elliptic eigenproblems with constant coefficients and makes the mapping smoother for general smooth function on the Grassmann manifold. Empirical results also show that accuracy significantly improves when larger-than-required subspaces are predicted. With the set of numerical illustrations we demonstrate that subspace regression can be useful for a range of tasks including parametric eigenproblems, deflation techniques, relaxation methods, optimal control and solution of parametric partial differential equations.
+\end{abstract}
+
+\section{Introduction}
+The goal of reduced order modelling (ROM) is to identify uninformative degrees of freedom and discard them \cite{bai2005reduced}. The result is a simplified system that is easier to analyse and simulate. This program is computationally demanding and only justified in the setting when many related problems are repeatedly solved and it is possible to use information from encountered problems to build a reduced model for the problems to come. Typical examples are parametric models for partial and ordinary differential equations (PDEs and ODEs), and usual applications are optimisation, sensitivity analysis, uncertainty quantification and control.
+
+As an illustration consider proper orthogonal decomposition (POD) for time-dependent PDEs \cite{volkwein2013proper}, \cite{hesthaven2022reduced}. To apply POD, one computes solutions for a representative set of parameters and builds a reduced basis for spatial variables by the best low-rank approximation. When new parameters arrive, a computed basis is used to discretise PDE that is solved at reduced cost. In global POD this basis is the same for all incoming parameters and in local POD basis explicitly depends on new parameters. As one may expect, local POD is more expressive than global POD, but can be more challenging to arrange.
+
+POD is an example of the general class of techniques where linear subspace parametrises useful degrees of freedom. While nonlinear ROM techniques exist, linear methods are better understood theoretically, easier to apply in practice, and provide sufficiently well approximation, especially when local versions are available \cite{franco2024deep}. In this setting the main challenge is to construct reliable approximation to the function that maps new parameters to linear subspaces.
+
+We analyse this problem under the following assumptions: (i) the set of parameters of interest is specified in form of probability distribution, (ii) it is known how to compute good or optimal linear subspace for each parameter, (iii) the numerically stable method to construct reduced problem from basis is available. In short, we consider regression on grassmannian. We approach the regression problem by specifying loss function and using neural networks as parametric models to accommodate high-dimensional parameter spaces pervasive in practical problems.
+
+More specifically, our main contributions are:
+\begin{enumerate}
+	\item Mathematical formulation of subspace regression problem and examples of applications, including eigenspace approximation, local POD, learning basis for deflation and two-grid method, approximating balanced-truncation basis for optimal control problems.
+	\item Several loss functions, suitable for neural network training, including the stochastic one that scales well with the increase of subspace size.
+	\item Embedding technique: a strategy to learn a larger subspace containing the target one. Empirically, this technique significantly improves accuracy for subspace learning.
+	\item Two theoretical justification of embedding technique: derivative of smooth function on Grassmann manifold can be reduced by embedding; complexity of the subspace regression problem for elliptic eigenproblem with constant coefficients.
+	\item Empirical evaluation of proposed techniques on a diverse set of problems including comparisons with neural surrogates, kernel methods and classical interpolation in normal coordinates.
+\end{enumerate}
+
+\section{Subspace regression}
+\label{section:subspace regression}
+In this section we formulate precisely what we mean by subspace regression and describe several applications.
+\subsection{Definition of subspace regression problem}
+In linear space $\mathbb{R}^{n}$ we define $k$-dimensional subspace $\mathcal{S}(W) = \left\{W\alpha, \alpha \in \mathbb{R}^{k} \right\}$ by specifying tall full rank matrix $W\in\mathbb{R}^{n\times k}$. Matrices $W_1$ and $W_2$ represent the same subspace if there is an invertible matrix $G$ such that $W_1 = W_2 G$. The equivalence class of such matrices is denoted by $\lceil W\rceil$. The set of all $k$-dimensional subspace of $n$-dimensional space $\text{Gr}(k, n)$ is known as Grassmann manifold or grassmanian \cite{ciaramella2025gentle}, \cite{bendokat2024grassmann}.
+
+Let $V:\mathbb{R}^{p}\rightarrow \text{Gr}(k, n)$ be a function that maps the space of parameters $r\in\mathbb{R}^{p}$ to the subset of grassmanian represented as the set of tall full rank matrices $V(r)$. We assume that parameters $r$ are sampled from distribution $r \sim p_{r}$ and that dataset $\mathcal{D} = \left\{\left(r_1, V_1\right),\dots,\left(r_m, V_m\right)\right\}$ of $m$ i.i.d. samples is available. For a given parametric model $Y_{\theta}:\mathbb{R}^{p}\rightarrow \text{Gr}(r, n),r \geq k$ we want to identify parameters $\theta^\star$ such that $Y_{\theta^\star}(r)$ approximates $V(r)$\footnote{Note, that we allow $Y_{\theta}$ to have more columns than target $V$. In this context approximation is understood in terms of subspace inclusion $\mathcal{S}\left(V\right) \subset \mathcal{S}\left(W_{\theta}\right)$. As we explain later, redundancy introduced this way can significantly improve accuracy.}. We formulate this task as optimisation problem
+\begin{equation}
+	\label{eq:subspace regression}
+	\theta^\star = \arg\min_{\theta}\left(\underset{r\sim p_r}{\mathbb{E}} \left[L\left(Y_{\theta}(r), V(r)\right)\right]\right) \simeq \arg\min_{\theta}\left(\frac{1}{m}\sum_{i=1}^{m} L\left(Y_{\theta}(r_{i}), V_{i}\right)\right).
+\end{equation}
+Loss function for subspace regression problem is assumed to have two properties:
+\begin{equation}
+	\label{eq:loss_properties}
+	\begin{split}
+		 &L(A, B) = L(\widetilde{A}, \widetilde{B}) \text{ for arbitrary } \widetilde{A} \in \lceil A\rceil,\,\widetilde{B} \in \lceil B\rceil;\\
+		 &L(A, B) > 0\text{ and } L(A, B)=0 \text{ iff }\mathcal{S}(B)\subset\mathcal{S}(A).
+	\end{split}
+\end{equation}
+In Section~\ref{section:theoretical results} we provide explicit expression for loss functions with these properties.
+
+Aside from unusual invariance requirement~(\ref{eq:loss_properties}), optimisation problem~(\ref{eq:subspace regression}) is a standard machine learning formulation of regression problems which can be solved with stochastic optimisation for arbitrary model $Y_{\theta}(r)$ that admits efficient evaluation of gradients.
+
+\subsection{Examples of subspace regression problem}
+\textbf{Approximate eigenspaces.} 
+Consider eigenproblem for Schr\"{o}dinger equation
+\begin{equation}
+	\label{eq:eigenproblem}
+	-\Delta \psi(x) + U(x)\psi(x) = E \psi(x),\,\left\|\psi\right\|_2 < \infty,
+\end{equation}
+where $U(x)$ is potential energy and $E$ is energy of the system. One way to find eigenpairs is to approximate $\psi(x)$ by a finite series $\psi(x) = \sum_{i=1}^{K}\alpha_i\phi_i(x)$ and enforce Petrov-Galerkin condition that residual is orthogonal to all $\phi_i(x)$. Continuous problem (\ref{eq:eigenproblem}) reduces to eigenproblem for Hermitian matrix and can be solved in $O\left(K^3\right)$ operations \cite{trefethen2022numerical}. For eigenproblems we are typically interested only in extremal eigenspaces corresponding to either smallest or largest eigenvalues. In this case it is desirable to select a small number of basis functions $\phi_i(x)$ that approximate sufficiently well the subspace of interest. When eigenproblem~(\ref{eq:eigenproblem}) is solved repeatedly for many potential functions $U(x)$ this lead us to subspace regression problem (\ref{eq:subspace regression}) used to approximate the mapping $U(x) \rightarrow \left\{ f(x): f(x)=\sum_{i=1}^{K}\alpha_i\phi_i(x), \alpha_i \in \mathbb{C}\right\}$.\footnote{Suitable discretisation of parametrisation of both $\phi$ and $U$ is assumed.} That is, we wish to predict subspace spanned by first $K$ eigevectors. When this mapping is learned from a set of examples, eigenproblems for unobserved potentials $U$ can be solved efficiently, since low-dimensional candidate subspace for eigenfunctions is available.
+
+\textbf{Intrusive POD for time-dependent PDEs.} As an example of time-dependent PDE we use Burgers equation
+\begin{equation}
+	\label{eq:Burgers}
+	\frac{\partial u(x, t)}{\partial t} + u(x, t)\frac{\partial u(x, t)}{\partial x} = \frac{\partial}{\partial x}\left(\nu(x) \frac{\partial u(x, t)}{\partial x}\right),\,u(0, t) = u(1, t) = 0,\,u(x, 0) = u_0(x).
+\end{equation}
+One starts with spatial discretisation which reduces equation~(\ref{eq:Burgers}) to the set of ODEs and define inner product $\left<\cdot,\cdot\right>_{W}$ for discretised $u(t)$ that approximates $L_2$ inner product. For this set of ODEs the reduced degrees of freedom $\psi_i$ are defined as solution to optimisation problems $\min \int_{0}^{T}dt\left\|u(t) - \left<\psi_i, u(t)\right>_{W}\psi_i \right\|_{W}^2$ subject to $\left<\psi_i, \psi_j\right> = 0,j<i$, $\left<\psi_i, \psi_i\right> = 1$. When discretised, this scheme lead to optimal basis computed with SVD from snapshot matrix \cite{volkwein2013proper}. This basis can only be computed when equation~(\ref{eq:Burgers}) is integrated, so POD is justified only in situation when many related problems are solved. We apply subspace regression with POD to learn the function that maps PDE data to the subspace formed by reduced basis $\left\{\psi_1,\dots,\psi_{k}\right\}$ for some small $k$. Notably, this allows us to apply local POD to high-dimensional parametric problems.
+
+\textbf{Coarse grid correction for iterative methods.} Consider stationary diffusion equation with Dirichlet boundary conditions
+\begin{equation}
+	\label{eq:stationary_diffusion}
+	-\text{div }k(x)\text{ grad }\phi(x) = f(x),\,x\in\Gamma,\,\left.\phi(x)\right|_{\partial \Gamma} = 0.
+\end{equation}
+When equation (\ref{eq:stationary_diffusion}) is discretised with finite difference or finite element method, it reduces to linear problem $A \phi = f$, where $A$ is large sparse matrix and $\phi, f$ are discretised solution and right-hand side of (\ref{eq:stationary_diffusion}). To exploit sparsity of $A$ one can solve linear equation with relaxation method. General relaxation method split matrix additively $A = D + C$, where $D$ is regular with known inverse \cite{saad2003iterative}. Given the split, if iteration scheme $x^{n+1} = x^{n} + D^{-1}\left(b - Ax^{n}\right)$ is convergent, steady state is exact solution $x = A^{-1}b$. Convergence is linear and its rate is defined by spectral radius of error propagation matrix $I - D^{-1} A$. To improve convergence rate, one can augment iterative method with coarse-grid correction \cite{trottenberg2001multigrid}. This techniques allows one to remove influence of leading subspace formed by colums of matrix $V$ of $I - D^{-1} A$ by solving small reduced linear system for error equation $V^{\top} A V e = r$, where $e$ and $r$ are error and residual in the subspace $\mathcal{S}(V)$. Naturally, subspace regression~(\ref{eq:subspace regression}) for this problem approximates the mapping $A\rightarrow \mathcal{S}(V)$ or $k(x) \rightarrow \mathcal{S}(V)$ for linear systems resulting from equation~(\ref{eq:stationary_diffusion}).
+
+\textbf{Deflation for conjugate gradient.} Krylov subspace methods provide a more systematic way to solve large sparse linear systems \cite{saad2003iterative}. For linear system with symmetric positive definite matrix $A$ resulting from discretisation of equation~(\ref{eq:stationary_diffusion}), the method of choice is conjugate gradient (CG) \cite{hestenes1952methods}. Similar to other Krylov methods, on step $r$, CG identify optimal solution within Krylov subspace $\mathcal{K}_{r} = \text{span}\left\{b, Ab, \dots, A^{r-1}b\right\}$, where $\text{span}$ refers to the subspace formed by linear combinations of vectors in the set. Since powers of $A$ are involved, the most readily available vectors are from the subspaces with large eigenvalues \cite{saad2011numerical}. To improve convergence of method it is reasonably to include eigenspaces $V$ with small eigenvalues to the approximation space $\mathcal{K}_{r}$. The resulting method is deflated CG and the approximation space is $\mathcal{K}_{r} \cup \mathcal{S}(V)$ \cite{saad2000deflated}. In analogy with previous example, the subspace regression problem considered approximates $A\rightarrow \mathcal{S}(V)$ or $k(x) \rightarrow \mathcal{S}(V)$, but this time $V$ spans eigenspaces with small eigenvalues of matrix $A$.
+
+\textbf{Balanced-truncation for linear-quadratic control.} Suppose we want to solve the following linear quadratic control problem
+\begin{equation}
+	\label{eq:balanced_truncation}
+	\begin{split}
+	&\dot{y}(t) = A y(t) + B u(t),\,z(t) = C y(t),\\
+	&J = \int dt \left(\left(z(t)\right)^\top Q z(t) + \left(u(t)\right)^\top R u(t)\right) + \left(z(T)\right)^\top M z(T),
+	\end{split}
+\end{equation}
+where $y(t)$ is state variable, $u(t)$ is control, $z(t)$ is observable, $A, B, C, Q, R, M$ are matrices of appropriate sizes, $R$ is symmetric positive definite, $Q$ and $M$ are symmetric positive semidefinite. The goal is to find a control signal $u(t), t\in[0, T]$ that minimises cost function $J$.
+
+In the situation when number of state variables $y(t)$ is large, one may want to apply ROM to compute optimal control at a reduced cost. An established way to do that is balanced truncation \cite{moore2003principal}. Roughly speaking, balanced truncation compute a special coordinate system $y(t) = \mathcal{T} \widetilde{y}(t)$ that discounts variables that are both unobservable and uncontrollable, so only a few first columns of matrix $\mathcal{T}$ can be used to accurately model~(\ref{eq:balanced_truncation}). This is done by finding coordinate system that simultaneously diagonalises observability gramian $G_o$ and controlability gramian $G_c$ defined as solutions of Lyapunov equations $A^\top W_o + W_o A + C^\top C = 0,\,AW_c + W_c A^\top + B B^\top = 0$ \cite{moore2003principal}, \cite{volkwein2013proper}. In this case the goal of subspace regression~(\ref{eq:subspace regression}) is to approximate the mapping $A, B, C \rightarrow \mathcal{S}\left(\overline{\mathcal{T}}\right)$, where $\overline{\mathcal{T}}$ is tall matrix assembled from first few columns of $\mathcal{T}$.
+\section{Theoretical results}
+\label{section:theoretical results}
+We proceed by characterising loss functions, introducing the subspace embedding technique and providing its theoretical justification.
+\subsection{Loss functions}
+Requirements~(\ref{eq:loss_properties}) that allow loss function to work with $\text{Gr}(k, n)$ data enforce right $\text{GL}(k)$ invariance. As a consequence all loss functions introduced below are all based on orthogonal projectors.
+\begin{theorem}
+	\label{th:loss_functions}
+	Let $A\in \mathbb{R}^{n\times k}$, $B \in \mathbb{R}^{n\times p}, p\leq k$ be tall full rank matrices.
+	\begin{enumerate}
+		\item Loss function $L_1(A, B) = p - \left\| Q_{B}^\top Q_{A}\right\|_{F}^2$ satisfies requirements~(\ref{eq:loss_properties}), where $A = Q_{A}R_{A}, B = Q_{B}R_{B}$ are reduced QR decompositions of $A$ and $B$, $\left\|\cdot\right\|_{F}$ is Frobenius norm\footnote{Reduced QR decomposition of tall full rank matrix $A\in \mathbb{R}^{n\times k}$ is a factorisation $A = Q_{A} R_{A}$, where $Q_{A}\in\mathbb{R}^{n\times k}$ has orthonormal columns, $R_{A}\in\mathbb{R}^{k\times k}$ is upper triangular with nonzero elements on the diagonal.}.
+		\item Let $z\in\mathbb{R}^{k}$ be a random variable with zero mean and identity covariance matrix. Loss functions $L_2(A, B; z) = \min_{u}\left\|A u - Q_{B} z\right\|_2^2$ does not depend on the choice of $A$ from $\lceil A\rceil$, where $B = Q_{B}R_{B}$ is QR decomposition. 
+		\item On average $L_2$ equals $L_1$, i.e., $\mathbb{E}_{z}\left[ L_2(A, B; z)\right] = L_1(A, B)$.
+	\end{enumerate}
+\end{theorem}
+\begin{proof}Appendix~\ref{appendix:theorem_1}.
+\end{proof}
+Loss $L_1$ is essentially the same as the difference of orthogonal projectors. Note, that $L_1(A, B)\geq 0$ with equality reached if and only if matrices $A$ and $B$ share the same columns space, since in this case $\left\| Q_{B}^\top Q_{A}\right\|_{F}^2 = p$. Loss $L_2$ introduces two modifications: (i) projector in Riemannian distance is replaced with error of least squares problem; (ii) to remove second projector, stochastic Hutchinson trace estimation is used. Reformulation with least square problem allows one to use normal equation, and various tools from randomised numerical linear algebra, e.g., randomised preconditioned Cholesky-QR \cite{garrison2024randomized}, blendenpik solver \cite{avron2010blendenpik}, and sketching \cite{woodruff2014sketching}. We will see in Section~\ref{section:numerical_experiments}, that loss function $L_2(A, B)$ based on normal equation scales better than $L_1(A, B)$ with the increase of subspace size.
+\subsection{Subspace embedding}
+\label{section:subspace_embedding}
+In the definition of subspace regression problem~(\ref{eq:subspace regression}) we allow to approximate function $\mathbb{R}^{p}\rightarrow \text{Gr}(k, n)$ by function $\mathbb{R}^{p}\rightarrow \text{Gr}(r, n)$ where $r\geq k$. We call this strategy subspace embedding. It is justified because of two unique properties of regression and interpolation on grassmanian: (i) inclusion of vector subspaces is well-defined; (ii) subspace, predicted by regression model or interpolated by standard techniques, is used to construct a reduced model. From the latter property one may expect similar or improved accuracy when the predicted subspace from $\text{Gr}(r, n)$ contains target subspace from $\text{Gr}(k, n)$.
+
+We will show empirically in Section~\ref{section:numerical_experiments} that subspace embedding significantly improves accuracy and generalisation gap. Here we argue that prediction of larger-than-needed subspaces align well with inductive bias of neural networks known as f-principle or spectral bias \cite{xu2019frequency}. F-principle is an observation that neural networks tend to learn smoothed versions of the target functions. As we show below, embedding techniques may improve smoothness of learned function.
+\begin{theorem}
+	\label{th:embedding_technique}
+	Let $V:\mathbb{R}\rightarrow \text{Gr}(k, n)$ be continuously differentiable on $t\in[0, T]$, $V(t)^\top V(t) = I_{k}$. It is always possible to construct piecewise continuous function $W:\mathbb{R}\rightarrow \text{Gr}(r, n)$, $r>k$, $W(t)^\top W(t) = I_{r}$ such that $\frac{1}{2}\left\|W(t) W(t)^{\top} - V(t) V(t)^{\top}\right\|_{F}^2 - \frac{r-k}{2}$ is arbitrary small and $\left\|\dot{W}(t)\right\|_{F}^2 \leq \left\|\dot{V}(t)\right\|_{F}^2$, where inequality is strict for all points where $\left\|\dot{V}(t)\right\|_{F}^2 \neq 0$.
+\end{theorem}
+\begin{proof}Appendix~\ref{appendix:theorem_2}; See Appendix~\ref{appendix:embedding_example} for subspace embedding example.
+\end{proof}
+Theorem~\ref{th:embedding_technique} implies that, by increasing the subspace size, one can always approximate continuously differentiable functions arbitrarily well and simultaneously reduce its derivative. F-principle suggests that the latter property makes learning easier for neural networks.
+\subsection{Complexity of parametric eigenproblem}
+To illustrate difficulties one may encounter and to further justify embedding technique we consider complexity of subspace regression problem for parametric elliptic eigenproblem with constant coefficient
+\begin{equation}
+	\label{eq:parametric_eigenproblem}
+	-\sum_{i=1}^{D} a_i \frac{\partial^2 \phi_{i_1,\dots,i_D}(x_1,\dots, x_D)}{\partial x_i^2} = \lambda_{i_1,\dots,i_D}\phi_{i_1,\dots,i_D}(x_1,\dots, x_D),
+\end{equation}
+where $a_i > 0$, $x_i\in[0, 1]$ and Dirichlet boundary conditions are assumed.
+
+For problem~(\ref{eq:parametric_eigenproblem}) general eigenfunction is $\phi_{i_1,\dots,i_D}(x_1,\dots, x_D) = \prod_{j=1}^{D}\sin(\pi i_j x_j)$ and the set of eigenfunctions does not depend on coefficients $a_i$. Observe that $\lambda_{i_1,\dots,i_D} = \sum_{j=1}^{D} a_j\left(\pi i_j\right)^2$, so coefficients $a_i$ define the order of eigenvectors. Below we formally characterise mapping from coefficients to $k$-th eigenvector and eigenspace.
+\begin{theorem}
+	\label{th:parametric_eigenproblem}
+	Suppose eigenvectors of~(\ref{eq:parametric_eigenproblem}) are ordered according to the increase of eigenvalues. Let $\phi_k$ be an eigenvector on position $k$, let $V_{k}$ be an eigenspace spanned by vectors on positions up to $k$. Consider mappings $F_{k}: a_1,\dots, a_D \rightarrow \phi_k$ and $G_{k}: a_1,\dots, a_D \rightarrow V_k$.
+	\begin{enumerate}
+		\item $F_{k}, G_{k}$ are piecewise constant functions that map real numbers to elements of sets $S_{F_{k}}, S_{G_{k}}$. Sets $S_{F_{k}}, S_{G_{k}}$ are finite with $\#_{F_{k}}(k, D), \#_{G_{k}}(k, D)$ distinct elements.
+		\item Let $W_l, l>1$ be a subspace obtained by union of $V_l$ for distinct $a_1,\dots,a_D$. Number of vectors in $W_{l}$ is $\#_{F_{k}}(l, D) + 1$.
+		\item $\#_{F_{k}}(k, D)\sim\frac{1}{(D-1)!} k \left(\log k\right)^{D-1}$ for fixed $D$ and large $k$ .
+		\item $\#_{F_{k}}(k, D) \leq k D^{\log_2 k}$ for fixed $k$ and large $D$.
+		\item $\#_{G_{k}}(k, D) \geq \frac{1}{(D-1)!}k^{D-1}$ for fixed $D$ and large $k$.
+		\item $\#_{G_{k}}(k, D) \geq \frac{1}{(k-1)!}D^{k-1}$ for fixed $k$ and large $D$.
+	\end{enumerate}
+	Where $\sim$ is asymptotic expansion and $\geq, \leq$ are lower and upper bound on leading asymptotic.
+\end{theorem}
+\begin{proof}Appendix~\ref{appendix:theorem_3}; See Appendix~\ref{appendix:monte_carlo_example} for examples.
+\end{proof}
+Theorem~\ref{th:parametric_eigenproblem} suggests that for problem~(\ref{eq:parametric_eigenproblem}) mappings from coefficient to $k$-th eigenvector $\phi_k$ or subspace $V_k$ are piecewise constant functions with rapidly growing number of constant regions when either $k$ or $D$ increases. The complexity (the number of regions) of the subspace prediction problem exceeds the complexity of $k$-th eigenvector prediction. However, results also suggest that the number of unique eigenvectors within $V_k$ grows at the same rate as the number of eigenvectors on position $k$. This means, the large number of distinct regions in $G$ comes from a large number of possible combinations of an asymptotically small number of vectors. Given that, the complexity of mapping from coefficients to subspace decreases, if one predicts subspace of larger dimension $\widetilde{V}_k \supseteq V_k$. For example, if one is willing to predict subspace of dimension $\#_{F}(k, D)$ in place of $V_k$ of dimension $k$, the mapping $a_1,\dots, a_D \rightarrow \widetilde{V}_k\supseteq V_k$ may be chosen to have constant value.
+
+\section{Numerical experiments}
+\label{section:numerical_experiments}
+We present several numerical experiments to corroborate our theoretical findings. The discussion of control problems appears in Appendix~\ref{appendix:icontrol_numerics}. All numerical results are reported as single-run metrics without explicit error bars. To study sensitivity to train-test split we perform several dedicated experiments. Results suggest that variance is low and does not affect main conclusions. The details are available in Appendix~\ref{appendix:sensetivity}. For most problems we report relative error measured in percents. For predicted quantity $\widetilde{v}$ and ground truth value $v$ it reads $100\%\times\left\|v - \widetilde{v}\right\|_2 \big/\left\| v\right\|_2$. For eigenvalue problems the numerator is $\mathbb{Z}_2$ adjusted as explained below. For iterative methods we report convergence plots for relative error, without additional factor $100\%$.
+
+\subsection{Eigenspace prediction}
+We considered several eigenvalue problems: (i) $D=1$ eigenproblem with Schr\"{o}dinger operator (\ref{eq:eigenproblem}) with parametric family of expanded Morse oscillator \cite{le2006accurate}, (ii) $D=2$ Schr\"{o}dinger operator (\ref{eq:eigenproblem}) with parametric family of two expanded Morse oscillators \cite{carpenter2018dynamics}, (iii) $D=2$ two datasets, $k_1 = k_2$ and $k_1\neq k_2$, for elliptic eigenproblem (\ref{eq:stationary_diffusion}) (left-hand side of the equation) with contrast coefficient sampled from gaussian random field, (iv) $D=3$ dataset for elliptic eigenproblem with diffusion coefficient $k_1 = k_2$.
+In all experiments we used FFNO architecture \cite{tran2021factorized} , a modification of FNO \cite{li2020fourier}, and performed extensive hyperparameter grid search. Details on dataset generation and training protocol are available in Appendix~\ref{appendix:eigenproblems_numerics}. To contextualise subspace regression we provide results for two baselines.
+
+\textbf{Regression with $\mathbb{Z}_2$ adjusted $l_2$ loss.} Eigenvectors are defined up to a sign, so in place of subspace losses specified in Theorem~\ref{th:loss_functions} one can try to directly predict eigenvectors with $\mathbb{Z}_2$ adjusted $l_2$ loss $l_{\mathbb{Z}_2}(v, u) = \min_{\pm}\left\|v \pm u\right\|_2$.
+
+\textbf{Interpolation in Riemannian normal coordinate system.} A standard technique of manifold interpolation applied to grassmannian \cite{amsallem2010interpolation}, \cite{ciaramella2025gentle}, \cite{zimmermann2019manifold}. For a given query, $k$ closest points are selected from the training set. One point supplies common tangent space, i.e., it is used to compute logarithms for the remaining points. Since logarithms lay in the same tangent space they can be interpolated with any techniques desirable (we use RKHS \cite{bishop2006pattern}). After interpolation of logarithms, the exponential map is computed.
+
+Additional results are available in Appendix~\ref{appendix:eigenproblems_numerics}. Here we highlight several interesting trends.
+
+\label{subsection:eigenspaces}
+\begin{figure}[t]
+	\centering
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\hspace*{-0.7cm}
+		\includegraphics[width=1.05\textwidth]{losses_and_time.pdf} % width=0.8\textwidth,trim={2cm 2cm 2cm 2cm},clip
+		\caption{training time}
+		\label{fig:eigval_results_a}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering  
+		\includegraphics[width=0.98\textwidth]{error_vs_dim_subreg.pdf}
+		\caption{subspace embedding}
+		\label{fig:eigval_results_b}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\hspace*{-0.3cm}  
+		\includegraphics[width=1.025\textwidth]{error_vs_eigenvector_l2.pdf}
+		\caption{$\mathbb{Z}_2$ adjusted $l_2$}
+		\label{fig:eigval_results_c}
+	\end{subfigure}
+	\caption{Selected results for eigenspace prediction: (a) Comparison of training time for losses $L_1(A, B)$, $L_2(A, B; z)$ from Theorem~\ref{th:loss_functions}. On $D=2$ grid $N_x = N_y = 100$ we observe $L_2(A, B; z)$ scales better with dimension size; (b) Illustration of subspace embedding technique from Section~\ref{section:subspace_embedding} for $D=2$ elliptic eigenproblem, prediction of first $10$ eigenvectors. Prediction of larger subspace manifestly improves accuracy and reduces generalisation gap; (c) Relative error for individual eigenvector predictions for the same problem as in (b) but trained with $\mathbb{Z}_2$-adjusted $l_2$ loss. Similarly to results of Theorem~\ref{th:parametric_eigenproblem} we observe a steep increase of problem complexity with eigenvector number. See Section~\ref{subsection:eigenspaces} for details.}
+\end{figure}
+
+\textbf{Subspace losses are unsuccessful without subspace embedding technique.} Figure~\ref{fig:eigval_results_b} contains results of learning subspace spanned by first $10$ eigenvectors for $D=2$ on grid $100\times 100$ elliptic eigenproblem with $L_2(A, B; z)$ (loss $L_1(A, B)$ leads to the same accuracy). Neural network predicts subspace of sizes $10$, $20$, $30$, $40$ according to subspace embedding strategy Section~\ref{section:subspace_embedding}. Results demonstrate subspace embedding is efficient in decreasing test error from $30\%$ for subspace of dimension $10$, to test error $2\%$ for subspace of dimension $40$ ($0.4\%$ of the total number of degrees of freedom). It is less clear from Figure~\ref{fig:eigval_results_b}, but the generalisation gap also systematically improves, suggesting that complexity of the problem decreases. Similar conclusions are valid for $D=2$ QM and $D=3$ eigenproblems.
+
+\begin{wraptable}{r}{6.5cm}
+\caption{Relative errors for QM problems.}
+\label{table:QM_summary}
+\begin{tabular}{llll}
+\toprule
+dataset & interp. & $L_{\mathbb{Z}_2}$ & $L_1(A, B)$ \\
+\midrule
+$D=1$ & $4.69\%$ & $2.33\%$ & $0.09\%$ \\
+$D=2, a$ & $31.9\%$ & $19.52\%$ & $0.65\%$ \\
+$D=2, b$  & $92.64\%$ & $48.56\%$ & $15.58\%$ \\
+\bottomrule
+\end{tabular}
+\end{wraptable} 
+
+\textbf{Classical interpolation is not competitive.}  In Table~\ref{table:QM_summary} we gather results (best for each method) for one $D=1$ and two $D=2$ QM problems. Classical interpolation is reasonably accurate only on the simplest problem in $D=1$, but $L_{\mathbb{Z}_2}$ loss still results in better accuracy. The reason is likely classical interpolation struggles in high-dimensional subspaces because observations are too sparse to naively approximate tangent space in the region of interest by finding nearest neighbours. On QM datasets accuracy of subspace regression is consistently better than for other approaches.
+
+\textbf{Loss without $QR$ scales much better for larger subspace sizes.} In Figure~\ref{fig:eigval_results_a} we demonstrate wall clock training time for $L_1(A, B)$ and $L_2(A, B;z)$ (least squares problem is solved with normal equation) per epoch on the same hardware for the same FFNO architectures. For small subspace sizes the training time the methods are roughly on par, but with the increase of subspace size QR starts to drastically slow down training with $L_1$ loss.
+
+\textbf{Training with loss $L_{\mathbb{Z}_2}$ is reasonable only for several first eigenvectors.} In Figure~\ref{fig:eigval_results_c} we present results for learning individual eigenvectors (a separate network is trained for each eigenvector) for $D=2$ elliptic eigenproblem.Train error is reasonably small for all eigenvectors, which imply neural networks can successfully approximate them. Rapid growth of the test error with eigenvector number indicates the increase of problem complexity in agreement with Theorem~\ref{th:parametric_eigenproblem}.
+
+\textbf{Neural networks trained with subspace embedding technique learn smoother maps.} Theorem~\ref{th:embedding_technique} suggests it is possible to decrease derivative by embedding of geodesics into a larger space. This provides only a circumstantial evidence that the same may happen when neural networks are trained with subspace embedding technique. In Appendix~\ref{appendix:eigenproblems_numerics} we gather empirical results that support such conclusion. The results are based on several ``smoothness indicators'': the error of linear model, Frobenius norm of derivative, and mean cosine of angles between subspaces at nearby points. We refer interested readers to Appendix~\ref{appendix:smoothness_results}.
+
+\textbf{Subspace regression can speed-up classical iterative eigensolvers.}
+As an example of hybrid approach we consider combination of subspace regression and LOBPCG \cite{knyazev2001toward}. LOBPCG is a classical iterative matrix-free eigensolver that can approximate extremal eigenspaces. To apply it in combination wit hsubspace regression we use trained neural network to predict subspace, and initialise LOBPCG with solution of reduced eigenproblem. Note, that the cost of such initialisation is negligible small comparing to the full cost of LOBPCG iterations. We observe $2$ to $3$ times faster converges and $2$ orders lower relative error on average when subspace regression is used for initialisation. More details are available in Appendix~\ref{appendix:LOBPCG_results}.
+
+\begin{wraptable}{r}{7.5cm}
+\caption{Accuracy for $D=3$ elliptic eigenproblem.}
+\label{table:D3_problems}
+\begin{tabular}{llll}
+\toprule
+$N_{\text{sub}}$ & $L_1(A, B)$ & $L_2(A, B; z)$ & $L^{\text{stab}}_2(A, B; z)$ \\
+\midrule
+$6$ & $24.77\%$ & $31.46\%$ & $28.28\%$ \\
+$12$ & $13.69\%$ & $17.12\%$ & $15.88\%$ \\
+$24$  & $9.71\%$ & $-$ & $9.49\%$ \\
+$48$  & $7.54\%$ & $16.3\%$ & $7.4\%$ \\
+\bottomrule
+\end{tabular}
+\end{wraptable} 
+
+\textbf{Loss $L_2(A, B; z)$ may become unstable.} From results summarised in Figure~\ref{fig:eigval_results_a} one can assume that $L_2(A, B; z)$ is always preferable. Results for $D=3$ problem (elliptic eigenproblem, grid $30\times30\times30$, prediction of first $3$ eigenvectors) summarised in Table~\ref{table:D3_problems} reveal a more nuanced picture. Loss $L_2(A, B; z)$ clearly performs worse than $L_1(A, B)$ and even fails for subspace size $24$. The reason for that is numerical instability of solvers based on the normal equation.
+To stabilize $L_2(A, B; z)$ we apply Cholesky-QR2 \cite{yamamoto2015roundoff}. The results for stabilised loss shows that accuracy becomes comparable to $L_1(A, B)$ and even slightly better for larger subspace dimensions.
+
+
+\subsection{Parametric PDE problems}
+We considered two PDEs: (i) $D=1+1$ viscous Burgers equation, related to benchmark from \cite{li2020fourier};  (ii) $D=2$ elliptic problems (\ref{eq:stationary_diffusion}). Our main operator is FFNO and the solutions strategy we use is classical intrusive POD\footnote{Recall, that when coefficients in the reduced basis expansion are predicted by some model we have non-intrusive POD. When basis is used to generate reduced ODE that is later integrated we have intrusive POD.}. For datasets description and training details see Appendix~\ref{appendix:PDEs_numerics}. We compare subspace regression with several methods.
+
+\textbf{Regression with FFNO.} We apply FFNO, an extension of Fourier Neural Operator, to parametric PDEs in a standard way similar to \cite{tran2021factorized}.
+
+\textbf{Regression with DeepONet.} Classical architecture based on the universal approximation theorem of operators \cite{lu2019deeponet}. DeepONet can be understood as end-to-end training of non-intrusive POD with basis functions parametrised by implicit neural representation or physics-informed neural networks \cite{sitzmann2020implicit}, \cite{lagaris1998artificial}, \cite{raissi2019physics}.
+
+\textbf{Intrusive POD with DeepONet/FFNO basis.} When DeepONet is trained, learned spatial or spatiotemporal basis functions can be used to extract basis (by method directly related to POD) suitable for spectral methods or intrusive POD \cite{meuris2021machine}, \cite{meuris2023machine}. As suggested in the discussion section of \cite{meuris2021machine}, the same can be done with FNO.
+
+\textbf{Deep POD.} Projector-based loss is used directly to extract basis from available snapshot matrices or steady-state solutions \cite{francodeep}. In the referenced publication this approach is combined with PCA-Net described below.
+
+\textbf{Kernel methods.} A non-parametric technique where the RKHS method is used for encoder, processor and decoder \cite{batlle2024kernel}.
+
+\textbf{PCA-Net.} A non-intrusive technique with classical POD used as both encoder and decoder, and feedforward network served as processor \cite{hesthaven2018non}, \cite{bhattacharya2021model}.
+
+\textbf{POD and oracle.} Two POD-based baselines. POD is an intrusive variant of global POD \cite{volkwein2013proper}. Oracle is an intrusive variant of local POD computed with optimal subspace. In problems we consider, error achieved by oracle is the best possible for a given number of basis vectors.
+
+Additional results are available in Appendix~\ref{appendix:PDEs_numerics}. Here we highlight the most important findings.
+
+\begin{figure}[t]
+	\centering
+	\hspace*{-0.4cm}
+	\begin{subfigure}[t]{0.35\textwidth}
+        		\centering
+		\hspace*{-0.8cm}
+		\includegraphics[width=1.05\textwidth]{elliptic_regression_abb.pdf} 
+		\caption{Elliptic.}
+		\label{fig:PDE_results_a}
+	\end{subfigure}
+	\quad\quad\quad\quad
+	\hspace*{-0.7cm}
+	\begin{subfigure}[t]{0.35\textwidth}
+        		\centering
+		%\vspace*{-4.4cm}  
+		\hspace*{-1.8cm}
+		\includegraphics[width=1.04\textwidth]{Burgers_regression_abb.pdf}
+		\caption{Burgers.}
+		\label{fig:PDE_results_b}
+	\end{subfigure}
+	\begin{subfigure}[t]{0.19\textwidth}
+		\centering
+		\vspace*{-5.0cm}
+		\begin{tabular}{ll}
+			\toprule
+			oracle & O \\
+			subspace & S\\
+			DeepPOD & DP\\
+			POD & P\\
+			FFNO & F\\
+			DeepONet & D\\
+			FFNO${}_{b}$ & F${}_{b}$\\
+			DeepONet${}_{b}$ & D${}_{b}$\\
+			PCANet & PN\\
+			kernel & K\\
+			\bottomrule
+		\end{tabular}
+		%\vspace*{+0.12cm}
+		%\caption{Abbreviations.}
+	\end{subfigure}
+	\caption{Relative errors for selected baselines. Label ``subspace'' refers to subspace regression. For the elliptic problem (a) subspace dimension of ROM methods is bounded by $100$, and for DeepPOD, and subspace regression -- by $40$. Oracle is omitted for the elliptic problem because it has perfect accuracy with $10$ basis functions. For Burgers equation subspace dimensions for all methods $\leq 50$. FFNO${}_{b}$ and DeepONet${}_{b}$ refer to an intrusive ROM with bases extracted from FFNO and DeepONet.}
+\end{figure}
+
+\textbf{Subspace regression leads to competitive accuracy.} In Figure~\ref{fig:PDE_results_a} and Figure~\ref{fig:PDE_results_b} we observe that subspace regression performs similar or better than DeepPOD. Among other intrusive methods only classical POD leads to comparable accuracy. Bases extracted from FFNO and DeepONet are worse than global POD in all experiments. Pure regression approaches -- FFNO, DeepONet, PCANet -- appear to be less accurate. PCANet similar to kernel methods shows significant overfitting on our problems, likely resulting from poor inductive bias of the architecture. Note however, that regression approaches are not directly comparable with intrusive techniques, since they do not require a solution of reduced model.
+
+\textbf{Representations learned by neural networks are highly non-optimal.} Representation of all neural networks are inefficient if one compares them with the oracle. For example, by construction of an elliptic dataset, a subspace of dimension $10$ is enough for perfect accuracy. Both DeepPOD and subspace regression reach error about $<1.5\%$ with subspaces of dimension $40$, DeepONet needs to have $>200$ basis functions to reach comparable accuracy, and FFNO with $64$ basis functions in the last hidden layer lead to $10\%$ relative error. Basis functions built from FFNO and DeepONet are similarly inefficient. The same observations hold for Burger's equation.
+
+\subsection{Iterative methods for linear systems}
+We illustrate subspace regression for iterative methods using $D=2$ elliptic problems (\ref{eq:stationary_diffusion}). Said iterative methods are deflated CG and two-grid correction for the Jacobi method introduced in Section~\ref{section:subspace regression} and explained in more detail in Appendix~\ref{appendix:iterative_numerics}. Figure~\ref{fig:iterative_results_a} and Figure~\ref{fig:iterative_results_b} shows average convergence curves on test set and Appendix~\ref{appendix:iterative_numerics} contains the rest of relevant data.
+
+\textbf{Iterative methods are less sensitive to subspace quality.} On the training stage, neural networks were presented with data only on first $10$ eigenvectors. Despite that, neural networks trained with subspace embedding nearly match the performance of deflated CG with exact eigenspaces of larger size, for coarse-grid corrected Jacobi method convergence speed with learned subspaces is even slightly better. One possible explanation hinted by Theorem~\ref{th:parametric_eigenproblem} is that from distribution of subspaces some information about nearby vectors can be recovered.
+
+\textbf{Seemingly minor variations in problem setting can lead to substantial variations in the complexity of the learning problem.} Initially for the Jacobi method we posed a subspace regression problem as an approximation of leading eigenspaces of error propagation matrix $I - D^{-1} A$, where $D$ is diagonal of $A$. Neural networks with and without subspace embedding completely failed to learn. After inspection of the dataset we found that the leading eigenspace contains a complicated mixture of functions with low and high frequencies. Since the learning problem appeared to be completely hopeless, we reformulated subspace regression using error propagation matrix of damped Jacobi iteration $I - \omega D^{-1} A$ with $\omega = 0.9$. In contrast to the standard Jacobi method, the damped version leads to subspaces formed by low frequency functions. As evident from Figure~\ref{fig:iterative_results_b} the resulting mapping is easily learnable. A more detailed report can be found in Appendix~\ref{appendix:iterative_numerics}.
+
+\begin{figure}[t]
+	\centering
+	\begin{subfigure}[t]{0.44\textwidth}
+        		\centering
+		\hspace*{-0.8cm}
+		\includegraphics[width=1.05\textwidth]{lone_flattop_deflation.pdf} 
+		\caption{Deflation}
+		\label{fig:iterative_results_a}
+	\end{subfigure}
+	\quad\quad\quad\quad
+	\begin{subfigure}[t]{0.44\textwidth}
+        		\centering
+		%\vspace*{-4.79cm}
+		\hspace*{-0.8cm}
+		\includegraphics[width=1.05\textwidth]{lone_flattop_Jacobi_truncated.pdf}
+		\caption{Two-grid.}
+		\label{fig:iterative_results_b}
+	\end{subfigure}
+	\caption{Convergence results for iterative methods. Learned methods are marked with solid lines, and dashed lines correspond to iterative methods with optimal deflation and coarse-grid spaces, $M$ refers to subspace size.}
+\end{figure}
+
+\section{Conclusion}
+Subspace regression -- a prediction of subspace from available data -- is an interesting problem with a variety of applications including reduced order modelling for partial differential equations, approximation of eigenspaces for eigenproblems, construction of iterative methods for linear problems and optimal control. We formalise subspace regression as a statistical learning problem and introduce several loss functions that are suitable for subspace data. For most of the applications considered we observe that the learning problem is too complicated even when a specialised loss function is used. To simplify learning we propose to approximate a given subspace with a subspace of larger dimension. The resulting technique, called subspace embedding, significantly improves accuracy and generalisation gap. The idea of subspace embedding is that redundancy typically simplifies the learning process and leads to more robust performance. Even though this strategy clearly helps, it introduces a large gap between dimensions of optimal and learned subspaces. The same gap is observed for the classical operator learning problems, when the neural network is trained to approximate solution mapping for parametric PDE. In this case the learned basis can be extracted from the last hidden layer. This neural basis is far from optimal, requiring an excessive number of basis vectors to be used for reaching comparable accuracy. Whether this inefficiency in representation can be resolved, remains an open problem.
+
+\section{Reproducibility statement}
+Code used for training, evaluation, and dataset generation is available on \url{https://github.com/VLSF/subreg}. In the current version detailed description of architectures, hyperparameters, dataset generation and training details appear in Appendix \ref{appendix:icontrol_numerics}, Appendix \ref{appendix:iterative_numerics}, Appendix \ref{appendix:PDEs_numerics}, Appendix \ref{appendix:eigenproblems_numerics}.
+\bibliography{subreg}
+\bibliographystyle{plain}
+
+\appendix
+\section{Proof of Theorem 1}
+\label{appendix:theorem_1}
+\begin{enumerate}
+	\item
+	To show that $L_1(A, B)$ does not depend on the chosen representative we observe that
+	\begin{equation}
+		\label{eq:L1_equivalent_form}
+		L_1(A, B) = p - \left\|Q_{B}^\top Q_{A}\right\|_{F}^2 = \frac{1}{2}\left\|P_{B} - P_{A}\right\|_{F}^2 - \frac{k-p}{2},
+	\end{equation}
+	where $P_{A} = A\left(A^\top A\right)^{-1}A^\top, P_{B} = B\left(B^\top B\right)^{-1}B^\top$ are orthogonal projectors on the columns spaces of $A$ and $B$.
+	When QR decompositions $A = Q_{A} R_{A}, B = Q_{B} R_{B}$ are available, projectors become $P_{A} = Q_{A}Q_{A}^\top, P_{B} = Q_{B}Q_{B}^\top$ and identity~(\ref{eq:L1_equivalent_form}) can be verified by algebraic manipulations
+	\begin{multline}
+		\frac{1}{2}\left\|P_{B} - P_{A}\right\|_{F}^2 - \frac{k-p}{2} = \frac{1}{2}\text{tr}\left(\left(Q_{B}Q_{B}^\top - Q_{A}Q_{A}^\top\right)\left(Q_{B}Q_{B}^\top - Q_{A}Q_{A}^\top\right)\right)  - \frac{k-p}{2}\\ = \frac{1}{2}\text{tr}\left(Q_{B}Q_{B}^\top\right) + \frac{1}{2}\text{tr}\left(Q_{A}Q_{A}^\top\right) - \left\|Q_{B}^\top Q_{A}\right\|_{F}^2 - \frac{k-p}{2} = p - \left\|Q_{B}^\top Q_{A}\right\|_{F}^2.
+	\end{multline}
+	From the equivalent form of loss $L_{1}(A, B)$ given in equation~(\ref{eq:L1_equivalent_form}) one can immediately conclude that $L_1(A, B)$ does not depend on the representatives $A, B$ chosen from $\lceil A\rceil, \lceil B\rceil$. The reason is projectors are invariant under right $\text{GL}$ transformations. For example, $P_{A} = P_{\widetilde{A}}$, where $\widetilde{A} = A G$ and $G$ is arbitrary non-degenerate matrix $G\in\mathbb{R}^{k\times k}$
+	\begin{multline}
+		\widetilde{A}\left(\widetilde{A}^\top \widetilde{A}\right)^{-1}\widetilde{A}^\top = A G \left(G^\top A^\top A G\right)^{-1} G^\top A^\top \\= A G G^{-1}\left(A^\top A\right)^{-1} \left(G^\top\right)^{-1}G^\top A^\top = A\left(A^\top A\right)^{-1}A^\top.
+	\end{multline}
+	
+	Now, when we know that $L_{1}(A, B)$ does not depend on the chosen representatives, it is easy to show that the minimal value of loss is $0$ and it is reached when $\mathcal{S}(B)\subset \mathcal{S}(A)$. To see this, select representatives such that $Q_{A} = \begin{pmatrix}\widetilde{Q}_{B} & \widetilde{Q}_{B}^\perp\end{pmatrix}$, where $\widetilde{Q}_{B}$ is block matrix formed from subset of columns of $Q_{B}$ and columns of $\widetilde{Q}_{B}^\perp$ are all orthogonal to $Q_{B}$. This selection is always possible since $(I- Q_{B}Q_{B}^\top) + Q_{B}Q_{B}^\top = I$. Representatives selected in this form give
+	\begin{equation}
+		L_1(A, B) = p - \left\|Q_{B}^\top \widetilde{Q}_{B}\right\|_{F}^2 = p - q \geq 0,
+	\end{equation}
+	where $\widetilde{Q}_{B}\in\mathbb{R}^{n\times q}, q\leq p$. The last identity follows by construction: $\widetilde{Q}_{B}$ is composed from columns of $Q_{B}$. Loss becomes zero only if $p = q$, or, equivalently, $\mathcal{S}(B)\subset \mathcal{S}(A)$.
+	\item We first show that
+	\begin{equation}
+		\label{eq:L2_equivalent_form}
+		L_2(A, B; z) = \min_{u} \left\| Au - Q_{B}z\right\|_{2}^{2} = \left\|\left(I - P_{A}\right) Q_{B}z\right\|_{2}^{2},
+	\end{equation}
+	where $P_{A} = A\left(A^\top A\right)^{-1}A^\top$ is orthogonal projector on the columns space of $A$. Using $I = \left(I - P_{A}\right) + P_{A}$, and $A \left(I - P_{A}\right) =  \left(I - P_{A}\right) A = 0$ we obtain
+	\begin{multline}
+		\min_{u} \left\| Au - Q_{B}z\right\|_{2}^{2} = \min_{u} \left\| Au - P_{A}Q_{B}z - \left(I - P_{A}\right) Q_{B}z\right\|_{2}^{2} \\= \min_{u} \left\| Au - P_{A}Q_{B}z\right\|_{2}^2 + \left\|\left(I - P_{A}\right) Q_{B}z\right\|_{2}^{2} = \left\|\left(I - P_{A}\right) Q_{B}z\right\|_{2}^{2}.
+	\end{multline}
+	The last equality holds since $P_{A}Q_{B}$ and $A$ share the same columns space. Given that $P_{A}$ does not depend on representative $A$ from $\lceil A\rceil$, and that $L_{2}(A, B; z)$ depends on $A$ only via $P_{A}$, we conclude that the same is true for $L_{2}(A, B; z)$.
+	\item From equation~(\ref{eq:L2_equivalent_form}) we find
+	\begin{multline}
+		\mathbb{E}_{z}\left[L_2(A, B; z)\right] = \mathbb{E}_{z}\left[\left\|\left(I - P_{A}\right) Q_{B}z\right\|_{2}^{2}\right]  = \mathbb{E}_{z}\left[ z^\top\left(Q_B^\top \left(I - P_{A}\right) Q_{B}\right)z\right] \\ = \mathbb{E}_{z}\left[ \text{tr} \left(\left(Q_{B}^\top Q_B - Q_{B}^\top Q_{A}Q_{A}^\top Q_{B}^\top\right)zz^\top\right) \right] = \text{tr} \left(\left(Q_{B}^\top Q_B - Q_{B}^\top Q_{A}Q_{A}^\top Q_{B}^\top\right)\mathbb{E}_{z}\left[zz^\top\right]\right) \\ = p - \left\|Q_{B}^\top Q_{A}\right\|_{F}^2 = L_{1}(A, B).
+	\end{multline}
+\end{enumerate}
+
+\section{Proof of Theorem 2}
+\label{appendix:theorem_2}
+We provide two comments before proceeding with the proof.
+
+In most parts of the text we assumed working with the non-compact Stiefel manifold and in this theorem we have data on the compact Stiefel manifold (see \cite{amsallem2010interpolation} for definitions). We specify how one can compute $Q_{A}$ and $\dot{Q}_{A}$ having $A$ and $\dot{A}$. One may start from any stable version of Cholesky QR, e.g., \cite{garrison2024randomized}, \cite{yamamoto2015roundoff}, and obtain
+\begin{equation}
+	Q_{A} = A R^{-1},
+\end{equation}
+where $R$ is Cholesky factorization of Gram matrix $A^\top A$, i.e., $A^\top A = R^\top R$ where $R$ is a lower triangular square invertible matrix. To find the derivative of $Q_{A}$ we need to know the derivative $\frac{d}{dt} R^{-1}$. Derivative $\dot{R}$ can be computed as a solution to Lyapunov equation
+\begin{equation}
+	\dot{R}^\top R + R^\top \dot{R} = \dot{A}^\top A + A^\top \dot{A},
+\end{equation}
+after that $\frac{d}{dt} R^{-1}$ can be found from Jacobi identity $\frac{d}{dt} R^{-1} = - R^{-1} \dot{R} R^{-1}.$
+
+In Theorem~\ref{th:embedding_technique} we use $\frac{1}{2}\left\|W(t) W(t)^{\top} - V(t) V(t)^{\top}\right\|_{F}^2 - \frac{r-k}{2}$ to measure the quality of approximation. It follows from the proof in Appendix~\ref{appendix:theorem_1} that
+\begin{equation}
+	\frac{1}{2}\left\|W(t) W(t)^{\top} - V(t) V(t)^{\top}\right\|_{F}^2 - \frac{r-k}{2} = L_1(W(t), V(t)),
+\end{equation}
+where $L_1(W(t), V(t))$ is a loss function defined in Theorem~\ref{th:loss_functions}. We can alternatively rewrite
+\begin{equation}
+	\frac{1}{2}\left\|W(t) W(t)^{\top} - V(t) V(t)^{\top}\right\|_{F}^2 - \frac{r-k}{2} = \sum_{i=1}^{k}\sin^2(\theta_i)
+\end{equation}
+using the definition of principle angles $\theta_i$ between column spaces of matrices $W(t)$ and $V(t)$ \cite{bjorck1973numerical}. Given the later form, it is clear that small values of $\frac{1}{2}\left\|W(t) W(t)^{\top} - V(t) V(t)^{\top}\right\|_{F}^2 - \frac{r-k}{2}$ correspond to better aligned subspaces.
+
+To demonstrate the main result of Theorem~\ref{th:embedding_technique} we first prove a supplementary statement.
+\begin{lemma}
+	\label{le:geodesic_embedding}
+	Let $A(t)$ be geodesic on $\text{Gr}(k_1, n)$, $A(t)^\top A(t) = I_{k_1}$. One can always construct geodesic $B(t)$, $B(t)^\top B(t) = I_{k_2}$ on $\text{Gr}(k_2, n), k_2>k_1$ such that $\lceil A(t)\rceil\subset \lceil B(t)\rceil$ and $\left\|\dot{B}(t)\right\|_{F}^2 \leq \left\|\dot{A}(t)\right\|_{F}^2$, where inequality is strict unless $ \left\|\dot{A}(t)\right\|_{F}^2 \neq 0$.
+\end{lemma}
+\begin{proof}
+	Since $A(t)$ is geodesic we can write $A(t) = A(0) Y \cos(\Sigma t) Y^\top + U\sin(\Sigma t) Y^\top$, where $U \Sigma Y^\top$ is singular value decomposition of $\dot{A}(0)$. Using orthogonality of $\dot{A}(0)$ and $A(0)$ we find $\left\| \dot{A}(t)\right\|_{F}^2 = \text{tr}(\Sigma)$. Without loss of generality we assume that $\Sigma_{11} \neq 0$. Consider
+\begin{multline}
+	B(t) =
+	\begin{pmatrix}
+		& | \\
+		A(0) & u_1\\
+		&|
+	\end{pmatrix}
+	\begin{pmatrix}
+		y_1y_1^\top + \sum_{i=2}^{k_1} \cos(\sigma_i t)y_i y_i^\top & 0\\
+		0 & 1
+	\end{pmatrix} + \sum_{i=2}^{k_1} \sin(\sigma_i t)u_i \begin{pmatrix}y_i\\0\end{pmatrix}^\top \\
+	= \begin{pmatrix}
+		& | \\
+		A(0) Y \cos\left(\widetilde{\Sigma}t\right) Y^\top + U \sin\left(\widetilde{\Sigma}t\right) Y^\top & u_1\\
+		&|
+	\end{pmatrix},
+\end{multline}
+where $y_i$ are columns of $Y$, $u_i$ are columns of $U$, $\sigma_i$ are diagonal elements of $\Sigma$, $\widetilde{\Sigma} = \Sigma - \sigma_1e_1 e_1^\top$, that is, $\widetilde{\Sigma}$ can be obtained from $\Sigma$ by replacing $\Sigma_{11} = \sigma_1$ by $0$.
+Clearly $B(t)$ is geodesic and $\left\| \dot{B}(t)\right\|_{F}^2 = \left\| \dot{A}(t)\right\|_{F}^2 - \sigma_1^2 < \left\| \dot{A}(t)\right\|_{F}^2$. Next we show that principal angles between $A(t)$ and $B(t)$ are all zero. To see this we observe that
+\begin{multline}
+	A^\top(t) B(t) = 	
+	\begin{pmatrix}
+		& | \\
+		Y\left( \cos\left(\Sigma t\right) \cos\left(\widetilde{\Sigma} t\right) + \sin\left(\Sigma t\right) \sin\left(\widetilde{\Sigma} t\right))\right)Y^\top & y_1 \sin(\sigma_1 t)\\
+		&|
+	\end{pmatrix} \\= 
+	\begin{pmatrix}
+		& | \\
+		Y\left(I - (1 - \cos(\sigma_1 t))e_1 e_1^\top\right)Y^\top & y_1 \sin(\sigma_1 t)\\
+		&|
+	\end{pmatrix}.
+\end{multline}
+From the identity above Frobenius norm reads
+\begin{equation}
+	\left\|A^\top(t) B(t)\right\|_{F}^2 = \sum_{i=1}^{k_1}\cos^2(\theta_i) = \text{tr}\left(\cos^2(\sigma_1 t) y_1 y_1^\top + \sum_{i=2}^{k_1} y_{i} y_{i}^{\top} + y_1 y_1^\top \sin^2(\sigma_1 t)\right) = k_1,
+\end{equation}
+and we conclude that $\theta_i = 0$ for all $i=1,\dots, k_1$. 
+\end{proof}
+Lemma~\ref{le:geodesic_embedding} also implies that for two such geodesics $\frac{1}{2}\left\|A(t) A(t)^{\top} - B(t) B(t)^{\top}\right\|_{F}^2 - \frac{k_2-k_1}{2} = 0$.
+
+Now we are ready to show the main result of Theorem~\ref{th:embedding_technique}. We split interval of interest $t\in[0, T]$ on subintervals $[t_i, t_{i+1}]$ of length $\Delta t$. On each subinterval we consider three curves: (i) original continuously differentiable curve $V(t)\in \text{Gr}(k, n)$, (ii) approximation of $V(t)$ by geodesic $Z(t)\in \text{Gr}(k, n)$ passing through $V(t_i)$ with derivative $\dot{V}(t_i)$, (iii) embedding of $Z(t)$ by geodesic $W(t)$ on $\text{Gr}(r, n), r>k$ selected as explained in Lemma~\ref{le:geodesic_embedding}. We start by showing that principle angles between $W(t)$ and $V(t)$ can be made arbitrary small
+\begin{equation}
+	\begin{split}
+		&\frac{1}{2}\left\|V(t) V(t)^{\top} - W(t) W(t)^{\top}\right\|_{F}^2 - \frac{r - k}{2}\\
+		&= \frac{1}{2}\left\|V(t) V(t)^{\top} - Z(t) Z(t)^\top + Z(t) Z(t)^\top - W(t) W(t)^{\top}\right\|_{F}^2 - \frac{r - k}{2} \\
+		&\leq \frac{1}{2}\left\|V(t) V(t)^{\top} - Z(t) Z(t)^\top \right\|_{F}^2 + \frac{1}{2} \left\|Z(t) Z(t)^\top - W(t) W(t)^{\top}\right\|_{F}^2 - \frac{r - k}{2} \\
+		&= \frac{1}{2}\left\|V(t) V(t)^{\top} - Z(t) Z(t)^\top \right\|_{F}^2.
+	\end{split}
+\end{equation}
+Now we know that on each interval the distance between $V(t)$ and $W(t)$ is bounded by the distance from $V(t)$ to the geodesics that passes through $V(t_i)$ with speed $\dot{V}(t_i)$. Since interval is assumed to be small, we expand geodesic $Z(t)$ in Taylor series keeping terms proportional to $\left(\Delta t\right)^{0}$ and $\Delta t$ and for $V(t)$ we use Lagrange reminder $V(t) = V(t_i) + \dot{V}(\widetilde{t}) (t - t_i), t\in[t_i,t_{i+1}],\widetilde{t}\in[t_i, t]$:
+\begin{equation}
+	\frac{1}{2}\left\|V(t) V(t)^{\top} - Z(t) Z(t)^\top \right\|_{F}^2 \simeq 2 (t -t_i)^2 \left\|\dot{V}(\widetilde{t}) - \dot{V}(t_{i})\right\|_{F}^2.
+\end{equation}
+By assumption $V(t)$ is continuously differentiable, meaning the expression above can be made arbitrary small by selecting sufficiently small intervals $[t_i, t_{i+1}]$.
+
+To show that derivative of $W(t)$ can be made smaller than $V(t)$ observe that $\left\|\dot{W}(t)\right\|_{F}^2 < \left\|\dot{Z}(t)\right\|_{F}^2$ on each subinterval where $\left\|\dot{Z}(t_i)\right\|_{F}^2 \neq 0$. Since $\left\|\dot{Z}(t)\right\|_{F}^2 = \left\|\dot{Z}(t_i)\right\|_{F}^2 = \left\|\dot{V}(t_i)\right\|_{F}^2$ and $\dot{V}(t)$ is continuous function, we, again, can select sufficiently small intervals such that deviation of $\left\|\dot{V}(t)\right\|_{F}^2$ from $\left\|\dot{V}(t_i)\right\|_{F}^2$ on each interval is small enough for $\left\|\dot{W}(t)\right\|_{F}^2 < \left\|\dot{V}(t)\right\|_{F}^2$ to hold.
+
+\section{Subspace embedding example}
+\label{appendix:embedding_example}
+\begin{figure}[t]
+	\centering
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\vspace*{-4.5cm}
+		\includegraphics[width=0.8\textwidth,trim={2cm 2cm 2cm 2cm},clip]{g31.pdf}
+		\vspace*{0.54cm}
+		\caption{$\gamma_1(t) \in \text{Gr}(3, 1)$}
+		\label{fig:embedding_theorem_a}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\vspace*{-4.5cm}
+		\includegraphics[width=0.8\textwidth,trim={2cm 2cm 2cm 2cm},clip]{g32.pdf}
+		\vspace*{0.54cm}
+		\caption{$\perp \gamma_2(t) \in \text{Gr}(3, 2)$}
+		\label{fig:embedding_theorem_b}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\hspace*{0.1cm}
+		\includegraphics[width=1.1\textwidth,trim={0.25cm 0.25cm 0.25cm 0.5cm},clip]{norms31_32_right.pdf}
+		\caption{Norms of $\dot{\gamma}_1(t)$  and $\dot{\gamma}_2(t)$}
+		\label{fig:embedding_theorem_c}
+	\end{subfigure}
+	\caption{Example of subspace embedding detailed in Appendix~\ref{appendix:embedding_example}.}
+\end{figure}
+The proof of Theorem~\ref{th:embedding_technique} is constructive, meaning we can compute $W(t)$ given $V(t)$ and $\dot{V}(t)$ or its estimation. We select
+\begin{equation}
+ 	V(t) = \gamma_1(t) = 
+	\begin{pmatrix}
+		\sin(\theta(t)) \sin(\phi(t))\\
+		\cos(\theta(t)) \sin(\phi(t))\\
+		\cos(\phi(t))
+	\end{pmatrix}, \theta(t) = 7 \pi \cos(2\pi t), \phi(t) = \pi/2  + \pi/4 \cos(2 \pi t).
+\end{equation}
+Curve $\gamma_1(t) \in \text{Gr}(1, 3)$ is illustrated in Figure~\ref{fig:embedding_theorem_a}. We next estimate derivatives by splitting $t$ on a set of subintervals and taking logarithm on each interval. This derivative is used as explained in Lemma~\ref{le:geodesic_embedding} to define $W(t)\in\text{Gr}(2, 3)$. Since $\frac{1}{2}\left\|\dot{P}_{W}\right\|_{F}^2 = \left\|\dot{W}(t)\right\|_{F}^2 = \frac{1}{2}\left\|\frac{d}{dt}\left(I - P_{W}\right)\right\|_{F}^2$ we plot $\gamma_2(t) \perp W(t)$ in Figure~\ref{fig:embedding_theorem_b}. Curve $\gamma_2(t)$ appears to be discontinuous, but actually it is continuous owning to $\mathbb{Z}_2$ symmetry of compact Stiefel manifold $\text{St}(1, 3)$. Norms of derivative are compared in Figure~\ref{fig:embedding_theorem_c}: curve $\gamma_2$ is manifestly smoother than $\gamma_1$.
+
+\section{Proof of Theorem 3}
+\label{appendix:theorem_3}
+In the proof we will write $F$ ad $G$ in place of $F_{k}$ and $G_{k}$ assuming that $k$ is fixed and the value of $k$ is evident from the context.
+\subsection{Parts 1. and 2.}
+We order eigenvectors in the increase of eigenvalue $E(i_1,\dots, i_D) := \lambda_{i_1,\dots,i_D} = \sum_{j=1}^{D}a_{j}i_{j}^2$, which we will also call energy in this section. To understand how eigenvectors and subspaces are selected for different coefficients $a_1,\dots, a_D$ we introduce continuous relaxation of energy $E(z_1,\dots, z_D) = \sum_{j=1}^{D}a_{j}z_{j}^2$, where $z_j \in\mathbb{R}_{+}$. In continuous form, surfaces with constant energies are (hyper)ellipsoids of dimension $D-1$, so the process of selecting $k$-th eigenvector or constructing subspace of dimension $k$ can be understood through the following informal algorithm:
+\begin{enumerate}
+	\item Select $a_1,\dots, a_{D}$ and $c = 0$.
+	\item Gradually increase $c$ and track ellipsoid $\sum_{j=1}^{D}a_{j}z_{j}^2 = c$.
+	\item While increasing $c$ add each standard positive lattice point (point with positive integer coordinates) that fall inside the ellipsoids.
+	\item The order at which lattice points cross an inflating ellipsoid define which eigenvector appears on position $k$ and which vectors form eigenspace of dimension $k$.
+\end{enumerate}
+To illustrate this process, consider $E(z_1,\dots, z_D) = a_1 z_1^2 + a_2 z_2^2$, where $a_2 \gg a_1$. If we follow procedure outlined above we will see that first lattice points encountered are $(1, 1), (2, 1), (3, 1), (4, 1), \dots$. So for considered $a_1, a_2$ the subspace of first $3$ eigenvectors is a span of $\phi_{1, 1}, \phi_{2, 1}, \phi_{3, 1}$, and the eigenvector that appears on position $3$ is $\phi_3$. To describe the map from $a_1,\dots, a_D$ to $\phi_k$ or $V_k$, this procedure needs to be repeated for all possible positive values of real coefficients $a_1,\dots, a_D$.
+
+From the algorithm above one can deduce that for given $a_1,\dots, a_D$ the first time eigenvector with indices $i_1, \dots, i_D$ appears in the sequence of eigenvectors is the first time ellipsoid crosses $i_1, \dots, i_D$. The position $k$ of this eigenvector will be proportional to the normalised volume of the ellipsoid $V_{e}(a_1,\dots, a_D) \big/ V_{s}$, where $V_{e}(a_1,\dots, a_D)$ is a volume of $D$ dimensional ellipsoid with semi-axes $a_1,\dots, a_D$ and $V_{s}$ is a volume of $D$ dimensional sphere with radius $1$.
+
+The first immediate consequence is that $a_1,\dots, a_D$ is a piecewise constant function. Indeed, it is clear $a_1,\dots,a_D$ can always be perturbed with no change in filling order and the change of $ -1 < V_{e}(a_1,\dots, a_D) \big/ V_{s} < 1$, so the eigenvector on position $k$ does not change. That proves the first part of the first statement. Next, we need to show that the set of all possible eigenvectors on position $k$ is finite.
+
+\begin{figure}[t]
+	\centering
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\includegraphics[width=1.0\textwidth]{family_of_ellipsoids.pdf}
+		\caption{}
+		\label{fig:ellipsoids_a}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\includegraphics[width=1.0\textwidth]{minimal_ellipsoid.pdf}
+		\caption{}
+		\label{fig:ellipsoids_b}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\includegraphics[width=1.0\textwidth]{non_minimal_ellipsoid.pdf}
+		\caption{}
+		\label{fig:ellipsoids_c}
+	\end{subfigure}
+	\caption{(a) Parametric family of ellipsoids passing through point $(4, 5)$. (b) Ellipsoid of minimal volume passing through $(4, 5)$. Note that the number of standard lattice points inside is approximately $4\times 5 = 20$, the error of approximation ($5$ in this case) is asymptotically small for ellipsoids of large volume. (c) Example of non-minimal ellipsoid passing through $(4, 5)$. In the non-minimal case, the number of standard lattice points inside an ellipsoid passing through a given point can be made arbitrarily large.}
+\end{figure}
+
+To see that, we answer the following question: what is the minimal number of lattice points one ought to cover with an ellipsoid to reach a given lattice point $i_1,\dots, i_D$? For example, point $(1, 1)$ is always reached first. On the other hand, point $(2, 1)$ can be reached arbitrarily late, because one may consider ellipsoids with arbitrary large semi-axis along the second dimension. The position of the point $i_1,\dots, i_D$ is known to be the ratio of volumes, so we need to find an ellipsoid with minimal volume that passes through $i_1,\dots, i_D$. A parametric family of ellipsoids in question and its volume are
+\begin{equation}
+	\sum_{i =1}^{D} z_i^2 \frac{a^2_{i}}{\left(\sum_{k=1}^{D} a^2_{k} i_{k}^2\right)^{\frac{1}{2}}} = 1,\,V_{e} = \frac{\pi^{\frac{D}{2}}}{\Gamma\left(\frac{D}{2} + 1\right)} \frac{\left(\sum_{k=1}^{D} a^2_{k} i_{k}^2\right)^{\frac{D}{2}}}{\left(\prod_{j=1}^{D}a^2_{j}\right)^{\frac{1}{2}}}.
+\end{equation}
+See Figure~\ref{fig:ellipsoids_a} for example of a parametric family in $D=2$ passing through lattice point $(4, 5)$. In the expression above we used $a_i^2$ to remove positivity constraints. To find minimal volume we take derivative with respect to $a_k$
+\begin{equation}
+	\frac{\partial V_{e}}{\partial a_{k}} = 0 \Rightarrow D a_{k}^2 i_{k}^2 - \sum_{j=1}^{D} a_{j}^2 i_{j}^2 = 0.
+\end{equation}
+To find $a_{i}^2$ we need to compute the nullspace of the linear operator above. It is easy to see that the solution is $a_{k}^2 = \frac{\alpha}{i_{k}^2}$ for arbitrary $\alpha \in \mathbb{R}$. The example of minimal ellipsoid appears in Figure~\ref{fig:ellipsoids_b}. The volume does nod depend on multiplicative constant so we take $\alpha = 1$ and obtain normalised minimal volume
+\begin{equation}
+	\frac{\min V_{e}\left(i_1,\dots, i_D\right)}{V_{s}} = \prod_{j=1}^{D} i_{j}.
+\end{equation}
+
+From the considerations above we can conclude that: (i) eigenvector $i_1,\dots, i_{D}$ can not appear on position $k$ unless $\prod_{j=1}^{D} i_{j} < k$, (ii)  if eigenvector $i_1,\dots, i_{D}$, excluding $1, \dots, 1$, appears on position $k$, it can also appear on any position $l>k$. Statement (ii) is correct because parametric family of ellipsoids passing through $i_1,\dots, i_{D}$ contain ellipsoids of arbitrary large volumes unless $i_j = 1$ for all $j=1,\dots,D$. The example of a non-minimal ellipsoid is in Figure~\ref{fig:ellipsoids_c}.
+
+Statement (ii) directly leads to point 2. of Theorem~\ref{th:parametric_eigenproblem}. Indeed, since any eigenvector appeared on position $k$ can reappear on arbitrary position $l > k$, the number of unique vectors that can form low-energy subspace of dimension $l$ is the number of eigenvectors on position $l$ plus eigenvector $1,\dots, 1$. That finished the proof of point 1. and 2. of Theorem~\ref{th:parametric_eigenproblem}.
+
+Note, that the validity of most of the statements in this section is based on assumptions that we can use continuous relaxation on the problem. In particular, we assumed that the position of the eigenvector is proportional to the volume of the ellipsoid. Of course in completely discrete formulation this is not strictly the case, but since all statements on the number of eigenvectors and eigenspaces are asymptotic, they will remain valid.
+
+\subsection{Part 3.}
+From the previous section we know the minimal position eigenvector $i_1,\dots,i_D$ can appear at. Besides that we know that once $i_1,\dots, i_D$ is unlocked, it can appear on all positions $l>k$. Give that, the number of eigenvectors on position $k$ reads
+\begin{equation}
+	\#_{F}(k, D) = \sum_{i_1=1}^{\infty}\cdots\sum_{i_D=1}^{\infty} \text{Ind}\left[ \prod_{j=1}^{D} i_{j} \leq k\right],
+\end{equation}
+where $\text{Ind}[\cdot]$ is an indicator function. We are interested in asymptotic expansion for large $k$ and fixed $D$, so the sums above can be approximated by the Euler–Maclaurin formula.
+
+To find asymptotic expansion we will derive recurrence relations for $\#_{F}(k, D)$. We start by introducing a slightly modified function
+\begin{equation}
+	\widetilde{\#}_{F}(\alpha, D) = \frac{1}{\alpha} \sum_{i_1=1}^{\infty}\cdots\sum_{i_D=1}^{\infty} \text{Ind}\left[ \prod_{j=1}^{D} i_{j} \leq  \alpha\right].
+\end{equation}
+Clearly $\#_{F}(k, D) = k\widetilde{\#}_{F}(k, D)$ so if we know how to compute $\widetilde{\#}_{F}(\alpha, D)$, we can recover $\#_{F}(k, D)$. For $D = 2$ with the help of Euler–Maclaurin formula we obtain
+\begin{equation}
+	\widetilde{\#}_{F}(\alpha, 2) = \frac{1}{\alpha}\sum_{i_1=1}^{\infty} \text{Ind}\left[i_1 \leq \alpha\right] \sum_{i_2=1}^{\frac{\alpha}{i_1}} 1 = \frac{1}{\alpha}\sum_{i_1=1}^{\alpha} \frac{\alpha}{i_1} \sim \frac{1}{\alpha}\left(\int_{1}^{\alpha}dx \frac{\alpha}{x} + \frac{\alpha + 1}{2}\right) = \log \alpha + \frac{1}{2} + \frac{1}{2\alpha}.
+\end{equation}
+
+Next we find recurrence relation
+\begin{multline}
+	\widetilde{\#}_{F}(\alpha, D+1) =  \frac{1}{\alpha}\sum_{i_{D+1}=1}^{\alpha} \frac{1}{i_{D+1}} \sum_{i_{D} = 1}^{\frac{\alpha}{i_{D+1}}} \frac{1}{i_{D}} \cdots \sum_{i_{D} = 1}^{\frac{\alpha}{i_{D+1} i_{D}\cdots i_{2}}} \frac{1}{i_{2}}\\ = \sum_{i_{D+1}=1}^{\alpha} \frac{\widetilde{\#}_{F}\left(\frac{\alpha}{i_{D+1}}, D\right)}{i_{D+1}} \sim \int_{1}^{\alpha} dx \frac{\widetilde{\#}\left(\frac{\alpha}{x}, D\right)}{x} + \frac{1}{2}\left(\frac{\widetilde{\#}\left(1, D\right)}{\alpha} + \widetilde{\#}\left(\alpha, D\right)\right).
+\end{multline}
+
+It is not hard to show that, starting from $D=2$, recurrence relation can only produce three type of terms: $\log^{p}(\alpha)$, constant term $c$, $\frac{1}{\alpha}$. This can be seen as follows
+\begin{equation}
+	\begin{split}
+		&\log^{p}(\alpha) \rightarrow \int_{1}^{\alpha} \frac{\log^{p}(\alpha/x)}{x} + \frac{1}{2}\log^{p}(\alpha) = \frac{1}{p+1}\log^{p+1}(\alpha) + \frac{1}{2}\log^{p}(\alpha),\\
+		&c \rightarrow \int_{1}^{\alpha} dx \frac{c}{x} + \frac{c}{2}\left(\frac{1}{\alpha} + 1\right) = c\log(k) + \frac{c}{2\alpha} + \frac{c}{2},\\
+		&\frac{1}{\alpha}\rightarrow \int_{1}^{\alpha} \frac{dx}{\alpha} + \frac{1}{\alpha} = 1.
+	\end{split}
+\end{equation}
+Given that, starting from $\widetilde{\#}_{F}(\alpha, 2)$ and applying recurrence relations $D-2$ times we obtain leading term
+\begin{equation}
+	\widetilde{\#}_{F}(\alpha, D) \sim \frac{1}{(D-1)!}\log(\alpha)^{D-1} \Rightarrow \#_{F}(k, D) \sim \frac{k}{(D-1)!}\log(k)^{D-1},
+\end{equation}
+where last identity follows from the definition of $\widetilde{\#}_{F}(\alpha, D).$
+
+\subsection{Part 4.}
+We cannot apply the Euler–Maclaurin formula when $k$ is fixed and $D$ is large. To count states under specified conditions we will use factorisation on prime numbers. For positive integer $p$ we can write
+\begin{equation}
+	p = q_{1}(p)^{a_1(p)}\cdots q_{m_p}(p)^{a_{m_{p}}(p)},
+\end{equation}
+where $q_i(p)$ are prime factors and $a_i(p)$ are their multiplicities. Given this factorisation we can find the number of ways positive integer $p$ can be represented as products of $D$ positive integers. All products of $D$ integers correspond to some rearrangement of products in the factorisation of prime factors. The number of such rearrangements is
+\begin{equation}
+	\tau(p, D) = \prod_{r=1}^{m_{p}}\frac{(a_r(p) + D - 1)!}{(D-1)!\,a_{r}(p)!}.
+\end{equation}
+This expression is easy to understand if one considers forming the product of $D$ numbers by distributing $q_r(p)$ to selected $a_r(p)$ among $D$ factors for each prime factor $q_r(p), r=1,\dots,m_{p}$.
+
+From the expression above, the number of states on position $k$ reads
+\begin{equation}
+	\#(k, D) = \sum_{p=1}^{D} \tau(p, D).
+\end{equation}
+
+If $D$ is large
+\begin{equation}
+	\tau(p, D) = \prod_{r=1}^{m_{p}}\frac{(a_r(p) + D - 1)!}{(D-1)!\,a_{r}(p)!} \sim \prod_{r=1}^{m_{p}} \frac{D^{a_r(p)}}{a_r(p)!} = \frac{D^{\sum_{r=1}^{m_{p}}a_{r}(p)}}{\prod_{r=1}^{m_{p}}a_r(p)!} = \frac{D^{\Omega(p)}}{\prod_{r=1}^{m_{p}}a_r(p)!},
+\end{equation}
+where $\Omega(p)$ is the prime (big) omega function.
+
+Leading asymptotic expansion of the sum is the fastest growing term
+\begin{equation}
+	\#(k, D) \sim D^{\max_{p\leq k} \Omega(p)} \sum_{l \in \arg\max_{p\leq k} \Omega(p)} \frac{1}{\prod_{r=1}^{m_{l}}a_r(l)!}.
+\end{equation}
+
+In the main body of the text we provide a simplified upper bound of this asymptotic expansion. It can be derived using two upper bounds. First, prime omega function can be bounded from above
+\begin{equation}
+	p = q_{1}(p)^{a_1(p)}\cdots q_{m_p}(p)^{a_{m_{p}}(p)} \geq 2^{a_1(p) + \dots + a_{m_{p}}(p)} = 2^{\Omega(p)} \rightarrow \Omega(p) \leq \log_2(p).
+\end{equation}
+Next, the remaining sum can be bounded from above
+\begin{equation}
+	 \sum_{l \in \arg\max_{p\leq k} \Omega(p)} \frac{1}{\prod_{r=1}^{m_{l}}a_r(l)!} \leq \sum_{l=1}^{k} \frac{1}{\prod_{r=1}^{m_{l}}a_r(l)!} \leq k.
+\end{equation}
+These two upper bound combined gives us
+\begin{equation}
+	\#(k, D) \leq k D^{\log_2(k)}.
+\end{equation}
+
+\begin{figure}[t]
+	\centering
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\includegraphics[width=0.8\textwidth,trim={2cm 2cm 2cm 2cm},clip]{N_sub=10.png}
+		\vspace*{0.54cm} 
+		\caption{$N_\text{sub}=10$}
+		\label{fig:subspaces_a}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\includegraphics[width=0.8\textwidth,trim={2cm 2cm 2cm 2cm},clip]{N_sub=20.png}
+		\vspace*{0.54cm} 
+		\caption{$N_\text{sub}=20$}
+		\label{fig:subspaces_b}
+	\end{subfigure}
+	~
+	\begin{subfigure}[t]{0.3\textwidth}
+        		\centering
+		\includegraphics[width=0.8\textwidth,trim={2cm 2cm 2cm 2cm},clip]{N_sub=40.png}
+		\vspace*{0.54cm} 
+		\caption{$N_\text{sub}=40$}
+		\label{fig:subspaces_c}
+	\end{subfigure}
+	\caption{Illustration of simple greedy subspace embedding technique for elliptic eigenproblem with constant coefficients. See Appendix~\ref{appendix:monte_carlo_example} for details.}
+	\label{fig:counting_theorem}
+\end{figure}
+
+\subsection{Part 5.}
+We were unable to compute exact asymptotic expansions for the number of subspaces, so our strategy in this and next section will be to derive sufficiently strong lower bound by counting selected ways subspaces can be formed.
+
+Consider $D=2$ and $k=4$. Since surfaces with constant energies are ellipsoids, we can select $a_1 = 1$ large $a_2$ and by gradual decrease of $a_2$ we will observe three distinct subspaces:
+\begin{equation}
+	\left\{\phi_{1, 1}, \phi_{1, 2}, \phi_{1, 3}, \phi_{1, 4}\right\} \rightarrow \left\{\phi_{2, 1}, \phi_{1, 1}, \phi_{1, 2}, \phi_{1, 3}\right\}  \rightarrow \left\{\phi_{2, 1}, \phi_{2, 2}, \phi_{1, 1}, \phi_{1, 2}\right\}.
+\end{equation}
+Similarly, starting from $a_2 =1$ and large $a_1$ decrease of $a_1$ lead to the sequence of subspaces
+\begin{equation}
+	\left\{\phi_{1, 1}, \phi_{2, 1}, \phi_{3, 1}, \phi_{4, 1}\right\} \rightarrow \left\{\phi_{1, 2}, \phi_{1, 1}, \phi_{2, 1}, \phi_{3, 1}\right\}  \rightarrow \left\{\phi_{1, 2}, \phi_{2, 2}, \phi_{1, 1}, \phi_{2, 1}\right\}.
+\end{equation}
+Sequences above can be understood as systematic fillings of lattice points along second and first dimensions. First sequence corresponds to filling $(0, 4)$, $(1, 3)$, $(2, 2)$ points, and second to $(4, 0)$, $(3, 1)$, $(2, 2)$. In $D=2$ the number of distinct subspaces $V_k$ constructed in this way equals the number of unordered pairs $k_1, k_2 \geq 0$ such that $k_1 + k_2 = k$. 
+
+In arbitrary $D$ similarly constructed states can be counted as the number of unordered tuples $(k_1,\dots, k_D)$ of non-negative integers such that $\sum_{i=1}^{D}k_i = k$. This is a standard counting problem with the answer
+\begin{equation}
+	\frac{(k + D - 1)!}{(D-1)! k!} \sim \frac{k^{D-1}}{(D-1)!}.
+\end{equation}
+This provides a lower bound on asymptotic expansion because our way to select subspaces is not exhaustive.
+
+\subsection{Part 6.}
+For fixed $k$ and large $D$ we consider eigenvectors with indices $\left(1,\dots, 1\right)$, $\left(1, 2, 1, \dots, 1\right)$, $\dots$, $\left(1, \dots, 1, 2, 1\right)$. It is clear that the first eigenvector has indices $\left(1,\dots, 1\right)$ and the rest of them can appear in arbitrary order. This gives us at least $\frac{D(D-1)\cdots (D - k+1)}{(k-1)!}\sim \frac{1}{(k-1)!}D^{k-1}$ subspaces.
+
+\section{Monte Carlo experiments for eigenproblem with constant coefficients}
+\label{appendix:monte_carlo_example}
+
+To illustrate consequences of Theorem~\ref{th:parametric_eigenproblem} we perform simple Monte Carlo experiment. For the case $D=3$, we generate $a_1, a_2, a_3$ from uniform distribution on $[0, 1]$ repeatedly and record distinct subspaces of dimension $k=10$. We select unique colour for each subspace and draw them for each point $a_1, a_2, a_3$ on the plane perpendicular to $\begin{pmatrix}1 & 1 & 1\end{pmatrix}^\top$. This illustration appears in Figure~\ref{fig:subspaces_a}. Theorem~\ref{th:parametric_eigenproblem} suggest that the large number of distinct subspaces is a result of selection of $k$ vectors among a small number of candidates. This suggests we may decrease complexity of the function from coefficients to subspaces by predicting excessive number of vectors. In our experiments with neural networks this redundant mapping is learned, here we build the mapping with simple greedy strategy. In place of function $a_1,a_2,a_3\rightarrow V_{10}$ we consider $a_1,a_2,a_3\rightarrow V_{10}\cup \left\{v_1,\dots, v_k\right\}$ where $v_1, \dots, v_k$ are first $k$ most abundant eigenvectors. By appending additional vectors we decrease the number of distinct subspaces. The result of this greedy simplification appear in Figure~\ref{fig:subspaces_b} with $10$ additional vectors and in Figure~\ref{fig:subspaces_c} with $20$ additional vectors. As we see the number of distinct subspaces rapidly decreasing.
+
+\section{Details on numerical experiments for eigenproblems}
+\label{appendix:eigenproblems_numerics}
+
+\subsection{Datasets}
+\label{subsection:appendix:elliptic_datasets}
+We generated two datasets for $D=2$ elliptic eigenproblem with uniform Dirichlet boundary conditions
+\begin{equation}
+	\label{eq:elliptic_eigenproblem_2d}
+	\text{div } k\cdot\text{grad }\phi_i = \lambda_i \phi_i,\,\left\|\phi_i\right\|_{2} = 1,\,x\in[0,1]^2.
+\end{equation}
+For both datasets we used uniform grid $100\times100$ and finite-difference discretisation. Components of diffusion coefficients were generated from the same distribution for both datasets. Diffusion coefficient is generated as follows:
+\begin{enumerate}
+	\item Gaussian random field $\psi$ is generated from $\mathcal{N}\left(0, \left(\text{id} - \gamma\Delta\right)^{r}\right)$, $\gamma = \frac{1}{20 \pi}$, $r=\frac{1}{2}$.
+	\item Diffusion coefficient is computed as $a = \alpha + (\beta - \alpha)\left(\tanh\left(s \psi \right) + 1\right)/2$ with $\alpha = 1$, $\beta = 50$, $s = 1$.
+\end{enumerate}
+For one $D=2$ dataset $k_1 = k_2$ and for another $k_1 \neq k_2$ but both are i.i.d. random fields generated as described above. In the main text only results for $k_1 = k_2$ are reported.
+
+For $D=3$ elliptic eigenproblem we use setup analogous to $D=2$ but grid of size $30\times30\times30$ and $k_1 = k_2 = k_3$ generated the same way as explained above with parameters $\gamma = \frac{1}{100}$, $r = \frac{3}{2}$, $\alpha = 50$, $\beta = 1$, $s = 2$.
+
+For QM problems datasets are defined by distributions for potential functions.
+
+For $D=1$ we use
+\begin{equation}
+	V(r) = d \left(1 - \exp\left(-\frac{\frac{r}{r_e} - 1}{\frac{r}{r_e} + 1} p\left(r\right)\right)\right)^2, p(r) = \begin{cases}q_1\left(\frac{r}{r_e}\right),\,r < r_e\\q_2\left(\frac{r}{r_e}\right),\,r \geq r_e\end{cases},
+\end{equation}
+where 
+\begin{equation}
+	q_{1}(x) = \left(1 - \frac{x - 1}{x + 1}\right) \widetilde{q}_1(x) + c \frac{x - 1}{x + 1},
+\end{equation}
+and  $\widetilde{q}_1(x)$ is a polynomial of degree $\text{deg}$.  Polynomial $q_2(x)$ has the same form.
+
+In $D=1$ dataset is by selecting uniform grid with $100$ points on the interval $[0, 10]$, $r_e$ is sampled from uniform distribution on the interval $[1, 8]$, $d$ is sampled from uniform distribution on the interval $[10, 40]$, both $q_1$ and $q_2$ has order $10$, for $q_1$ all coefficients (including $c$) are sampled from uniform distribution on $[0, 5]$, for $q_2$ coefficients of $\widetilde{q}_2$ are sampled from uniform distribution on $[0, 10]$ and $c$ is sampled from uniform distribution on the interval $[1, 11]$.
+
+For $D=2$ 
+\begin{equation}
+	V(x, y) = V_1\left(\sqrt{(x - cu)^2 + (y - cv)^2}\right) + V_2\left(\sqrt{(x + cu)^2 + (y + cv)^2}\right),
+\end{equation}
+where $u, v$ are component of random normalised vector, $c = \sqrt{2} r_e$. Potentials $V_1$ and $V_2$ are i.i.d. with parameters: order of polynomial is $2$, $r_e$ is uniformly distributed on $[1, 5]$, $d$ is uniformly distributed on $[10, 40]$, coefficients of $\widetilde{q}$ are sampled from uniform distribution on $[0, 3]$ and $c$ is sampled from uniform distribution on $[10, 13]$. To discretise the problem we use finite difference and uniform $100\times 100$ grid on $[-7, 7]^2$.
+
+\subsection{Architectures and training}
+In all cases we used FFNO architecture, with GELU activation functions, that is completely specified by: number of layers $N_{\text{layers}}$, numbers of features in hidden layer $N_{\text{features}}$, number of Fourier modes in spectral convolution $N_{\text{modes}}$. Since all our loss functions are scale-invariant, the output of FFNO architecture was normalised.
+
+We use Lion optimiser \cite{chen2023symbolic}, with weight decay. Parameters of the optimiser are learning rate $\text{lr}$, rate decay factor $\gamma_{\text{decay}}$ and number of transition steps $N_{\text{decay}}$.
+
+For $D=2$, eigenvalue and QM problems, and also $D=1$ QM problem we perform grid search with parameters:  $N_{\text{layers}} \in [3, 4, 5]$, $N_{\text{features}} = 64$, $N_{\text{modes}} \in [10, 14, 16]$, $\text{lr}\in [10^{-3}, 10^{-4}]$, $\gamma_{\text{decay}} = 0.5$, $N_{\text{decay}} \in [100, 200]$, batch size was fixed to $100$, number of train samples is $4000$, number of test samples is $1000$. Architecture is training to approximate subspace spanned by first $10$ eigenvectors. Number of epoch is $1000$. When architecture is trained to predict individual eigenvectors, the same grid search applies.
+
+Since architectures used are neural operators, we were able to speed up grid search by a factor of $7$ by first training architecture on coarse grid $32\times32$, and then retraining $3$ most accurate architectures (according to the results of grid search on the coarse grid) of the fine $100\times 100$ grid.
+
+For $D=3$ grid search is not practical, so we select $N_{\text{layers}} = 4$, $N_{\text{features}} = 128$, $N_{\text{modes}} = 16$, $\text{lr} = 10^{-3}$,  $\gamma_{\text{decay}} = 0.5$, $N_{\text{decay}} = 100$. The size of the train set is $800$, the size of test set is $200$. The number of epochs is $1000$. Architecture is training to approximate subspace spanned by first $3$ eigenvectors.
+
+\begin{table}[b!]
+\caption{Comparison of $L_1(A, B)$ and $L_2(A, B; z)$ loss functions for $k_{1}=k_{2}$}
+\label{a1_eq_a2_loss_comparison}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllllll}
+\toprule
+& \multicolumn{3}{c}{$L_1(A, B)$} &  \multicolumn{3}{c}{$L_2(A, B; z)$}\\
+\cmidrule(r){2-4}\cmidrule(r){5-7}
+$N_{\text{sub}}$ & $E_{\text{train}}$ & $E_{\text{test}}$ & $t_{\text{train}},$ s & $E_{\text{train}}$ & $E_{\text{test}}$ & $t_{\text{train}},$ s \\
+\midrule
+$10$ & $[0.216, 0.235]$ & $[0.292, 0.314]$ & $4124\pm443$ & [0.244, 0.252] & [0.296, 0.302] & 3895$\pm$524 \\
+$20$ & $[0.038, 0.048]$ & $[0.046, 0.052]$ & $5962\pm93$ & [0.046, 0.052] & [0.049, 0.058] & 4074$\pm$215 \\
+$30$ & $[0.024, 0.029]$ & $[0.028, 0.033]$ & $7902\pm85$ & [0.026, 0.033] & [0.029, 0.037] & 3973$\pm$515 \\
+$40$ & $[0.018, 0.025]$ & $[0.021, 0.029]$ & $10842\pm570$ & [0.017, 0.024] & [0.02, 0.027] & 4270$\pm$95 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[b!]
+\caption{Comparison of $L_1(A, B)$ and $L_2(A, B; z)$ loss functions for $k_{1}\neq k_{2}$}
+\label{a1_neq_a2_loss_comparison}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllllll}
+\toprule
+& \multicolumn{3}{c}{$L_1(A, B)$} &  \multicolumn{3}{c}{$L_2(A, B; z)$}\\
+\cmidrule(r){2-4}\cmidrule(r){5-7}
+$N_{\text{sub}}$ & $E_{\text{train}}$ & $E_{\text{test}}$ & $t_{\text{train}},$ s & $E_{\text{train}}$ & $E_{\text{test}}$ & $t_{\text{train}},$ s \\
+\midrule
+$10$ & $[0.305, 0.377]$ & $[0.407, 0.421]$ & $4035\pm295$ & [0.312, 0.335] & [0.386, 0.389] & 3661$\pm$308 \\
+$20$ & $[0.066, 0.089]$ & $[0.09, 0.105]$ & $5817\pm219$ & [0.092, 0.092] & [0.103, 0.103] & 4262$\pm0$ \\
+$30$ & $[0.05, 0.05]$ & $[0.063, 0.063]$ & $7966\pm84$ & [0.042, 0.05] & [0.052, 0.059] & 3991$\pm$168 \\
+$40$ & $[0.035, 0.036]$ & $[0.045, 0.047]$ & $11019\pm252$ & [0.034, 0.038] & [0.041, 0.046] & 4238$\pm$112 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[b!]
+\caption{$\mathbb{Z}_2$-adjusted $L_2$ loss.}
+\label{z2_l2_loss}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllllll}
+\toprule
+& \multicolumn{3}{c}{$k_1=k_2$} &  \multicolumn{3}{c}{$k_1\neq k_2$}\\
+\cmidrule(r){2-4}\cmidrule(r){5-7}
+$N_{\text{eig}}$ & $E_{\text{train}}$ & $E_{\text{test}}$ & $t_{\text{train}},$ s & $E_{\text{train}}$ & $E_{\text{test}}$ & $t_{\text{train}},$ s \\
+\midrule
+$0$ & $[0.009, 0.012]$ & $[0.036, 0.038]$ & $3666\pm476$ & $[0.014, 0.028]$ & $[0.068, 0.07]$ & $3280\pm60$ \\
+$1$ & $[0.038, 0.042]$ & $[0.158, 0.165]$ & $3312\pm77$ & $[0.031, 0.033]$ & $[0.196, 0.218]$ & $3956\pm162$ \\
+$2$ & $[0.046, 0.048]$ & $[0.359, 0.373]$ & $4168\pm82$ & $[0.045, 0.053]$ & $[0.553, 0.563]$ & $4140\pm87$ \\
+$3$ & $[0.046, 0.057]$ & $[0.541, 0.555]$ & $4168\pm81$ & $[0.054, 0.066]$ & $[0.747, 0.779]$ & $4101\pm87$ \\
+$4$ & $[0.068, 0.084]$ & $[0.754, 0.769]$ & $4007\pm204$ & $[0.072, 0.078]$ & $[0.945, 0.97]$ & $4101\pm87$ \\
+$5$ & $[0.073, 0.075]$ & $[0.897, 0.905]$ & $4041\pm264$ & $[0.084, 0.094]$ & $[1.087, 1.098]$ & $4090\pm83$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\newpage
+
+\subsection{Additional results for elliptic eigenproblems}
+Additional results are available in Table~\ref{a1_eq_a2_loss_comparison}, Table~\ref{a1_neq_a2_loss_comparison}, Table~\ref{z2_l2_loss}. Results in brackets indicate worst and best observed result among three best grid search runs.
+
+\subsection{Generalisation to different grid size}
+\label{appendix:generalisation_to_different_grid_size}
+For all subspace regression problems we use FFNO. Since FFNO is neural operator it should be discretisation agnostic. Here we report results for model trained on grid $100$ on $D=1$ quantum mechanics eigenproblem and tested on grids of higher resolution. For each grid we generated new test set from the same distribution as specified in Appendix~\ref{subsection:appendix:elliptic_datasets}.
+
+The results are available in Table~\ref{table:discretisation_invariance}. We see approximately linear increase of relative error with resolution. Owning to good initial accuracy on grid $N_x=100$ the relative error remains under $10\%$ for grid with $N_x=500$.
+
+\begin{table}[h!]
+\caption{Network is trained on resolution $N_x=100$ for $D=1$ QM problem and evaluated on grids with increased resolution.}
+\label{table:discretisation_invariance}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{llllllllll}
+\toprule
+$N_x$ & $100$ & $150$ & $200$ & $250$ & $300$ & $350$ & $400$ & $450$ & $500$\\
+test error, $\%$ & $0.83$ & $1.37$ & $2.12$ & $2.95$ & $3.96$ & $4.32$ & $5.33$ &  $5.32$ & $6.79$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Smoothness of neural networks trained with subspace embedding technique}
+\label{appendix:smoothness_results}
+
+To empirically measure smoothness of learned map, we introduce several ``smoothness indicators'':
+\begin{enumerate}
+	\item Taylor indicator 
+	\begin{equation}
+		\label{eq:taylor_smoothness}
+		T[f_1, f_2; l] = \frac{\left\|\mathcal{N}(f_1 + l f_2) -  \mathcal{N}(f_1) - \left.\frac{d}{dl} \mathcal{N}(f_1 + l f_2)\right|_{l=0}l\right\|_2}{\left\|\mathcal{N}(f_1 + l f_2)\right\|_2}.
+	\end{equation}
+	Taylor indicator is a relative error of linear model. One expect that: (i) unless $\mathcal{N}$ is a linear function, when $l$ increases relative error also increases; (ii) when smoothness increases Taylor indicator decreases.
+	\item Average cosine
+	\begin{equation}
+		\label{eq:average_cosines}
+		C[f_1, f_2;l] = \frac{1}{D}\sum_{i=1}^{D} \cos_{i}(\mathcal{N}(f_1 + l f_2), t_1).
+	\end{equation}
+	where $\cos_i(A, B)$ are cosines of principle angles \cite{bjorck1973numerical} and $t_1$ is target at point $f_1$. For smoother maps average cosine increases until it reaches maximal value of $1$.
+	\item Frobenius norm of the directional derivative
+	\begin{equation}
+		\label{eq:derivative_frobenius}
+		F[f_1, f_2; l] = \frac{1}{D}\left\|\left.\frac{d}{dl} \mathcal{N}(f_1 + l f_2)\right|_{l=0}\right\|_F,
+	\end{equation}
+	where $D$ is the subspace size. The magnitude of the directional derivative is computed by automatic differentiation and it is expected to decrease when smoothness increases.
+\end{enumerate}
+
+\begin{wraptable}{r}{6.5cm}
+\caption{Frobenius norm of the directional derivative smoothness indicator (\ref{eq:derivative_frobenius}).}
+\label{table:derivative_smoothness}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+$N_{\text{subspace}}$ & $k_1=k_2$ & $k_1\neq k_2$ \\
+\midrule
+$10$ & $10.73$ & $8.26$\\
+$20$ & $9.72$ & $8.15$\\
+$30$ & $8.78$ & $8.14$\\
+$40$ & $8.26$ & $6.88$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{wraptable}
+
+Each indicator depends on two features $f_1$ and $f_2$ and real number $l\in[0, 1]$. Results are reported for neural network trained to predict eigenspaces for elliptic eigenproblem with $k_1=k_2$ and $k_1\neq k_2$ (see Appendix~\ref{subsection:appendix:elliptic_datasets} for description) with loss function $L_2(A, B; z)$. For each indicator we provide values for several $l$ averaged over $1000$ randomly selected feature pairs $f_1$, $f_2$. Results are reported in Table~\ref{table:derivative_smoothness}, Table~\ref{table:taylor_smoothness}, Table~\ref{table:average_cosines_smoothness}.
+
+All indicators clearly demonstrate the improve in smoothness when the size of embedding $N_{\text{subspace}}$ increases. Results for average cosine indicator (\ref{eq:average_cosines}) indicate that learned mapping effectively average information about subspaces for distinct features. It becomes especially clear if one compares results for $l=1.0$ with average cosines computed between targets $\frac{1}{D}\sum_{i=1}^{D} \cos_{i}(t_1, t_2)$: for $k_1=k_2$ average cosine is $0.51$; for $k_1\neq k_2$ average cosine is $0.53$.
+
+\begin{table}[h!]
+\caption{Taylor smoothness indicator (\ref{eq:taylor_smoothness}).}
+\label{table:taylor_smoothness}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllllllll}
+\toprule
+& \multicolumn{4}{c}{$k_1=k_2$} &  \multicolumn{4}{c}{$k_1\neq k_2$}\\
+\cmidrule(r){2-5}\cmidrule(r){6-9}
+$N_{\text{subspace}}$ & $l=0.25$ & $l=0.5$ & $l=0.75$ & $l=1.0$ & $l=0.25$ & $l=0.5$ & $l=0.75$ & $l=1.0$ \\
+\midrule
+$10$ & $2.41$ & $5.1$ & $7.48$ & $10.71$ &  $1.8$ & $3.87$ & $5.99$ & $8.21$\\
+$20$ & $2.12$ & $4.57$ & $7.05$ & $9.68$ &  $1.72$ & $3.77$ & $5.86$ & $8.08$\\
+$30$ & $1.88$ & $4.09$ & $6.34$ & $8.73$ &  $1.71$ & $3.77$ & $5.87$ & $8.08$\\
+$40$ & $1.76$ & $3.84$ & $5.98$ & $8.22$ &  $1.42$ & $3.15$ & $4.94$ & $6.8$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[h!]
+\caption{Average cosine indicator (\ref{eq:average_cosines}).}
+\label{table:average_cosines_smoothness}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllllllll}
+\toprule
+& \multicolumn{4}{c}{$k_1=k_2$} &  \multicolumn{4}{c}{$k_1\neq k_2$}\\
+\cmidrule(r){2-5}\cmidrule(r){6-9}
+$N_{\text{subspace}}$ & $l=0.25$ & $l=0.5$ & $l=0.75$ & $l=1.0$ & $l=0.25$ & $l=0.5$ & $l=0.75$ & $l=1.0$ \\
+\midrule
+$10$ & $0.81$ & $0.74$ & $0.67$ & $0.51$ &  $0.82$ & $0.74$ & $0.67$ & $0.53$\\
+$20$ & $0.94$ & $0.88$ & $0.82$ & $0.68$ &  $0.94$ & $0.88$ & $0.83$ & $0.72$\\
+$30$ & $0.97$ & $0.93$ & $0.88$ & $0.78$ &  $0.97$ & $0.93$ & $0.89$ & $0.81$\\
+$40$ & $0.98$ & $0.95$ & $0.91$ & $0.82$ &  $0.99$ & $0.96$ & $0.93$ & $0.87$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Subspace regression combined with LOBPCG}
+\label{appendix:LOBPCG_results}
+Subspace regression can be also used to improve results for classical iterative eigensolvers. We demonstrate this for LOBPCG, which is a matrix-free iterative eigensolver that can approximate extremal eigenspaces \cite{knyazev2001toward}. A notable feature of LOBPCG is a possibility of hot start: when approximation to eigenspace of interest is available, it can be used at the initialisation to speed up convergence. In Table~\ref{table:LOBPCG_plus_subreg} we report such speed up for elliptic eigenproblems described in Appendix~\ref{subsection:appendix:elliptic_datasets}. Metrics in Table~\ref{table:LOBPCG_plus_subreg}are computed for test set, and maximal number of iterations for LOBPCG is set to $1000$. Convergence plots are available in FIgure~\ref{fig:LOBPCG_k1_eq_k2} and Figure~\ref{fig:LOBPCG_k1_neq_k2}. It is evident that initialisation by subspace regression lead to both smaller number of iteration and better final error. Note, that the overall cost of method is dominated by the cost of iterations.
+
+\begin{table}[h!]
+\caption{Performance of LOBPCG with initialisation by subspace regression compared with random initialisation, $N_{\text{it}}$ number of iterations until convergence.}
+\label{table:LOBPCG_plus_subreg}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{llllll}
+\toprule
+ & & \multicolumn{2}{c}{$k_1=k_2$} &  \multicolumn{2}{c}{$k_1\neq k_2$}\\
+\cmidrule(r){3-4}\cmidrule(r){5-6}
+initialisation & $N_{\text{subspace}}$ & $N_{\text{it}}$ & relative error $\pm$ std & $N_{\text{it}}$ & relative error $\pm$ std\\
+\midrule
+subspace regression & $10$ & $410 \pm 245$ & $0.093\pm1.109$ & $332\pm213$ & $0.028\pm0.179$\\
+subspace regression & $20$ & $288 \pm 197$ & $0.159\pm4.12$ & $249\pm174$ & $0.02\pm0.087$\\
+subspace regression & $30$ & $274 \pm 209$ & $0.047\pm0.554$ & $227\pm172$ & $0.022\pm0.119$\\
+subspace regression & $40$ & $263 \pm 200$ & $0.131\pm3.218$ & $221\pm160$ & $0.02\pm0.089$\\
+random &  & $685\pm 265$ & $7.86\pm30.16$ & $609\pm231$ & $11.42\pm35.49$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{figure}[h!]
+	\centering
+	\begin{subfigure}[t]{0.44\textwidth}
+        		\centering
+		\includegraphics[width=1.1\textwidth]{LOBPCG_convergece_k1_k2.pdf} 
+		\caption{$D=2$, $k_1=k_2$}
+		\label{fig:LOBPCG_k1_eq_k2}
+	\end{subfigure}
+	\quad\quad
+	\begin{subfigure}[t]{0.44\textwidth}
+        		\centering
+		\includegraphics[width=1.1\textwidth]{LOBPCG_convergece_k1_neq_k2.pdf}
+		\caption{$D=2$, $k_1\neq k_2$}
+		\label{fig:LOBPCG_k1_neq_k2}
+	\end{subfigure}
+	\caption{Convergence plots for LOBPCG with and without initialisation by subspace regression.}
+\end{figure}
+
+\section{Details on numerical experiments for parametric PDEs}
+\label{appendix:PDEs_numerics}
+
+\subsection{Datasets}
+\label{appendix:subsection:PDEs_datasets}
+For the $D=2$ stationary diffusion equation we reused datasets described in Appendix~\ref{appendix:eigenproblems_numerics}. To generate forcing terms for each $k$ we select $10$ eigenvectors $\psi_i, i=1,\dots, 10$ corresponding to smallest eigenvalues and compute exact solution as $u = \sum_i \phi_i z_i$ where $z_i \sim N(0, 1)$. Forcing term $f(x)$ corresponding to this solution is $f = \sum_i \frac{1}{\lambda_i}\phi_i z_i$.
+
+For $D=1+1$ Burgers equation~(\ref{eq:Burgers}) we sample random diffusion coefficient $\nu(x)$ and initial condition $u_0(x)$. In both cases we first sample Gaussian random field from $\mathcal{N}\left(0, \left(\text{id} - \alpha \Delta\right)^s\right)$. To sample random field $\psi(x)$ for diffusion coefficient we use $\alpha = 40$, $s = 4$. Diffusion coefficient is computed as $\nu = 5\cdot 10^{-3} + (1 + \tanh(30 \psi)) / 20$ For initial conditions we use random field with $\alpha = 10$, $s = 2$. Uniform grid is used to discretise equation with $128$ points for $x$ and $64$ points for $t$. Time interval is $\left[0, 10^{-1}\right]$ and $x\in[0, 1]$.
+
+\subsection{Architectures and training details}
+We performed grid search for all methods that involve learning. We start by describing hyperparameters of architectures.
+
+FFNO is used for subspace regression, standard regression, DeepPOD, and for intrusive techniques with basis extraction. Parameters of FFNO used for grid search are described in Appendix~\ref{appendix:eigenproblems_numerics}.
+
+DeepONet is used for standard regression, and the intrusive technique with bases extracted from branch net. As a branch net of DeepONet we select a classical convolution network with downsampling by factor of $2$ along each dimension and the increase of the number of hidden features by factor of $2$. Branch net is defined by the number of features after encoder $N_{e, b}$, kernel size of convolution $k_{b}$, and number of layers $N_{b}$. Trunk net is MLP which is defined by the number of hidden neurons $N_{f, t}$, number of layers $N_{t}$ and the size of basis on the output layer $N_{\phi}$. In out grid searches we used $N_{e, b} \in [4, 5]$, $k_{b}\in[3, 7]$, $N_b = 4$, $N_{f, t} = N_{\phi} \in [100, 200]$, $N_t \in [3, 4]$.
+
+\begin{figure}[t]
+	\centering
+	\begin{subfigure}[t]{0.44\textwidth}
+        		\centering
+		\includegraphics[width=1.05\textwidth]{intrusive_methods_lone_flattop.pdf} 
+		\caption{$D=2$, $k_1=k_2$}
+		\label{fig:intrusive_k1_eq_k2}
+	\end{subfigure}
+	\quad\quad\quad\quad
+	\begin{subfigure}[t]{0.44\textwidth}
+        		\centering
+		\includegraphics[width=1.05\textwidth]{intrusive_methods_twin_flattops.pdf}
+		\caption{$D=2$, $k_1\neq k_2$}
+		\label{fig:intrusive_k1_neq_k2}
+	\end{subfigure}
+	\caption{Relative errors for two stationary diffusion equations depending on the number of basis functions for several basis construction methods. Bases constructed with DeepPOD and subspace regression lead to the most accurate intrusive methods.}
+	\vspace{-10pt}
+\end{figure}
+
+PCANet is defined by the number of POD basis functions used to compress feature and targets $N_{p, f}$ and $N_{p, t}$. Number of MLP layers $N_{MLP}$ and hidden units $N_{p, MLP}$. In our experiments we use $N_{p, f}\in[100, 200, 300, 400, 500]$ for elliptic equation and $N_{p, f}\in[50, 80, 100]$ for Burgers, $N_{p, t}\in[100, 200, 300, 400]$ for elliptic equation and $N_{p, t}\in[100, 150, 400]$ for Burgers equation, $N_{MLP} \in [3, 4, 5, 6]$ for elliptic equation and $N_{MLP} \in [3, 5, 7]$ for Burgers equation, $N_{p, MLP} \in [100, 200, 300, 400, 500]$ for elliptic and $N_{p, MLP} \in [100, 300, 500]$ for Burgers equation.
+
+Hyperparameters of kernel methods are the type of kernel and the number of POD basis functions used to compress features and targets $N_{p, f}$ and $N_{p, t}$. We use Matern and RBF kernel and $N_{p, f}\in[50, 100, 150, 200]$, $N_{p, t}\in[50, 100, 150, 200]$
+
+To train neural network we used Lion optimiser with $\text{lr}\in [5\cdot10^{-5}, 10^{-4}]$ for FFNO and $\text{lr}\in [10^{-3}, 10^{-4}]$ for all other architectures, $\gamma_{\text{decay}} = 0.5$, $N_{\text{decay}} \in [100, 200]$. We use batch size $10$, train PCANet for $3000$ epoch and other networks for $1000$ epoch.
+
+\subsection{Additional results}
+We provide two additional results. For elliptic equations we compare optimality of learned bases. The results are in Figure~\ref{fig:intrusive_k1_eq_k2} and Figure~\ref{fig:intrusive_k1_neq_k2}. Interestingly, global POD leads to a better basis than both FFNO and DeepONet. For DeepONet this is expected, since trunk net does not depend on parameters of PDE.
+For FFNO the result is more surprising, because the basis is extracted from the last hidden layer, so it explicitly depends on parameters. Bases of DeepPOD and subspace regression are the most optimal one, still they are highly non-optimal when compared with local POD.
+
+\begin{wraptable}{r}{8.0cm}
+\caption{Relative errors for Burgers equation. Target for SubReg$(n)$ is subspace of dimension $n$.}
+\label{table:Burgers_POD_subreg}
+\begin{tabular}{llll}
+\toprule
+$N_{\text{subspace}}$ & DeepPOD & SubReg$(10)$ & SubReg$(5)$ \\
+\midrule
+$10$ & $16.37\%$ & $22.79\%$ & $14.34\%$\\
+$20$ & $10.0\%$ & $11.73\%$ & $10.68\%$\\
+$30$ & $5.42\%$ & $6.29\%$ & $5.03\%$\\
+$40$ & $2.57\%$ & $3.46\%$ & $3.01\%$\\
+$50$ & $1.8\%$ & $2.49\%$ & $1.74\%$\\
+\bottomrule
+\end{tabular}
+\end{wraptable}
+For the Burgers equation we compare DeepPOD and two variants of subspace regression in Table~\ref{table:Burgers_POD_subreg}. SubReg$(10)$ is a subspace regression trained to approximate subspace spanned by first $10$ local POD basis functions and SubReg$(5)$ was trained with $5$ local POD basis functions. DeepPOD is an unsupervised method and was trained with the whole trajectory. This implies methods are sorted from left to right in the decrease of information they receive about solutions. Interestingly, the SubReg$(5)$ -- method, learning the smallest subspace -- performs better almost uniformly. A possible explanation is that an optimal subspace of dimension $5$ leads to good enough accuracy and is easier to learn than larger subspaces.
+
+\section{Details on numerical experiments for iterative methods}
+\label{appendix:iterative_numerics}
+
+\subsection{Deflation}
+Since for a deflation problem one needs to approximate eigenspace spanned by eigenvectors with small eigenvalues, we reused dataset and network trained for elliptic eigenproblem. The description of training and datasets is available in Appendix~\ref{appendix:eigenproblems_numerics}. Results in the main text are for $k_1 = k_2$, for $k_1 \neq k_2$ convergence plots are given in Figure~\ref{fig:k1_neq_k2_convergence}.
+
+\begin{figure*}[t]
+\normalsize
+\centering
+    \begin{center}
+        \includegraphics[width=0.5\textwidth]{twin_flattops_deflation.pdf}
+    \end{center}
+    \caption{Convergence results for deflated CG, elliptic dataset $D=2$ with $k_1 \neq k_2$. Learned methods are marked with solid lines, and dashed lines correspond to iterative methods with optimal deflation space, $M$ refers to subspace size.}
+    \label{fig:k1_neq_k2_convergence}
+    % \vspace*{4pt}
+\end{figure*}
+
+\subsection{Two-grid method}
+
+\paragraph{Elliptic equation dataset}
+We consider a 2D elliptic equation on the unit square $\Omega=(0,1)^2$ with homogeneous Dirichlet boundary conditions~(\ref{eq:stationary_diffusion}). We aim to learn mapping $k(x) \rightarrow \mathcal{S}(V)$. Variability of the dataset comes from the spatially heterogeneous coefficient function $k(x)$.
+
+Each sampled coefficient function is a strictly positive random field built in three steps:
+\begin{enumerate}
+  \item Draw i.i.d. Fourier coefficients on a square index set $\mathcal{K}=\{0,\dots,M-1\}^2$ and form a real field by summing  complex exponentials. We additionally introduce a Fourier-space weight $w_k = (1 + \lambda_1 |k|_2^2)^{-1}$ to control the high-frequency components.
+  \item Multiply the real field from the previous step by $\lambda_2$, then apply a hyperbolic tangent function to control the contrast of the coefficient field values.
+  \item Rescale the field to the prescribed interval $[\alpha, \beta]$ to ensure strict positivity and enforce a controlled contrast ratio of $\beta/\alpha$.
+\end{enumerate}
+
+Exact procedure to generate the 2D field is:
+\begin{align*}
+s_0(x,y) &= \text{Re} \left[\!\sum_{k\in\{0,\dots,M-1\}^2} c_k\,\frac{e^{\mathrm{i}(k_1 x+k_2 y)}}{1+\lambda_1\,\lVert k\rVert_2^2}\right],~~c_k \sim \mathcal{N}(0,1), \\[3pt]
+s(x,y)  &= \tanh\!\big(\lambda_2\cdot s_0(x,y)\big), \\[3pt]
+k(x,y)  &= \alpha + (\beta-\alpha)\,\frac{s(x,y)+1}{2},~~k(x,y)\in[\alpha,\beta].
+\end{align*}
+\begin{wrapfigure}{r}{0.4\textwidth}   % "r" = right, width = 40% of text width
+  \centering
+  \includegraphics[width=0.38\textwidth]{twogrid_coef_field.png} % adjust size
+  \caption{Sample coefficient function.}
+  \label{fig:twogrid_coef_func}
+  \vspace*{2pt}
+\end{wrapfigure}
+
+The equation is descritized on a uniform grid with a 5-point finite-difference stencil, yielding a sparse, symmetric positive-definite matrix. One can observe a sampled normalized coefficient function in Figure~\ref{fig:twogrid_coef_func}.
+
+\paragraph{Target subspace}
+We aim to predict a coarse-grid subspace for the two-grid method, which applies a coarse-grid correction 
+\begin{equation*}
+x \leftarrow x + V(V^{\top}AV)^{-1}V^\top(b - Ax)
+\end{equation*}
+with weighted Jacobi smoothing 
+\begin{equation*}
+x \leftarrow x + \omega D^{-1}(b - Ax)
+\end{equation*}
+before and after. This coarse projection $V$ is learned as a problem-specific subspace from the coefficient field. In this setup, our projection matrix $V$ spans the leading eigenspace of the error propagation matrix $I - \omega D^{-1}A$. While the relaxation parameter $\omega$ is used to quickly dampen the fast modes, the coarse-grid projection removes the low-frequency components, resulting in rapid overall convergence. Thus, our target subspace for regression consists of the first few eigenvectors of $I - \omega D^{-1}A$, sorted by the absolute values of their eigenvalues.
+
+\paragraph{Subspace relaxation}
+Initially, we experiment with no under-relaxation (i.e. $\omega = 1.0$) in the Jacobi smoother. As expected, this leads to a target subspace that contains both high- and low-frequency modes. Neural networks are known to have a spectral bias towards low frequencies. In FNO-type models, this spectral bias is especially pronounced because these models truncate high-frequency modes in the Fourier domain. We address this by reducing the relaxation parameter to $\omega = 0.9$, which makes the leading subspace components dominated by slow modes. It is worth noting that this adjustment is consistent with the respective roles of smoothing and coarse-grid correction discussed above. In Figure~\ref{fig:twogrid_eigen_funcs} one can observe the first five eigenvectors of the target subspace for a representative sample under both relaxation settings ($\omega = 1.0$ and $\omega = 0.9$). 
+
+\begin{figure*}[!h]
+\normalsize
+\centering
+    \begin{center}
+        \includegraphics[width=1.0\textwidth]{twogrid_eigen_funcs.png}
+    \end{center}
+    \caption{First five eigenvectors of the error propagation matrix $I - \omega D^{-1}A$. Top: $\omega=1.0$. Bottom: $\omega=0.9$.}
+    \label{fig:twogrid_eigen_funcs}
+    % \vspace*{4pt}
+\end{figure*}
+
+\paragraph{Subspace prediction}
+Before applying the neural network’s predicted subspace, we perform a QR decomposition on the predicted matrix $W$ to obtain an orthonormal basis $Q_W$. We assess the quality of the predicted coarse subspace in the two-grid method using three metrics:
+\begin{itemize}
+    \item[1.] Cosine angles between the true subspace $V$ and the predicted subspace, computed as the singular values of $Q_W^\top V$. A value closer to 1 indicates better subspace alignment.
+    \item[2.] Relative reconstruction error $e = \min_u \|V - W u\|_2$ for each true basis vector $V$, computed as $\|(I - Q_W Q_W^\top) V\|_2$. A smaller value indicates that the predicted subspace reconstructs $V_i$ more accurately.
+    \item[3.] Two-grid convergence rate, measured by the spectral radius $\rho$ of the two-grid iteration operator $T$. We estimate $\rho$ via the power method by repeatedly applying $T$ to a vector: 
+    \begin{equation*}
+        v_{k+1} = \frac{T v_k}{\|T v_k\|}~.
+    \end{equation*}
+    A smaller spectral radius indicates faster asymptotic convergence.
+\end{itemize}
+
+In Table~\ref{table:twogrid_metrics}, we report these metrics for the best-performing models and for the ground-truth target subspace. Across all experiments, the predicted coarse subspaces achieve slightly better two-grid convergence (i.e., lower spectral radius) than the ground-truth subspace. These results are particularly interesting since smaller subspaces yield rather high cosines and reconstruction errors. The increase of size of the predicted subspace improves the quality of the reconstruction and does not degrade in effect on iteration compared to true exact subspace. It is also worth noting that both training objectives yield similarly effective subspaces.
+
+\begin{table}[ht]
+    \caption{Subspace prediction metrics for two-grid method and Jacobi iterations. We report averaged values over the test set. Methods' column values: \textit{Exact subspace} uses the exact leading eigenvectors of error propagation matrix (ground truth). \textit{$L_1$ loss} and \textit{$L_2$ loss} denote subspaces predicted by F-FNO trained with the respective objectives. The Jacobi baseline reports the spectral radius with no coarse correction ($\omega=1.0$).}
+    \label{table:twogrid_metrics}
+    \centering
+    \begin{tabular}{@{}ccccc@{}} 
+        \\\toprule
+        Subspace size & Method & Cosine & Rec. error & Spectral radius \\\midrule
+        $-$ & Jacobi & $-$ & $-$ & $0.9976$ \\\midrule
+        \multirow{4}{*}{$10$} & Exact subspace & $-$ & $-$ & $0.9917$ \\\cmidrule(r){2-5}
+         & $L_1$ loss & $0.845$ & $0.411$ & $0.9910$ \\\cmidrule(r){2-5}
+         & $L_2$ loss & $0.859$ & $0.392$ & $0.9908$ \\\midrule
+        \multirow{4}{*}{$20$} & Exact subspace & $-$ & $-$ & $0.9858$ \\\cmidrule(r){2-5}
+         & $L_1$ loss & $0.960$ & $0.222$ & $0.9852$ \\\cmidrule(r){2-5}
+         & $L_2$ loss & $0.962$ & $0.217$ & $0.9852$ \\\midrule
+        \multirow{4}{*}{$30$} & Exact subspace & $-$ & $-$ & $0.9799$ \\\cmidrule(r){2-5}
+         & $L_1$ loss & $0.986$ & $0.140$ & $0.9790$ \\\cmidrule(r){2-5}
+         & $L_2$ loss & $0.986$ & $0.139$ & $0.9790$ \\\midrule
+        \multirow{4}{*}{$40$} & Exact subspace & $-$ & $-$ & $0.9745$ \\\cmidrule(r){2-5}
+         & $L_1$ loss & $0.994$ & $0.097$ & $0.9730$ \\\cmidrule(r){2-5}
+         & $L_2$ loss & $0.994$ & $0.097$ & $0.9731$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Data and training details}
+We generate two different datasets with $32$ and $100$ interior grid points. Both datasets use $M=100$ Fourier modes, $\lambda_1=0.1, \lambda_2=1,$ interval $[\alpha, \beta]=[1,50]$, and $\omega=0.9$ in error propagation matrix. Each dataset contains $1,000$ training and $200$ test samples. While a neural network predicts subspace of sizes $\{10, 20, 30, 40\}$, target subspace always contains $10$ basis functions.
+
+We train the Factorized Fourier Neural Operator (F-FNO) model~\cite{tran2021factorized}. We first conduct an extensive hyperparameter search on the $32$ dataset with:
+\begin{itemize}
+    \item Number of retained modes: $\{10, 14, 16\}$.
+    \item Number of processor layers: $\{3,4,5\}$.
+    \item Learning rate: $\{10^{-3}, 10^{-4}\}$.
+    \item Step-decay every $\{100, 200\}$ epochs.
+\end{itemize}
+
+By default, the batch size is $64$, training runs for $1,000$ epochs, and each processor layer has $64$ features. We repeat this search for both $L_1$ and $L_2$ losses and for predicted subspace sizes $\{10, 20, 30, 40\}$. We then select the top-$3$ hyperparameter configurations per subspace size and loss (by two-grid spectral radius) and train on the dataset with $100$ grid points. Throughout the paper, we report results for the best configuration on the dataset with $100$ grid points.
+
+\section{Subspace regression for optimal control}
+\label{appendix:icontrol_numerics}
+We consider optimal control of $D=1+1$ heat equation with homogeneous Dirichlet boundary conditions
+\begin{equation}
+	\label{eq:heat_control}
+	\begin{split}
+		&\frac{\partial \phi(x, t)}{\partial t} = \text{div }k\cdot\text{grad }\phi(x, t)  - b(x) + \sum_{i=1}^{k}w_i(x) u_i(t),\\
+		&y_i = \left(\psi_i, \phi\right)\\
+		&\min_{u} L = \frac{1}{2}y(T)^\top y(T) + \frac{\lambda}{2}\int_{0}^{T}u(t)^\top u(t).
+	\end{split}
+\end{equation}
+The problem has a simple interpretation. With no control for sufficiently large $T$ system reaches steady-state, which can be computed as a solution of the linear system $\text{div }k\cdot\text{grad }\phi(x, t) = b(x)$. The objective function contains the term $\frac{1}{2}y(T)^\top y(T) \geq 0$. Optimal control minimises  amplitude of $y(T)$. Given that $y(t)$ is a projection of state variable $\phi$ on vectors $\psi_i$, the result of optimal control is to reach $\phi$ with $\phi - \sum_{i}\left(\phi, \widetilde{\psi}_i\right)\widetilde{\psi}_i$ where $\widetilde{\psi}_i$ is any basis in subspace spanned by $\psi_i$.
+
+Control problem~(\ref{eq:heat_control}) is not a linear-quadratic regulator in its standard form since $b(x)$ is present. To get rid of $b(x)$ and use exact solution for linear-quadratic regulator we first discretise PDE~(\ref{eq:heat_control}) and after that introduce additional (constant) variable
+\begin{equation}
+	\label{eq:heat_control_discretised}
+	\begin{split}
+		&\frac{d}{dt}\begin{pmatrix}\phi(t)\\\widetilde{\phi}(t)\end{pmatrix} = \begin{pmatrix}A&-I\\0&0\end{pmatrix}\begin{pmatrix}\phi(t)\\\widetilde{\phi}(t)\end{pmatrix}  + \begin{pmatrix}W\\0\end{pmatrix} u,\,\begin{pmatrix}\phi(0)\\\widetilde{\phi}(0)\end{pmatrix} = \begin{pmatrix}\phi_0\\b(x)\end{pmatrix},\\
+		&\min_{u} L = \frac{1}{2}\phi(T)^\top\Psi \Psi^{\top}\phi(T) + \frac{\lambda}{2}\int_{0}^{T}u(t)^\top u(t).
+	\end{split}
+\end{equation}
+Problem~(\ref{eq:heat_control_discretised}) is a standard linear-quadratic regulator, so the exact form of value function is known \cite{kirk2004optimal}. Optimal control can be computed as follows
+\begin{equation}
+	\begin{split}
+		&\dot{C}_{12} - C_{11} + A C_{12} -\lambda^{-1} C_{11}WW^\top C_{12} = 0,\,C_{12}(T) = 0,\\
+		&\dot{C}_{11} + C_{11}A + A C_{11} - \lambda^{-1} C_{11}W W^\top C_{11} = 0 ,\,C_{11}(T) = \Psi \Psi^{\top},\\
+		&u(t) = -\lambda^{-1} W^\top \left(C_{11}\phi + C_{12} b(x)\right).
+	\end{split}
+\end{equation}
+As model reduction method we apply balanced truncation closely following \cite{moore2003principal}: (i) solve Lyapunov equations to find controllability and observability Gramians, (ii) find eigendecomposition of controllability Gramian and select coordinates system where controllability Gramian is identity matrix, (iii) find eigendecomposition of observability Gramian and select coordinate system where controllability and observability Gramians coincide, (iv) from the composition of two coordinate transformations build degrees of freedom corresponding to largest eigenvalues of both controllability and observability Gramians.
+
+\subsection{Dataset}
+We use random gaussian random field $\mathcal{N}\left(0, \left(\text{id} - \alpha \Delta\right)^s\right)$ to generate $w_i(x), \psi_i(x)$, diffusion coefficient $k(x)$, initial conditions $u_{0}(x)$ and forcing $b(x)$. For $w_i$, $\psi_i$, $u_{0}(x)$, $b(x)$ we take $\alpha = 5$ and $n=4$, $\psi$ and $w_i$ are further orthogonalised with QR, $30$ i.i.d. $w_i$ and $\psi_i$ are generated for each dataset sample; for diffusion coefficient we use $\alpha = 6$, $n = 4$ and process generated random field $\chi$ similarly to Burgers equation $k(x) = 5\times 10^{-3} + (1 + \tanh(5 \chi))/10$. Equation is discretised on uniform grid $128\times128$, $x\in[0, 1]$, $t\in[0,5]$.  Dataset consists of $1200$ samples, $1000$ for train, $100$ for validation and $100$ for test. Optimal reduction by balanced truncation is computed for each sample and later used for subspace regression.
+
+\begin{table}[t!]
+    \caption{Results for control.}
+    \label{table:control_results}
+    \centering
+\begin{tabular}{lllllll}
+\toprule
+$N_{\text{basis}}$ & \multicolumn{2}{c}{exact} & \multicolumn{2}{c}{$L_1(A, B)$} & \multicolumn{2}{c}{$L_2(A, B;z)$} \\
+ \cmidrule(r){2-3} \cmidrule(r){4-5} \cmidrule(r){6-7}
+ & $E_{s}$ & $E_{o}$ & $E_{s}$ & $E_{o}$ & $E_{s}$ & $E_{o}$\\
+\midrule
+$10$ & $4.16\%$ & $4.07\%$ & $12.56\%$ & $12.21\%$ & $10.91\%$ & $10.59\%$\\
+$20$ &  &  & $8.8\%$ & $8.47\%$ & $7.96\%$ & $7.65\%$\\
+$30$ &  &  & $9.49\%$ & $8.94\%$ & $8.74\%$ & $8.42\%$\\
+$40$ &  &  & $7.26\%$ & $6.99\%$ & $7.41\%$ & $7.15\%$\\
+$50$ &  &  & $7.2\%$ & $6.94\%$ & $7.09\%$ & $6.88\%$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Architecture and training details}
+We use FFNO and precisely the same grid search as for the Burgers equation.
+
+\subsection{Results}
+Results are summarised in Table~\ref{table:control_results}. We train a neural network with two subspace regression losses on first $10$ basis vectors obtained with balanced truncation. As metrics we use relative observation error $E_{o}$ at time $T$ and relative full state error $E_{s}$ at time $T$.
+
+One can observe that subspace embedding techniques improve accuracy for both loss functions. Interestingly, $L_2$ leads to slightly better error for small subspace sizes. Overall accuracy is acceptable but does not reach optimal performance reported in the first columns.
+
+\section{Sensitivity to train-test split and the choice of hyperparameters}
+\label{appendix:sensetivity}
+All results in the main text are reported without error bars, that are usually computed by varying random initialisation or train-test split. All our experiments involve extensive hyperparameter search, so computing statistics for distinct initialisations or train-test split would require order of magnitude more compute. Here we demonstrate for elliptic eigenproblem (Appendix~\ref{subsection:appendix:elliptic_datasets}) and Burgers equation (Appendix~\ref{appendix:subsection:PDEs_datasets}) that sensetivity to train-test split is relatively small and not significant to main conclusions reached by analysis of ``single-run'' results.
+
+For both Burgers and elliptic equations we randomly split dataset on train and test set $5$ times and report mean metrics and standard deviation. Networks are trained for hyperparameters found by grid search. The results are available in Table~\ref{table:sensitivity_train_test}. Variability is clearly present, but it is not pronounced enough.
+
+\begin{table}[h!]
+\caption{Sensitivity to train-test split for elliptic eigenproblem and Burgers equation, subspace regression trained with $L_2(A, B; z)$ loss function.}
+\label{table:sensitivity_train_test}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllll}
+\toprule
+& \multicolumn{2}{c}{elliptic, $k_1=k_2$} &  \multicolumn{2}{c}{Burgers}\\
+\cmidrule(r){2-3}\cmidrule(r){4-5}
+$N_{\text{subspace}}$ & train error $\pm$ std, $\%$ & test error $\pm$ std, $\%$ & train error $\pm$ std, $\%$ & test error $\pm$ std, $\%$\\
+\midrule
+$10$ & $24.37\pm1.47$ & $30.38\pm1.34$ &  $25.5\pm1.17$ & $25.71\pm1.72$ \\
+$20$ & $5.69\pm0.53$ & $6.46\pm0.26$ & $11.15\pm1.2$ & $11.0\pm1.43$\\
+$30$ & $3.34\pm0.26$ & $3.79\pm0.35$ & $7.04\pm0.35$ & $7.01\pm0.64$\\
+$40$ & $1.84\pm0.12$ & $2.12\pm0.11$ & $4.56\pm0.32$ & $4.72\pm0.61$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+Variability to train-test split should be compared to sensitivity to the selection of hyperparameters reported in Table~\ref{table:sensitivity_hyperparameters}. We see that for certain cases the span of best and worse performance reaches $100\%$ which is much higher than variability to train-test split. Note that for elliptic equation grid search was performed on downsampled dataset with $32\times32$ grid.
+
+\begin{table}[h!]
+\caption{Sensitivity to train-test split for elliptic eigenproblem and Burgers equation, subspace regression trained with $L_2(A, B; z)$ loss function.}
+\label{table:sensitivity_hyperparameters}
+\begin{center}
+\hspace*{-0.5cm}  
+\begin{tabular}{lllll}
+\toprule
+& \multicolumn{2}{c}{elliptic, $k_1=k_2$} &  \multicolumn{2}{c}{Burgers}\\
+\cmidrule(r){2-3}\cmidrule(r){4-5}
+$N_{\text{subspace}}$ & \shortstack{train error \\ $[\min, \max]$, $\%$} & \shortstack{test error \\ $[\min, \max]$, $\%$}  &  \shortstack{train error \\ $[\min, \max]$, $\%$}  & \shortstack{test error \\ $[\min, \max]$, $\%$}  \\
+\midrule
+$10$ & $[23.81, 37.8]$ & $[28.67, 39.05]$ & $[22.01, 32.64]$ & $[23.79, 34.62]$ \\
+$20$ & $[4.74, 100.0]$ & $[5.51, 100.0]$ & $[9.53, 20.14]$ & $[10.06, 21.05]$\\
+$30$ & $[2.77, 8.6]$ & $[3.33, 9.06]$ & $[5.58, 21.81]$ & $[5.84, 21.7]$\\
+$40$ & $[2.06, 7.05]$ & $[2.31, 7.34]$ & $[4.3, 47.43]$ &$[4.31, 283.33]$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\end{document}
