@@ -11,3 +11,4 @@
 | 6437 | `public_exact_commit_full6437_restored_verified` | `e71bb54cfa05d45223182b232cac7ce4b872ff5d` | batch-6352-6437-r002 |
 | 6542 | `public_exact_commit_full6542_restored_verified` | `ea645dac152fc09191cc87ba925fd2c4deeab220` | batch-6437-6542-r002 |
 | 6642 | `public_exact_commit_full6642_restored_verified` | `d8a13db186e18204a72b4385e3080a0a72440138` | batch-6542-6642-r002 |
+| 6759 | `public_exact_commit_full6759_restored_verified` | `f55bd0c50a0930c1b9aec2d51586eedad911de9e` | batch-6642-6759-r002 |
