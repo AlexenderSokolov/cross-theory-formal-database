@@ -1300,6 +1300,7 @@
 | 104562 | A $p$-adic adjoint $L$-function and the ramification locus of the Hilbert modular eigenvariety | H2 | [TeX](items/104562_author_proof.tex) | [source](https://arxiv.org/abs/2011.05237v3) [provenance](sources/104562/provenance.json) |
 | 104631 | Dirichlet-Voronoi domain and injectivity radius of flag manifolds -- equivariant cell structure on $O(3)/O(1)^3$ | H2 | [TeX](items/104631_author_proof.tex) | [source](https://arxiv.org/abs/2011.06338v5) [provenance](sources/104631/provenance.json) |
 | 104725 | Expected signature of stopped Brownian motion on $d$-dimensional $C^{2, \alpha}$-domains has finite radius of convergence everywhere: $2\leq d \leq 8$ | H2 | [TeX](items/104725_author_proof.tex) | [source](https://arxiv.org/abs/2011.07917v4) [provenance](sources/104725/provenance.json) |
+| 104975 | Approximation of a Multivariate Function of Bounded Variation from its Scattered Data | H3 | [TeX](items/104975_author_proof.tex) | [source](https://arxiv.org/abs/2011.11258v6) [provenance](sources/104975/provenance.json) |
 | 105164 | The Bohr Phenomenon for analytic functions on simply connected domains | H2 | [TeX](items/105164_author_proof.tex) | [source](https://arxiv.org/abs/2011.13890v1) [provenance](sources/105164/provenance.json) |
 | 105222 | Superelliptic curves with large Galois images | H2 | [TeX](items/105222_author_proof.tex) | [source](https://arxiv.org/abs/2011.14461v2) [provenance](sources/105222/provenance.json) |
 | 105411 | On instability mechanisms for inverse problems | H2 | [TeX](items/105411_author_proof.tex) | [source](https://arxiv.org/abs/2012.01855v4) [provenance](sources/105411/provenance.json) |
@@ -1354,6 +1355,7 @@
 | 112110 | Many-server asymptotics for Join-the-Shortest Queue in the Super-Halfin-Whitt Scaling Window | H2 | [TeX](items/112110_author_proof.tex) | [source](https://arxiv.org/abs/2106.00121v4) [provenance](sources/112110/provenance.json) |
 | 112322 | A discrete mean-value theorem for the higher derivatives of the Riemann zeta function | H2 | [TeX](items/112322_author_proof.tex) | [source](https://arxiv.org/abs/2106.03005v3) [provenance](sources/112322/provenance.json) |
 | 112429 | The Zero Set of an Electric Field from a Finite Number of Point Charges | H3 | [TeX](items/112429_author_proof.tex) | [source](https://arxiv.org/abs/2106.04706v2) [provenance](sources/112429/provenance.json) |
+| 112528 | A determinant of the Artin-Hasse exponential coefficients | H2 | [TeX](items/112528_author_proof.tex) | [source](https://arxiv.org/abs/2106.06084v1) [provenance](sources/112528/provenance.json) |
 | 112576 | XConv: Low-memory stochastic backpropagation for convolutional layers | H2 | [TeX](items/112576_author_proof.tex) | [source](https://arxiv.org/abs/2106.06998v5) [provenance](sources/112576/provenance.json) |
 | 112814 | The scaling limit of fair Peano paths | H2 | [TeX](items/112814_author_proof.tex) | [source](https://arxiv.org/abs/2106.10376v3) [provenance](sources/112814/provenance.json) |
 | 112815 | Upper bounds for critical probabilities in \\ Bernoulli Percolation models | H2 | [TeX](items/112815_author_proof.tex) | [source](https://arxiv.org/abs/2106.10388v2) [provenance](sources/112815/provenance.json) |
@@ -1398,11 +1400,13 @@
 | 118687 | The Liouville current of holomorphic quadratic differential metrics | H2 | [TeX](items/118687_author_proof.tex) | [source](https://arxiv.org/abs/2111.10585v2) [provenance](sources/118687/provenance.json) |
 | 118689 | Composition operators on Hardy-Smirnov spaces | H2 | [TeX](items/118689_author_proof.tex) | [source](https://arxiv.org/abs/2111.10609v3) [provenance](sources/118689/provenance.json) |
 | 118768 | Counting parabolic principal $G$-bundles with nilpotent sections over $\mathbb{P}^1$ | H2 | [TeX](items/118768_author_proof.tex) | [source](https://arxiv.org/abs/2111.11583v2) [provenance](sources/118768/provenance.json) |
+| 118787 | List chromatic numbers and singular compactness | H2 | [TeX](items/118787_author_proof.tex) | [source](https://arxiv.org/abs/2111.11826v4) [provenance](sources/118787/provenance.json) |
 | 118826 | On conic-line arrangements with nodes, tacnodes, and ordinary triple points | H2 | [TeX](items/118826_author_proof.tex) | [source](https://arxiv.org/abs/2111.12349v3) [provenance](sources/118826/provenance.json) |
 | 118853 | Fourier inversion theorems for integral transforms involving Bessel functions | H2 | [TeX](items/118853_author_proof.tex) | [source](https://arxiv.org/abs/2111.12674v2) [provenance](sources/118853/provenance.json) |
 | 118918 | Fixed Points Theorems in Hausdorff M-distance Spaces | H2 | [TeX](items/118918_author_proof.tex) | [source](https://arxiv.org/abs/2111.13625v1) [provenance](sources/118918/provenance.json) |
 | 119061 | Amenability of quadratic automaton groups | H2 | [TeX](items/119061_author_proof.tex) | [source](https://arxiv.org/abs/2111.15206v1) [provenance](sources/119061/provenance.json) |
 | 119090 | Equivariant Chevalley, Giambelli, and Monk Formulae for the Peterson Variety | H2 | [TeX](items/119090_author_proof.tex) | [source](https://arxiv.org/abs/2111.15663v2) [provenance](sources/119090/provenance.json) |
+| 119254 | Birational classification for algebraic tori | H2 | [TeX](items/119254_author_proof.tex) | [source](https://arxiv.org/abs/2112.02280v9) [provenance](sources/119254/provenance.json) |
 | 119327 | On Discrete Approximations to Infinite Horizon Differential Games | H2 | [TeX](items/119327_author_proof.tex) | [source](https://arxiv.org/abs/2112.03153v3) [provenance](sources/119327/provenance.json) |
 | 119365 | Kernel zero-sets, quantum graph ideals, and Hadamard graphons | H2 | [TeX](items/119365_author_proof.tex) | [source](https://arxiv.org/abs/2112.03885v3) [provenance](sources/119365/provenance.json) |
 | 119651 | Simplicial approximation to CW complexes with spherical Delaunay triangulations | H2 | [TeX](items/119651_author_proof.tex) | [source](https://arxiv.org/abs/2112.07573v3) [provenance](sources/119651/provenance.json) |
@@ -1468,6 +1472,7 @@
 | 124684 | Orbit pseudometrics and a universality property of the Gromov-Hausdorff distance | H2 | [TeX](items/124684_author_proof.tex) | [source](https://arxiv.org/abs/2204.08375v2) [provenance](sources/124684/provenance.json) |
 | 125015 | The Image of the Gassner Representation of the Pure Braid Subgroup has Pairwise Free Generators | H3 | [TeX](items/125015_author_proof.tex) | [source](https://arxiv.org/abs/2204.12469v4) [provenance](sources/125015/provenance.json) |
 | 125111 | Graph polynomial for vertex-colored embedded graphs | H2 | [TeX](items/125111_author_proof.tex) | [source](https://arxiv.org/abs/2204.13876v2) [provenance](sources/125111/provenance.json) |
+| 125145 | Tropical medians by transportation | H2 | [TeX](items/125145_author_proof.tex) | [source](https://arxiv.org/abs/2205.00036v2) [provenance](sources/125145/provenance.json) |
 | 125155 | Regularity theory for a new class of fractional \\ parabolic stochastic evolution equations | H2 | [TeX](items/125155_author_proof.tex) | [source](https://arxiv.org/abs/2205.00248v2) [provenance](sources/125155/provenance.json) |
 | 125412 | The Jones polynomial of collections of open curves in $3-$space | H2 | [TeX](items/125412_author_proof.tex) | [source](https://arxiv.org/abs/2205.03474v1) [provenance](sources/125412/provenance.json) |
 | 125427 | Hausdorff dimension in quasiregular dynamics | H2 | [TeX](items/125427_author_proof.tex) | [source](https://arxiv.org/abs/2205.03626v1) [provenance](sources/125427/provenance.json) |
@@ -1502,6 +1507,7 @@
 | 128327 | Quantitative Thomas-Yau uniqueness | H2 | [TeX](items/128327_author_proof.tex) | [source](https://arxiv.org/abs/2207.08047v1) [provenance](sources/128327/provenance.json) |
 | 128371 | Regressive versions of Hindman's Theorem | H2 | [TeX](items/128371_author_proof.tex) | [source](https://arxiv.org/abs/2207.08554v4) [provenance](sources/128371/provenance.json) |
 | 128447 | Dimers and Beauville integrable systems | H3 | [TeX](items/128447_author_proof.tex) | [source](https://arxiv.org/abs/2207.09528v2) [provenance](sources/128447/provenance.json) |
+| 128476 | Notes on Invariant Measures for Loop Groups | H2 | [TeX](items/128476_author_proof.tex) | [source](https://arxiv.org/abs/2207.09913v6) [provenance](sources/128476/provenance.json) |
 | 128537 | Bounds on Successive Minima of Orders in Number Fields and Scrollar Invariants of Curves | H2 | [TeX](items/128537_author_proof.tex) | [source](https://arxiv.org/abs/2207.10522v2) [provenance](sources/128537/provenance.json) |
 | 128596 | Quantitative nonembeddability of groups of polynomial growth into uniformly convex spaces | H2 | [TeX](items/128596_author_proof.tex) | [source](https://arxiv.org/abs/2207.11305v2) [provenance](sources/128596/provenance.json) |
 | 128602 | Borel-Hirzebruch type formula for the graph equivariant cohomology of a projective bundle over a GKM-graph | H2 | [TeX](items/128602_author_proof.tex) | [source](https://arxiv.org/abs/2207.11380v4) [provenance](sources/128602/provenance.json) |
@@ -1513,6 +1519,7 @@
 | 128979 | Sums of $k$-bonacci Numbers | H2 | [TeX](items/128979_author_proof.tex) | [source](https://arxiv.org/abs/2208.01224v1) [provenance](sources/128979/provenance.json) |
 | 129006 | Elliptic fibrations on toric $K3$ hypersurfaces and mirror symmetry derived from Fano polytopes | H2 | [TeX](items/129006_author_proof.tex) | [source](https://arxiv.org/abs/2208.01465v2) [provenance](sources/129006/provenance.json) |
 | 129030 | Averages of quadratic twists of long Dirichlet polynomials | H2 | [TeX](items/129030_author_proof.tex) | [source](https://arxiv.org/abs/2208.01783v2) [provenance](sources/129030/provenance.json) |
+| 129137 | A refinement of bounded cohomology | H2 | [TeX](items/129137_author_proof.tex) | [source](https://arxiv.org/abs/2208.03168v3) [provenance](sources/129137/provenance.json) |
 | 129263 | Maximal principles in discrete conformal geometry with application to the rigidity of infinite triangulations | H2 | [TeX](items/129263_author_proof.tex) | [source](https://arxiv.org/abs/2208.04502v2) [provenance](sources/129263/provenance.json) |
 | 129390 | Analysis of subsystems with rooks on a chess-board representing a partial Latin square (Part 2.) | H2 | [TeX](items/129390_author_proof.tex) | [source](https://arxiv.org/abs/2208.06166v2) [provenance](sources/129390/provenance.json) |
 | 129440 | Computable vs Descriptive Combinatorics of Local Problems on Trees | H3 | [TeX](items/129440_author_proof.tex) | [source](https://arxiv.org/abs/2208.06689v2) [provenance](sources/129440/provenance.json) |
@@ -1565,6 +1572,7 @@
 | 132234 | High-velocity tails of the inelastic and the multi-species mixture Boltzmann equations | H2 | [TeX](items/132234_author_proof.tex) | [source](https://arxiv.org/abs/2210.09793v1) [provenance](sources/132234/provenance.json) |
 | 132349 | Universal vector bundles, push-forward formul{\ae} and positivity of characteristic forms | H2 | [TeX](items/132349_author_proof.tex) | [source](https://arxiv.org/abs/2210.11157v1) [provenance](sources/132349/provenance.json) |
 | 132366 | Functions with a maximal number of finite invariant or internally-1-quasi-invariant sets or supersets | H2 | [TeX](items/132366_author_proof.tex) | [source](https://arxiv.org/abs/2210.11412v2) [provenance](sources/132366/provenance.json) |
+| 132382 | \bf Optimal plug-in Gaussian processes for modeling derivatives | H2 | [TeX](items/132382_author_proof.tex) | [source](https://arxiv.org/abs/2210.11626v3) [provenance](sources/132382/provenance.json) |
 | 132408 | A semidefinite program for least distortion embeddings of flat tori into Hilbert spaces | H2 | [TeX](items/132408_author_proof.tex) | [source](https://arxiv.org/abs/2210.11952v3) [provenance](sources/132408/provenance.json) |
 | 132544 | Powell's Conjecture on the Goeritz group of $S^3$ is stably true | H2 | [TeX](items/132544_author_proof.tex) | [source](https://arxiv.org/abs/2210.13629v2) [provenance](sources/132544/provenance.json) |
 | 132547 | The unramified computation of a Shimura integral for $\mathrm{SL}(2)\times \mathrm{GL}(2)$ | H2 | [TeX](items/132547_author_proof.tex) | [source](https://arxiv.org/abs/2210.13653v1) [provenance](sources/132547/provenance.json) |
@@ -1625,6 +1633,7 @@
 | 135291 | Chaos Analysis in the Hybrid Quintic Duffing-Riemann Zeta System via Decomposition\\ | H2 | [TeX](items/135291_author_proof.tex) | [source](https://arxiv.org/abs/2212.12438v2) [provenance](sources/135291/provenance.json) |
 | 135425 | Vaught's conjecture for theories of discretely ordered structures | H2 | [TeX](items/135425_author_proof.tex) | [source](https://arxiv.org/abs/2212.13605v3) [provenance](sources/135425/provenance.json) |
 | 135486 | Symplectic self-orthogonal quasi-cyclic codes | H2 | [TeX](items/135486_author_proof.tex) | [source](https://arxiv.org/abs/2212.14225v5) [provenance](sources/135486/provenance.json) |
+| 135502 | Empirical Bayes When Estimation Precision Predicts Parameters | H3 | [TeX](items/135502_author_proof.tex) | [source](https://arxiv.org/abs/2212.14444v6) [provenance](sources/135502/provenance.json) |
 | 135531 | A Set-theoretic Approach to Regularity of 3D Decaying Turbulence | H2 | [TeX](items/135531_author_proof.tex) | [source](https://arxiv.org/abs/2212.14734v10) [provenance](sources/135531/provenance.json) |
 | 135554 | Examples of left-orderable and non-left-orderable HNN extensions | H2 | [TeX](items/135554_author_proof.tex) | [source](https://arxiv.org/abs/2301.00052v3) [provenance](sources/135554/provenance.json) |
 | 135610 | Indeterminate Jacobi operators | H2 | [TeX](items/135610_author_proof.tex) | [source](https://arxiv.org/abs/2301.00586v1) [provenance](sources/135610/provenance.json) |
@@ -1706,6 +1715,7 @@
 | 138824 | Equivariant Elliptic Cohomology and Mapping Stacks | H2 | [TeX](items/138824_author_proof.tex) | [source](https://arxiv.org/abs/2303.10146v3) [provenance](sources/138824/provenance.json) |
 | 138858 | Asymptotics for small data solutions of the Ablowitz-Ladik equation | H2 | [TeX](items/138858_author_proof.tex) | [source](https://arxiv.org/abs/2303.10496v2) [provenance](sources/138858/provenance.json) |
 | 138931 | Nearly geodesic immersions and domains of discontinuity | H2 | [TeX](items/138931_author_proof.tex) | [source](https://arxiv.org/abs/2303.11260v1) [provenance](sources/138931/provenance.json) |
+| 138940 | Rigid currents on compact hyperkahler manifolds | H2 | [TeX](items/138940_author_proof.tex) | [source](https://arxiv.org/abs/2303.11362v3) [provenance](sources/138940/provenance.json) |
 | 138963 | Non-degenerate Rigid Alignment in a Patch Framework | H2 | [TeX](items/138963_author_proof.tex) | [source](https://arxiv.org/abs/2303.11620v4) [provenance](sources/138963/provenance.json) |
 | 138969 | Generalized regular representations of big wreath products | H3 | [TeX](items/138969_author_proof.tex) | [source](https://arxiv.org/abs/2303.11671v2) [provenance](sources/138969/provenance.json) |
 | 138986 | Doubly Regularized Entropic Wasserstein Barycenters | H2 | [TeX](items/138986_author_proof.tex) | [source](https://arxiv.org/abs/2303.11844v2) [provenance](sources/138986/provenance.json) |
@@ -1766,6 +1776,7 @@
 | 141394 | Scott sentence complexities of linear orderings | H3 | [TeX](items/141394_author_proof.tex) | [source](https://arxiv.org/abs/2305.07126v1) [provenance](sources/141394/provenance.json) |
 | 141399 | Big Ramsey Degrees of Countable Ordinals | H2 | [TeX](items/141399_author_proof.tex) | [source](https://arxiv.org/abs/2305.07192v3) [provenance](sources/141399/provenance.json) |
 | 141409 | Aspects of the commuting graph | H2 | [TeX](items/141409_author_proof.tex) | [source](https://arxiv.org/abs/2305.07301v5) [provenance](sources/141409/provenance.json) |
+| 141424 | Sampling recovery in $L_2$ and other norms | H2 | [TeX](items/141424_author_proof.tex) | [source](https://arxiv.org/abs/2305.07539v5) [provenance](sources/141424/provenance.json) |
 | 141449 | Global existence for a 3D Tropical Climate Model with damping and small initial data in $\dot H^{\frac{1}{2}}(\R^3)$ | H2 | [TeX](items/141449_author_proof.tex) | [source](https://arxiv.org/abs/2305.07964v1) [provenance](sources/141449/provenance.json) |
 | 141471 | More scaling limits for 1d random Schr\"odinger operators with critically decaying and vanishing potentials | H2 | [TeX](items/141471_author_proof.tex) | [source](https://arxiv.org/abs/2305.08205v2) [provenance](sources/141471/provenance.json) |
 | 141478 | Homotopy type of stabilizers of smooth functions with non-isolated singularities on surfaces | H2 | [TeX](items/141478_author_proof.tex) | [source](https://arxiv.org/abs/2305.08255v3) [provenance](sources/141478/provenance.json) |
@@ -1883,6 +1894,7 @@
 | 145998 | Nijenhuis operators on 2D pre-Lie algebras and 3D associative algebras | H2 | [TeX](items/145998_author_proof.tex) | [source](https://arxiv.org/abs/2308.12121v3) [provenance](sources/145998/provenance.json) |
 | 146013 | The numerical range of periodic banded Toeplitz operators | H2 | [TeX](items/146013_author_proof.tex) | [source](https://arxiv.org/abs/2308.12353v1) [provenance](sources/146013/provenance.json) |
 | 146069 | A Thom Spectrum Model for $C_2$-Integral Brown--Gitler Spectra | H2 | [TeX](items/146069_author_proof.tex) | [source](https://arxiv.org/abs/2308.12945v3) [provenance](sources/146069/provenance.json) |
+| 146118 | Intuitionism with truth-tables: A Decision Procedure for \textbf{IPL} Based on RNmatrices | H2 | [TeX](items/146118_author_proof.tex) | [source](https://arxiv.org/abs/2308.13664v4) [provenance](sources/146118/provenance.json) |
 | 146188 | H\"older continuity of measures for heavy tail potentials | H2 | [TeX](items/146188_author_proof.tex) | [source](https://arxiv.org/abs/2308.14485v3) [provenance](sources/146188/provenance.json) |
 | 146193 | Distribution of the number of zeros of polynomials over a finite field | H2 | [TeX](items/146193_author_proof.tex) | [source](https://arxiv.org/abs/2308.14580v1) [provenance](sources/146193/provenance.json) |
 | 146214 | Generalized Loewy length of Cohen-Macaulay local and graded rings | H2 | [TeX](items/146214_author_proof.tex) | [source](https://arxiv.org/abs/2308.14932v3) [provenance](sources/146214/provenance.json) |
@@ -1985,6 +1997,7 @@
 | 149370 | Doubly-weighted zero-sum constants | H2 | [TeX](items/149370_author_proof.tex) | [source](https://arxiv.org/abs/2311.00090v4) [provenance](sources/149370/provenance.json) |
 | 149543 | Bredon homological stability for configuration spaces of $G$-manifolds | H2 | [TeX](items/149543_author_proof.tex) | [source](https://arxiv.org/abs/2311.02459v1) [provenance](sources/149543/provenance.json) |
 | 149544 | Improved Convergence Factor of Windowed Anderson Acceleration for Symmetric Fixed-Point Iterations | H2 | [TeX](items/149544_author_proof.tex) | [source](https://arxiv.org/abs/2311.02490v3) [provenance](sources/149544/provenance.json) |
+| 149547 | {\bf \Large Local well-posedness for the quasilinear Schr\"odinger equations via the generalized energy method } | H2 | [TeX](items/149547_author_proof.tex) | [source](https://arxiv.org/abs/2311.02556v3) [provenance](sources/149547/provenance.json) |
 | 149582 | Symplectic variations of convex bodies and the mean width | H2 | [TeX](items/149582_author_proof.tex) | [source](https://arxiv.org/abs/2311.02870v3) [provenance](sources/149582/provenance.json) |
 | 149598 | Persistent Homology for High-dimensional Data Based on Spectral Methods | H2 | [TeX](items/149598_author_proof.tex) | [source](https://arxiv.org/abs/2311.03087v3) [provenance](sources/149598/provenance.json) |
 | 149623 | Fluid limit of a Distributed Ledger Model with Random Delay | H3 | [TeX](items/149623_author_proof.tex) | [source](https://arxiv.org/abs/2311.03475v2) [provenance](sources/149623/provenance.json) |
@@ -2042,11 +2055,13 @@
 | 151200 | $S$-Integral Points in Orbits on $\mathbb{P}^1$ | H2 | [TeX](items/151200_author_proof.tex) | [source](https://arxiv.org/abs/2312.05094v2) [provenance](sources/151200/provenance.json) |
 | 151206 | Euler Product Asymptotics for $L$-functions of Elliptic Curves | H2 | [TeX](items/151206_author_proof.tex) | [source](https://arxiv.org/abs/2312.05236v4) [provenance](sources/151206/provenance.json) |
 | 151207 | Quasi-rectifiable Lie algebras for partial differential equations | H2 | [TeX](items/151207_author_proof.tex) | [source](https://arxiv.org/abs/2312.05238v2) [provenance](sources/151207/provenance.json) |
+| 151231 | The Cyclic Flats of an $\mL$-Polymatroid | H2 | [TeX](items/151231_author_proof.tex) | [source](https://arxiv.org/abs/2312.05522v2) [provenance](sources/151231/provenance.json) |
 | 151245 | Spectral methods for Neural Integral Equations | H2 | [TeX](items/151245_author_proof.tex) | [source](https://arxiv.org/abs/2312.05654v4) [provenance](sources/151245/provenance.json) |
 | 151248 | Bridging colorings of virtual links from virtual biquandles to biquandles | H2 | [TeX](items/151248_author_proof.tex) | [source](https://arxiv.org/abs/2312.05663v2) [provenance](sources/151248/provenance.json) |
 | 151255 | Inversion of adjunction for quotient singularities III: semi-invariant case | H3 | [TeX](items/151255_author_proof.tex) | [source](https://arxiv.org/abs/2312.05808v2) [provenance](sources/151255/provenance.json) |
 | 151336 | Approximations of semi-Markov processes and insurance policy valuation | H2 | [TeX](items/151336_author_proof.tex) | [source](https://arxiv.org/abs/2312.06784v2) [provenance](sources/151336/provenance.json) |
 | 151374 | A space--time continuous and coercive formulation for the wave equation | H3 | [TeX](items/151374_author_proof.tex) | [source](https://arxiv.org/abs/2312.07268v2) [provenance](sources/151374/provenance.json) |
+| 151389 | Twisted Spectra Revisited | H2 | [TeX](items/151389_author_proof.tex) | [source](https://arxiv.org/abs/2312.07403v2) [provenance](sources/151389/provenance.json) |
 | 151392 | Posterior Concentration for Gaussian Process Priors under Rescaled and Hierarchical Mat\'ern and Confluent Hypergeometric Covariance Functions | H2 | [TeX](items/151392_author_proof.tex) | [source](https://arxiv.org/abs/2312.07502v3) [provenance](sources/151392/provenance.json) |
 | 151412 | Note on almost isometric ideals and local retracts in Banach and metric spaces | H2 | [TeX](items/151412_author_proof.tex) | [source](https://arxiv.org/abs/2312.07749v1) [provenance](sources/151412/provenance.json) |
 | 151435 | On the edge densities of normal, convex mosaics | H2 | [TeX](items/151435_author_proof.tex) | [source](https://arxiv.org/abs/2312.08050v3) [provenance](sources/151435/provenance.json) |
@@ -2054,6 +2069,7 @@
 | 151506 | Odd moments and adding fractions | H2 | [TeX](items/151506_author_proof.tex) | [source](https://arxiv.org/abs/2312.09021v2) [provenance](sources/151506/provenance.json) |
 | 151520 | Non-vanishing of Kolyvagin systems and Iwasawa theory | H2 | [TeX](items/151520_author_proof.tex) | [source](https://arxiv.org/abs/2312.09301v2) [provenance](sources/151520/provenance.json) |
 | 151538 | The number of inscribed and circumscribed graphs of a convex polyhedron | H2 | [TeX](items/151538_author_proof.tex) | [source](https://arxiv.org/abs/2312.09552v8) [provenance](sources/151538/provenance.json) |
+| 151556 | Anisotropic Proximal Point Algorithm | H2 | [TeX](items/151556_author_proof.tex) | [source](https://arxiv.org/abs/2312.09834v4) [provenance](sources/151556/provenance.json) |
 | 151564 | Gabriel's Theorem for Infinite Quivers | H2 | [TeX](items/151564_author_proof.tex) | [source](https://arxiv.org/abs/2312.09904v1) [provenance](sources/151564/provenance.json) |
 | 151625 | More characterizations of morphic words | H2 | [TeX](items/151625_author_proof.tex) | [source](https://arxiv.org/abs/2312.10757v2) [provenance](sources/151625/provenance.json) |
 | 151663 | The asymptotic Hecke algebra and rigidity | H2 | [TeX](items/151663_author_proof.tex) | [source](https://arxiv.org/abs/2312.11092v3) [provenance](sources/151663/provenance.json) |
@@ -2062,6 +2078,7 @@
 | 151713 | Weighted Versions of the Arithmetic-Mean-Geometric Mean Inequality and Zaremba's Function | H2 | [TeX](items/151713_author_proof.tex) | [source](https://arxiv.org/abs/2312.11661v4) [provenance](sources/151713/provenance.json) |
 | 151754 | Inverse problems for semilinear elliptic PDE with a general nonlinearity $a(x,u)$ | H2 | [TeX](items/151754_author_proof.tex) | [source](https://arxiv.org/abs/2312.12196v2) [provenance](sources/151754/provenance.json) |
 | 151791 | Some frustrating questions on dimensions of products of posets | H2 | [TeX](items/151791_author_proof.tex) | [source](https://arxiv.org/abs/2312.12615v4) [provenance](sources/151791/provenance.json) |
+| 151794 | Robust Point Matching with Distance Profiles | H2 | [TeX](items/151794_author_proof.tex) | [source](https://arxiv.org/abs/2312.12641v6) [provenance](sources/151794/provenance.json) |
 | 151802 | Discrete Octonionic Dirac Operators on Bounded Lattices: Boundary Integral Theory and Scaling Limits | H3 | [TeX](items/151802_author_proof.tex) | [source](https://arxiv.org/abs/2312.12777v2) [provenance](sources/151802/provenance.json) |
 | 151804 | On spectrum of corona product of duplication signed graph and its application | H2 | [TeX](items/151804_author_proof.tex) | [source](https://arxiv.org/abs/2312.12843v5) [provenance](sources/151804/provenance.json) |
 | 151809 | The Bombieri-Pila determinant method | H2 | [TeX](items/151809_author_proof.tex) | [source](https://arxiv.org/abs/2312.12890v3) [provenance](sources/151809/provenance.json) |
@@ -2079,6 +2096,7 @@
 | 152228 | Exponential sums over M\"{o}bius convolutions with applications to partitions | H2 | [TeX](items/152228_author_proof.tex) | [source](https://arxiv.org/abs/2312.17435v2) [provenance](sources/152228/provenance.json) |
 | 152233 | Virtual Holonomic and Nonholonomic Constraints on Lie groups | H2 | [TeX](items/152233_author_proof.tex) | [source](https://arxiv.org/abs/2312.17531v2) [provenance](sources/152233/provenance.json) |
 | 152247 | Asymptotic stability of a finite sum of solitary waves for the Zakharov-Kuznetsov equation | H2 | [TeX](items/152247_author_proof.tex) | [source](https://arxiv.org/abs/2312.17721v1) [provenance](sources/152247/provenance.json) |
+| 152310 | Density bounds for unit ball packings relative to their outer parallel domains | H2 | [TeX](items/152310_author_proof.tex) | [source](https://arxiv.org/abs/2401.00645v2) [provenance](sources/152310/provenance.json) |
 | 152328 | Reciprocity formulas for certain generalized Hardy-Berndt sums | H2 | [TeX](items/152328_author_proof.tex) | [source](https://arxiv.org/abs/2401.00774v6) [provenance](sources/152328/provenance.json) |
 | 152427 | Dynamics of point-vortex type systems near thermal equilibrium: relaxation or not? | H2 | [TeX](items/152427_author_proof.tex) | [source](https://arxiv.org/abs/2401.01940v2) [provenance](sources/152427/provenance.json) |
 | 152457 | Some remarks on Grothendieck pairs | H2 | [TeX](items/152457_author_proof.tex) | [source](https://arxiv.org/abs/2401.02229v2) [provenance](sources/152457/provenance.json) |
@@ -2136,7 +2154,9 @@
 | 153916 | Sequence of Numbers of Linear Codes with Increasing Hull Dimensions | H2 | [TeX](items/153916_author_proof.tex) | [source](https://arxiv.org/abs/2402.01255v2) [provenance](sources/153916/provenance.json) |
 | 153935 | Divergence conforming finite element methods for flow-transport coupling with osmotic effects | H2 | [TeX](items/153935_author_proof.tex) | [source](https://arxiv.org/abs/2402.01451v2) [provenance](sources/153935/provenance.json) |
 | 153937 | Self-Correlations of Hurwitz Class Numbers | H2 | [TeX](items/153937_author_proof.tex) | [source](https://arxiv.org/abs/2402.01455v1) [provenance](sources/153937/provenance.json) |
+| 153945 | Quantum advantage in zero-error function computation with side information | H2 | [TeX](items/153945_author_proof.tex) | [source](https://arxiv.org/abs/2402.01549v4) [provenance](sources/153945/provenance.json) |
 | 154033 | Superelliptic Affine Lie algebras and orthogonal polynomials | H2 | [TeX](items/154033_author_proof.tex) | [source](https://arxiv.org/abs/2402.02947v2) [provenance](sources/154033/provenance.json) |
+| 154039 | Functional SDE approximation inspired by a deep operator network architecture | H2 | [TeX](items/154039_author_proof.tex) | [source](https://arxiv.org/abs/2402.03028v2) [provenance](sources/154039/provenance.json) |
 | 154098 | Solving Order 3 Difference Equations | H2 | [TeX](items/154098_author_proof.tex) | [source](https://arxiv.org/abs/2402.03868v3) [provenance](sources/154098/provenance.json) |
 | 154119 | Random L\'evy Looptrees and L\'evy Maps | H2 | [TeX](items/154119_author_proof.tex) | [source](https://arxiv.org/abs/2402.04098v3) [provenance](sources/154119/provenance.json) |
 | 154191 | Association schemes and orthogonality graphs on anisotropic points of polar spaces | H2 | [TeX](items/154191_author_proof.tex) | [source](https://arxiv.org/abs/2402.05055v2) [provenance](sources/154191/provenance.json) |
@@ -2192,6 +2212,7 @@
 | 155276 | Stability and instability of the quasilinear Gross--Pitaevskii dark solitons | H2 | [TeX](items/155276_author_proof.tex) | [source](https://arxiv.org/abs/2402.18316v4) [provenance](sources/155276/provenance.json) |
 | 155337 | The operad of Latin hypercubes | H2 | [TeX](items/155337_author_proof.tex) | [source](https://arxiv.org/abs/2402.19077v2) [provenance](sources/155337/provenance.json) |
 | 155385 | Irreducible components of sets of points in the plane that satisfy distance conditions | H2 | [TeX](items/155385_author_proof.tex) | [source](https://arxiv.org/abs/2403.00392v2) [provenance](sources/155385/provenance.json) |
+| 155448 | $\pi$-systems and the embedding problem for rank $2$ Kac-Moody Lie algebras | H2 | [TeX](items/155448_author_proof.tex) | [source](https://arxiv.org/abs/2403.01285v2) [provenance](sources/155448/provenance.json) |
 | 155465 | Confluent Vandermonde matrix and related topics | H2 | [TeX](items/155465_author_proof.tex) | [source](https://arxiv.org/abs/2403.01474v3) [provenance](sources/155465/provenance.json) |
 | 155482 | Geometry and Stability of Supervised Learning Problems | H2 | [TeX](items/155482_author_proof.tex) | [source](https://arxiv.org/abs/2403.01660v2) [provenance](sources/155482/provenance.json) |
 | 155556 | \bf Fill Probabilities in a Limit Order Book with State-Dependent Stochastic Order Flows | H3 | [TeX](items/155556_author_proof.tex) | [source](https://arxiv.org/abs/2403.02572v2) [provenance](sources/155556/provenance.json) |
@@ -2295,6 +2316,7 @@
 | 157471 | Bigraded path homology and the magnitude-path spectral sequence | H3 | [TeX](items/157471_author_proof.tex) | [source](https://arxiv.org/abs/2404.06689v3) [provenance](sources/157471/provenance.json) |
 | 157474 | Mutual position of two smooth quadrics over finite fields | H2 | [TeX](items/157474_author_proof.tex) | [source](https://arxiv.org/abs/2404.06754v2) [provenance](sources/157474/provenance.json) |
 | 157531 | The global Gan--Gross--Prasad conjecture for Fourier--Jacobi periods on unitary groups I: Coarse expansions of the relative trace formulae | H3 | [TeX](items/157531_author_proof.tex) | [source](https://arxiv.org/abs/2404.07342v3) [provenance](sources/157531/provenance.json) |
+| 157539 | On the stability of the spherically symmetric solution to an inflow problem for an isentropic model of compressible viscous fluid | H2 | [TeX](items/157539_author_proof.tex) | [source](https://arxiv.org/abs/2404.07469v4) [provenance](sources/157539/provenance.json) |
 | 157576 | Triple Component Matrix Factorization: Untangling Global, Local, and Noisy Components | H2 | [TeX](items/157576_author_proof.tex) | [source](https://arxiv.org/abs/2404.07955v2) [provenance](sources/157576/provenance.json) |
 | 157590 | Mean dimension explosion of induced homeomorphisms | H2 | [TeX](items/157590_author_proof.tex) | [source](https://arxiv.org/abs/2404.08146v2) [provenance](sources/157590/provenance.json) |
 | 157622 | Classification and nonexistence \\ for $t$-structures on \\ derived categories of schemes | H2 | [TeX](items/157622_author_proof.tex) | [source](https://arxiv.org/abs/2404.08578v5) [provenance](sources/157622/provenance.json) |
@@ -2384,8 +2406,10 @@
 | 159290 | Subtractive random forests with two choices | H2 | [TeX](items/159290_author_proof.tex) | [source](https://arxiv.org/abs/2405.10455v2) [provenance](sources/159290/provenance.json) |
 | 159295 | Primes and Bivariate Polynomials without Constant Terms: A Recursive Algorithm | H2 | [TeX](items/159295_author_proof.tex) | [source](https://arxiv.org/abs/2405.10519v2) [provenance](sources/159295/provenance.json) |
 | 159301 | Quasi-Polynomial Extensions of Nonsymmetric Macdonald-Koornwinder Polynomials | H2 | [TeX](items/159301_author_proof.tex) | [source](https://arxiv.org/abs/2405.10609v3) [provenance](sources/159301/provenance.json) |
+| 159318 | Strong log-convexity of genus sequences | H2 | [TeX](items/159318_author_proof.tex) | [source](https://arxiv.org/abs/2405.10854v2) [provenance](sources/159318/provenance.json) |
 | 159322 | Strategic control for a Boltzmann like decision-making model | H2 | [TeX](items/159322_author_proof.tex) | [source](https://arxiv.org/abs/2405.10915v2) [provenance](sources/159322/provenance.json) |
 | 159343 | Slow entropy and variational dynamical systems | H2 | [TeX](items/159343_author_proof.tex) | [source](https://arxiv.org/abs/2405.11137v2) [provenance](sources/159343/provenance.json) |
+| 159352 | results on dynamics of bungee set of composite entire functions in the eremenko-lyubich class | H2 | [TeX](items/159352_author_proof.tex) | [source](https://arxiv.org/abs/2405.11217v4) [provenance](sources/159352/provenance.json) |
 | 159447 | Super Hayashi Quandles | H2 | [TeX](items/159447_author_proof.tex) | [source](https://arxiv.org/abs/2405.12329v2) [provenance](sources/159447/provenance.json) |
 | 159467 | A universal group-theoretic characterisation of $p$-typical Witt vectors | H2 | [TeX](items/159467_author_proof.tex) | [source](https://arxiv.org/abs/2405.12680v2) [provenance](sources/159467/provenance.json) |
 | 159471 | Upper bounds for the list-distinguishing chromatic number | H2 | [TeX](items/159471_author_proof.tex) | [source](https://arxiv.org/abs/2405.12733v3) [provenance](sources/159471/provenance.json) |
@@ -2444,6 +2468,7 @@
 | 160526 | On Conjecture of Binomial Edge Ideals of Linear Type | H2 | [TeX](items/160526_author_proof.tex) | [source](https://arxiv.org/abs/2406.05960v4) [provenance](sources/160526/provenance.json) |
 | 160538 | Matrix norm shrinkage estimators and priors | H2 | [TeX](items/160538_author_proof.tex) | [source](https://arxiv.org/abs/2406.06137v2) [provenance](sources/160538/provenance.json) |
 | 160547 | Lower eigenvalue bounds with hybrid high-order methods | H2 | [TeX](items/160547_author_proof.tex) | [source](https://arxiv.org/abs/2406.06244v3) [provenance](sources/160547/provenance.json) |
+| 160570 | Continuum Attention for Neural Operators | H2 | [TeX](items/160570_author_proof.tex) | [source](https://arxiv.org/abs/2406.06486v4) [provenance](sources/160570/provenance.json) |
 | 160599 | Sobolev trace inequalities on John domains and its applications | H2 | [TeX](items/160599_author_proof.tex) | [source](https://arxiv.org/abs/2406.06906v3) [provenance](sources/160599/provenance.json) |
 | 160624 | Large deviation principle for generalized multiple intersection local times of multidimensional Brownian motion | H2 | [TeX](items/160624_author_proof.tex) | [source](https://arxiv.org/abs/2406.07173v2) [provenance](sources/160624/provenance.json) |
 | 160636 | Generalized semiclassical orthogonal polynomials on the unit circle: A Riemann-Hilbert perspective | H2 | [TeX](items/160636_author_proof.tex) | [source](https://arxiv.org/abs/2406.07290v2) [provenance](sources/160636/provenance.json) |
@@ -2471,6 +2496,7 @@
 | 161091 | Normal forms for ordinary differential operators, I | H2 | [TeX](items/161091_author_proof.tex) | [source](https://arxiv.org/abs/2406.14414v4) [provenance](sources/161091/provenance.json) |
 | 161123 | On the planar Taylor-Couette system and related exterior problems | H2 | [TeX](items/161123_author_proof.tex) | [source](https://arxiv.org/abs/2406.14960v2) [provenance](sources/161123/provenance.json) |
 | 161130 | Algebraic characterization of dendricity | H2 | [TeX](items/161130_author_proof.tex) | [source](https://arxiv.org/abs/2406.15075v1) [provenance](sources/161130/provenance.json) |
+| 161137 | Global weak solutions for the inverse mean curvature flow in the Heisenberg group | H3 | [TeX](items/161137_author_proof.tex) | [source](https://arxiv.org/abs/2406.15123v3) [provenance](sources/161137/provenance.json) |
 | 161166 | A note on asymptotic cones of graph-adapted smocked spaces | H2 | [TeX](items/161166_author_proof.tex) | [source](https://arxiv.org/abs/2406.15397v5) [provenance](sources/161166/provenance.json) |
 | 161201 | Root polytopes, flow polytopes, and order polytopes | H2 | [TeX](items/161201_author_proof.tex) | [source](https://arxiv.org/abs/2406.15803v3) [provenance](sources/161201/provenance.json) |
 | 161229 | Iwahori Matsumoto presentation for modules of Iwahori fixed functions on symmetric spaces | H2 | [TeX](items/161229_author_proof.tex) | [source](https://arxiv.org/abs/2406.16070v3) [provenance](sources/161229/provenance.json) |
@@ -2505,6 +2531,7 @@
 | 161662 | Strong primeness for equivalence relations arising from Zariski dense subgroups | H2 | [TeX](items/161662_author_proof.tex) | [source](https://arxiv.org/abs/2407.01806v2) [provenance](sources/161662/provenance.json) |
 | 161678 | Decentralized Optimization with Coupled Constraints | H2 | [TeX](items/161678_author_proof.tex) | [source](https://arxiv.org/abs/2407.02020v4) [provenance](sources/161678/provenance.json) |
 | 161679 | Upper semicontinuity of algebraic dimension | H2 | [TeX](items/161679_author_proof.tex) | [source](https://arxiv.org/abs/2407.02022v3) [provenance](sources/161679/provenance.json) |
+| 161714 | Growth tightness and genericity for word metrics from injective spaces | H2 | [TeX](items/161714_author_proof.tex) | [source](https://arxiv.org/abs/2407.02378v4) [provenance](sources/161714/provenance.json) |
 | 161732 | Monoid algebras and graph products | H2 | [TeX](items/161732_author_proof.tex) | [source](https://arxiv.org/abs/2407.02615v2) [provenance](sources/161732/provenance.json) |
 | 161741 | Convex bodies with pairs of sections associated by reflections | H2 | [TeX](items/161741_author_proof.tex) | [source](https://arxiv.org/abs/2407.02755v2) [provenance](sources/161741/provenance.json) |
 | 161743 | Examining the impact of forcing function inputs on structural identifiability | H2 | [TeX](items/161743_author_proof.tex) | [source](https://arxiv.org/abs/2407.02771v2) [provenance](sources/161743/provenance.json) |
@@ -2537,6 +2564,7 @@
 | 162119 | Binary LCD Codes and Their Graph Representations | H2 | [TeX](items/162119_author_proof.tex) | [source](https://arxiv.org/abs/2407.07689v5) [provenance](sources/162119/provenance.json) |
 | 162152 | Semi-classical limit for Klein-Gordon equation toward relativistic Euler equations via an adapted modulated energy method | H2 | [TeX](items/162152_author_proof.tex) | [source](https://arxiv.org/abs/2407.08066v3) [provenance](sources/162152/provenance.json) |
 | 162165 | Scalar Function Topology Divergence: Comparing Topology of 3D Objects | H2 | [TeX](items/162165_author_proof.tex) | [source](https://arxiv.org/abs/2407.08364v3) [provenance](sources/162165/provenance.json) |
+| 162182 | Indeterminate Stieltjes moment problems revisited | H2 | [TeX](items/162182_author_proof.tex) | [source](https://arxiv.org/abs/2407.08511v1) [provenance](sources/162182/provenance.json) |
 | 162183 | Lower tail large deviations of the stochastic six vertex model | H2 | [TeX](items/162183_author_proof.tex) | [source](https://arxiv.org/abs/2407.08530v2) [provenance](sources/162183/provenance.json) |
 | 162187 | On the structure of the $d$-indivisible noncrossing partition posets | H3 | [TeX](items/162187_author_proof.tex) | [source](https://arxiv.org/abs/2407.08577v3) [provenance](sources/162187/provenance.json) |
 | 162192 | Quantitative concatenation for polynomial box norms | H2 | [TeX](items/162192_author_proof.tex) | [source](https://arxiv.org/abs/2407.08636v3) [provenance](sources/162192/provenance.json) |
@@ -2591,6 +2619,7 @@
 | 162844 | On Geometry, Arithmetics and Chaos | H2 | [TeX](items/162844_author_proof.tex) | [source](https://arxiv.org/abs/2407.17701v2) [provenance](sources/162844/provenance.json) |
 | 162854 | Global Well-Posedness of Contact Lines: 2D Navier-Stokes Flow | H3 | [TeX](items/162854_author_proof.tex) | [source](https://arxiv.org/abs/2407.17895v3) [provenance](sources/162854/provenance.json) |
 | 162908 | Automorphism Group of the Holomorph of a Cyclic Group | H2 | [TeX](items/162908_author_proof.tex) | [source](https://arxiv.org/abs/2407.18435v1) [provenance](sources/162908/provenance.json) |
+| 162926 | Overlapping substitutions and tilings | H2 | [TeX](items/162926_author_proof.tex) | [source](https://arxiv.org/abs/2407.18666v3) [provenance](sources/162926/provenance.json) |
 | 162933 | Strong chain control sets and affine control systems | H2 | [TeX](items/162933_author_proof.tex) | [source](https://arxiv.org/abs/2407.18765v1) [provenance](sources/162933/provenance.json) |
 | 162962 | Li-Yorke Chaotic Weighted Composition Operators | H2 | [TeX](items/162962_author_proof.tex) | [source](https://arxiv.org/abs/2407.19091v2) [provenance](sources/162962/provenance.json) |
 | 162996 | Relative monodromy of ramified sections on abelian schemes | H2 | [TeX](items/162996_author_proof.tex) | [source](https://arxiv.org/abs/2407.19476v4) [provenance](sources/162996/provenance.json) |
@@ -2601,8 +2630,11 @@
 | 163041 | Tropical Tevelev Degrees | H2 | [TeX](items/163041_author_proof.tex) | [source](https://arxiv.org/abs/2407.20025v1) [provenance](sources/163041/provenance.json) |
 | 163054 | Non-standard boundary behaviour in two-component mixture models | H2 | [TeX](items/163054_author_proof.tex) | [source](https://arxiv.org/abs/2407.20162v3) [provenance](sources/163054/provenance.json) |
 | 163070 | Sums of squares of regular functions on rational surfaces | H2 | [TeX](items/163070_author_proof.tex) | [source](https://arxiv.org/abs/2407.20378v2) [provenance](sources/163070/provenance.json) |
+| 163073 | Malliavin Calculus for the one-dimensional Stochastic Stefan Problem | H2 | [TeX](items/163073_author_proof.tex) | [source](https://arxiv.org/abs/2407.20389v3) [provenance](sources/163073/provenance.json) |
+| 163077 | Bounding regularity of $FI^m$-modules | H2 | [TeX](items/163077_author_proof.tex) | [source](https://arxiv.org/abs/2407.20428v2) [provenance](sources/163077/provenance.json) |
 | 163087 | Hyperelliptic four-manifolds defined by vector-colorings of simple polytopes | H2 | [TeX](items/163087_author_proof.tex) | [source](https://arxiv.org/abs/2407.20575v3) [provenance](sources/163087/provenance.json) |
 | 163115 | Topological Obstructions to the Existence of Compact Shrinking Ricci Solitons in Dimension Four | H2 | [TeX](items/163115_author_proof.tex) | [source](https://arxiv.org/abs/2407.21079v3) [provenance](sources/163115/provenance.json) |
+| 163125 | A Trek Rule for the Lyapunov Equation | H2 | [TeX](items/163125_author_proof.tex) | [source](https://arxiv.org/abs/2407.21223v4) [provenance](sources/163125/provenance.json) |
 | 163149 | Finite rank perturbation of non-Hermitian random matrices: heavy tail and sparse regimes | H2 | [TeX](items/163149_author_proof.tex) | [source](https://arxiv.org/abs/2407.21543v2) [provenance](sources/163149/provenance.json) |
 | 163158 | The Pascal Matrix, Commuting Tridiagonal Operators and Fourier Algebras | H2 | [TeX](items/163158_author_proof.tex) | [source](https://arxiv.org/abs/2407.21680v2) [provenance](sources/163158/provenance.json) |
 | 163186 | Dimension formulas for modular form spaces of rational weights, the classification of eta-quotient characters and an extension of Martin's theorem | H2 | [TeX](items/163186_author_proof.tex) | [source](https://arxiv.org/abs/2408.00246v2) [provenance](sources/163186/provenance.json) |
@@ -2646,6 +2678,7 @@
 | 163708 | Invariant part of class group and distribution of relative class group | H2 | [TeX](items/163708_author_proof.tex) | [source](https://arxiv.org/abs/2408.06676v2) [provenance](sources/163708/provenance.json) |
 | 163718 | A functional central limit theorem for the general Brownian motion on the half-line | H2 | [TeX](items/163718_author_proof.tex) | [source](https://arxiv.org/abs/2408.06830v3) [provenance](sources/163718/provenance.json) |
 | 163729 | Universally defined cycles I | H2 | [TeX](items/163729_author_proof.tex) | [source](https://arxiv.org/abs/2408.06893v2) [provenance](sources/163729/provenance.json) |
+| 163736 | A Drinfeld type presentation of twisted Yangians\\ of quasi-split type | H2 | [TeX](items/163736_author_proof.tex) | [source](https://arxiv.org/abs/2408.06981v2) [provenance](sources/163736/provenance.json) |
 | 163756 | Bilipschitz geometry of real surface singularities whose tangent cone is a plane | H2 | [TeX](items/163756_author_proof.tex) | [source](https://arxiv.org/abs/2408.07218v2) [provenance](sources/163756/provenance.json) |
 | 163764 | A note on Shintani's invariant | H2 | [TeX](items/163764_author_proof.tex) | [source](https://arxiv.org/abs/2408.07309v3) [provenance](sources/163764/provenance.json) |
 | 163765 | Arithmetic aspects of discrete periodic Toda flows | H2 | [TeX](items/163765_author_proof.tex) | [source](https://arxiv.org/abs/2408.07315v3) [provenance](sources/163765/provenance.json) |
@@ -2866,6 +2899,7 @@
 | 166920 | \textbf{Adaptive and Stratified Subsampling for\\ High-Dimensional Robust Estimation} | H2 | [TeX](items/166920_author_proof.tex) | [source](https://arxiv.org/abs/2410.12367v2) [provenance](sources/166920/provenance.json) |
 | 166925 | The eigenvalue decomposition of normal matrices by the skew-symmetric part | H2 | [TeX](items/166925_author_proof.tex) | [source](https://arxiv.org/abs/2410.12421v4) [provenance](sources/166925/provenance.json) |
 | 166926 | A primal-dual algorithm for image reconstruction with input-convex neural network regularizers | H2 | [TeX](items/166926_author_proof.tex) | [source](https://arxiv.org/abs/2410.12441v2) [provenance](sources/166926/provenance.json) |
+| 166931 | Hodge Theory for Entanglement Cohomology | H2 | [TeX](items/166931_author_proof.tex) | [source](https://arxiv.org/abs/2410.12529v4) [provenance](sources/166931/provenance.json) |
 | 166932 | Stability properties for subgroups generated by return words | H2 | [TeX](items/166932_author_proof.tex) | [source](https://arxiv.org/abs/2410.12534v1) [provenance](sources/166932/provenance.json) |
 | 166938 | An iterative construction of complete K\"ahler--Einstein metrics | H2 | [TeX](items/166938_author_proof.tex) | [source](https://arxiv.org/abs/2410.12599v3) [provenance](sources/166938/provenance.json) |
 | 166941 | An elliptic proof of the splitting theorems from Lorentzian geometry | H2 | [TeX](items/166941_author_proof.tex) | [source](https://arxiv.org/abs/2410.12632v2) [provenance](sources/166941/provenance.json) |
@@ -2948,6 +2982,7 @@
 | 167913 | Construction of Curves with a Controlled First Slope using p-Symmetric Numbers | H2 | [TeX](items/167913_author_proof.tex) | [source](https://arxiv.org/abs/2411.01832v3) [provenance](sources/167913/provenance.json) |
 | 167915 | Generalized Bohr inequalities for K-quasiconformal harmonic mappings and their applications | H2 | [TeX](items/167915_author_proof.tex) | [source](https://arxiv.org/abs/2411.01837v1) [provenance](sources/167915/provenance.json) |
 | 167920 | J-contractive operator valued functions, vector valued de Branges spaces and functional models | H2 | [TeX](items/167920_author_proof.tex) | [source](https://arxiv.org/abs/2411.01921v2) [provenance](sources/167920/provenance.json) |
+| 167925 | Del Pezzo surfaces with four log terminal singularities | H2 | [TeX](items/167925_author_proof.tex) | [source](https://arxiv.org/abs/2411.01957v2) [provenance](sources/167925/provenance.json) |
 | 167932 | The Cayley Transform on Representations | H2 | [TeX](items/167932_author_proof.tex) | [source](https://arxiv.org/abs/2411.02071v2) [provenance](sources/167932/provenance.json) |
 | 167961 | Point processes with event time uncertainty | H2 | [TeX](items/167961_author_proof.tex) | [source](https://arxiv.org/abs/2411.02694v2) [provenance](sources/167961/provenance.json) |
 | 167968 | Ordinary Isogeny Graphs with Level Structure | H2 | [TeX](items/167968_author_proof.tex) | [source](https://arxiv.org/abs/2411.02732v2) [provenance](sources/167968/provenance.json) |
@@ -2968,12 +3003,14 @@
 | 168184 | Finite models for positive combinatorial and exponential algebra | H2 | [TeX](items/168184_author_proof.tex) | [source](https://arxiv.org/abs/2411.05101v2) [provenance](sources/168184/provenance.json) |
 | 168189 | Solving Hidden Monotone Variational Inequalities with Surrogate Losses | H2 | [TeX](items/168189_author_proof.tex) | [source](https://arxiv.org/abs/2411.05228v3) [provenance](sources/168189/provenance.json) |
 | 168200 | Packing sets under finite groups via algebraic incidence structures | H2 | [TeX](items/168200_author_proof.tex) | [source](https://arxiv.org/abs/2411.05377v4) [provenance](sources/168200/provenance.json) |
+| 168248 | Symplectic Hodge Theory on Lie Algebroids | H2 | [TeX](items/168248_author_proof.tex) | [source](https://arxiv.org/abs/2411.06012v2) [provenance](sources/168248/provenance.json) |
 | 168270 | Measures and dynamics on Pascal-Bratteli diagrams | H2 | [TeX](items/168270_author_proof.tex) | [source](https://arxiv.org/abs/2411.06280v3) [provenance](sources/168270/provenance.json) |
 | 168282 | Adding the algebraic Ryu-Takayanagi formula to the algebraic reconstruction theorem | H2 | [TeX](items/168282_author_proof.tex) | [source](https://arxiv.org/abs/2411.06361v4) [provenance](sources/168282/provenance.json) |
 | 168316 | Generalized Wasserstein Barycenters | H2 | [TeX](items/168316_author_proof.tex) | [source](https://arxiv.org/abs/2411.06838v2) [provenance](sources/168316/provenance.json) |
 | 168334 | Hilbert modular Eisenstein congruences of local origin. | H2 | [TeX](items/168334_author_proof.tex) | [source](https://arxiv.org/abs/2411.06987v2) [provenance](sources/168334/provenance.json) |
 | 168341 | The Ground State Energy of Heavy Atoms: Leading and Subleading Asymptotics | H2 | [TeX](items/168341_author_proof.tex) | [source](https://arxiv.org/abs/2411.07046v1) [provenance](sources/168341/provenance.json) |
 | 168342 | Topology and regularity for generalized ultradistribution algebras | H2 | [TeX](items/168342_author_proof.tex) | [source](https://arxiv.org/abs/2411.07054v1) [provenance](sources/168342/provenance.json) |
+| 168347 | On a connection between total positivity and Bernoulli stopping problems | H2 | [TeX](items/168347_author_proof.tex) | [source](https://arxiv.org/abs/2411.07103v3) [provenance](sources/168347/provenance.json) |
 | 168366 | When does an infinite ring have a finite compressed commuting graph? | H2 | [TeX](items/168366_author_proof.tex) | [source](https://arxiv.org/abs/2411.07358v1) [provenance](sources/168366/provenance.json) |
 | 168395 | \'Etale geometry of closures of Jordan classes | H2 | [TeX](items/168395_author_proof.tex) | [source](https://arxiv.org/abs/2411.07748v2) [provenance](sources/168395/provenance.json) |
 | 168410 | Projective resolutions of simple modules and Hochschild cohomology for incidence algebras | H2 | [TeX](items/168410_author_proof.tex) | [source](https://arxiv.org/abs/2411.07910v2) [provenance](sources/168410/provenance.json) |
@@ -2999,6 +3036,7 @@
 | 168717 | Ergodicity of Langevin Dynamics and its Discretizations for Non-smooth Potentials with Linearly Growing Drift | H2 | [TeX](items/168717_author_proof.tex) | [source](https://arxiv.org/abs/2411.12051v2) [provenance](sources/168717/provenance.json) |
 | 168728 | Duality for $p$-adic geometric pro-\'etale cohomology | H2 | [TeX](items/168728_author_proof.tex) | [source](https://arxiv.org/abs/2411.12163v2) [provenance](sources/168728/provenance.json) |
 | 168735 | Asymptotic behavior for a finitely degenerate semilinear pseudo-parabolic equation | H2 | [TeX](items/168735_author_proof.tex) | [source](https://arxiv.org/abs/2411.12253v2) [provenance](sources/168735/provenance.json) |
+| 168762 | Asymptotic robustness of entanglement in noisy quantum networks and graph connectivity | H3 | [TeX](items/168762_author_proof.tex) | [source](https://arxiv.org/abs/2411.12548v2) [provenance](sources/168762/provenance.json) |
 | 168766 | Ryll-Wojtaszczyk Formulas for bihomogeneous polynomials on the sphere | H2 | [TeX](items/168766_author_proof.tex) | [source](https://arxiv.org/abs/2411.12579v2) [provenance](sources/168766/provenance.json) |
 | 168774 | Each generic polytope in $\mathbb{R}^3$ has a point with ten normals to the boundary | H2 | [TeX](items/168774_author_proof.tex) | [source](https://arxiv.org/abs/2411.12745v4) [provenance](sources/168774/provenance.json) |
 | 168779 | Loops, Holonomy and Signature | H2 | [TeX](items/168779_author_proof.tex) | [source](https://arxiv.org/abs/2411.12881v4) [provenance](sources/168779/provenance.json) |
@@ -3064,6 +3102,7 @@
 | 169403 | How to stab a polytope | H2 | [TeX](items/169403_author_proof.tex) | [source](https://arxiv.org/abs/2412.00551v1) [provenance](sources/169403/provenance.json) |
 | 169416 | Mean-Field Sampling for Cooperative Multi-Agent Reinforcement Learning | H2 | [TeX](items/169416_author_proof.tex) | [source](https://arxiv.org/abs/2412.00661v4) [provenance](sources/169416/provenance.json) |
 | 169422 | Compactness results for Sign-Changing Solutions of critical nonlinear elliptic equations of low energy | H2 | [TeX](items/169422_author_proof.tex) | [source](https://arxiv.org/abs/2412.00817v1) [provenance](sources/169422/provenance.json) |
+| 169448 | Linear minimum-variance approximants for noisy data | H2 | [TeX](items/169448_author_proof.tex) | [source](https://arxiv.org/abs/2412.01287v4) [provenance](sources/169448/provenance.json) |
 | 169450 | Hyperfiniteness on Topological Ramsey Spaces | H2 | [TeX](items/169450_author_proof.tex) | [source](https://arxiv.org/abs/2412.01315v2) [provenance](sources/169450/provenance.json) |
 | 169462 | Simultaneous symplectic spectral decomposition of positive semidefinite matrices | H2 | [TeX](items/169462_author_proof.tex) | [source](https://arxiv.org/abs/2412.01492v3) [provenance](sources/169462/provenance.json) |
 | 169481 | H\'enon maps with many rational periodic points | H2 | [TeX](items/169481_author_proof.tex) | [source](https://arxiv.org/abs/2412.01668v2) [provenance](sources/169481/provenance.json) |
@@ -3130,6 +3169,7 @@
 | 170320 | On the almost palindromic width of certain free constructions of groups | H2 | [TeX](items/170320_author_proof.tex) | [source](https://arxiv.org/abs/2412.13671v2) [provenance](sources/170320/provenance.json) |
 | 170324 | Entropy and determinants for unitary representations | H2 | [TeX](items/170324_author_proof.tex) | [source](https://arxiv.org/abs/2412.13751v4) [provenance](sources/170324/provenance.json) |
 | 170335 | Boundary values via reproducing kernels: The Julia-Carath\'eodory theorem | H2 | [TeX](items/170335_author_proof.tex) | [source](https://arxiv.org/abs/2412.13901v2) [provenance](sources/170335/provenance.json) |
+| 170379 | Microlocal analysis of double fibration transforms with conjugate points | H3 | [TeX](items/170379_author_proof.tex) | [source](https://arxiv.org/abs/2412.14520v3) [provenance](sources/170379/provenance.json) |
 | 170381 | The adjacent Hindman's theorem and the $\mathbb Z$-Ramsey's theorem | H2 | [TeX](items/170381_author_proof.tex) | [source](https://arxiv.org/abs/2412.14558v3) [provenance](sources/170381/provenance.json) |
 | 170385 | On the geography of log-surfaces | H2 | [TeX](items/170385_author_proof.tex) | [source](https://arxiv.org/abs/2412.14635v2) [provenance](sources/170385/provenance.json) |
 | 170404 | Sparse induced subgraphs in $P_7$-free graphs of bounded clique number | H3 | [TeX](items/170404_author_proof.tex) | [source](https://arxiv.org/abs/2412.14836v4) [provenance](sources/170404/provenance.json) |
@@ -3312,6 +3352,7 @@
 | 172520 | Analytic structure in spaces of Lipschitz functions | H2 | [TeX](items/172520_author_proof.tex) | [source](https://arxiv.org/abs/2501.19181v2) [provenance](sources/172520/provenance.json) |
 | 172528 | Hodge decomposition of $L_2$-cohomology and intersection cohomology of a Shimura variety | H2 | [TeX](items/172528_author_proof.tex) | [source](https://arxiv.org/abs/2501.19253v2) [provenance](sources/172528/provenance.json) |
 | 172545 | Homotopy connectivity of \v{C}ech complexes of spheres | H2 | [TeX](items/172545_author_proof.tex) | [source](https://arxiv.org/abs/2502.00122v2) [provenance](sources/172545/provenance.json) |
+| 172550 | Optimal sensor placement under model uncertainty in the weak-constraint 4D-Var framework | H2 | [TeX](items/172550_author_proof.tex) | [source](https://arxiv.org/abs/2502.00150v3) [provenance](sources/172550/provenance.json) |
 | 172554 | Geometric properties of solutions to elliptic PDE's in Gauss space and related Brunn-Minkowski type inequalities | H2 | [TeX](items/172554_author_proof.tex) | [source](https://arxiv.org/abs/2502.00184v2) [provenance](sources/172554/provenance.json) |
 | 172555 | Formalising Propositional Information via Implication Hypergraphs | H2 | [TeX](items/172555_author_proof.tex) | [source](https://arxiv.org/abs/2502.00186v2) [provenance](sources/172555/provenance.json) |
 | 172562 | Learning to Fuse Temporal Proximity Networks: A Case Study in Chimpanzee Social Interactions | H2 | [TeX](items/172562_author_proof.tex) | [source](https://arxiv.org/abs/2502.00302v3) [provenance](sources/172562/provenance.json) |
@@ -3368,6 +3409,7 @@
 | 173125 | Complexity Framework For Forbidden Subgraphs V: Beyond Simple Graphs | H2 | [TeX](items/173125_author_proof.tex) | [source](https://arxiv.org/abs/2502.07769v2) [provenance](sources/173125/provenance.json) |
 | 173140 | Perfect state transfer between real pure states | H2 | [TeX](items/173140_author_proof.tex) | [source](https://arxiv.org/abs/2502.08103v4) [provenance](sources/173140/provenance.json) |
 | 173158 | Maximal dissipation and shallow water flow -- the dam-break problem | H2 | [TeX](items/173158_author_proof.tex) | [source](https://arxiv.org/abs/2502.08329v2) [provenance](sources/173158/provenance.json) |
+| 173177 | Residually dominated groups in henselian valued fields of equicharacteristic zero | H2 | [TeX](items/173177_author_proof.tex) | [source](https://arxiv.org/abs/2502.08530v2) [provenance](sources/173177/provenance.json) |
 | 173179 | Extreme vulnerability to intruder attacks in dynamical networked systems | H2 | [TeX](items/173179_author_proof.tex) | [source](https://arxiv.org/abs/2502.08552v5) [provenance](sources/173179/provenance.json) |
 | 173180 | Separable Approximations of Optimal Value Functions and Their Representation by Neural Networks | H2 | [TeX](items/173180_author_proof.tex) | [source](https://arxiv.org/abs/2502.08559v2) [provenance](sources/173180/provenance.json) |
 | 173195 | Multi-Symmetric Schur Functions | H2 | [TeX](items/173195_author_proof.tex) | [source](https://arxiv.org/abs/2502.08738v2) [provenance](sources/173195/provenance.json) |
@@ -3455,6 +3497,7 @@
 | 174048 | A relax-fix-and-exclude algorithm for an MINLP problem with multilinear interpolations | H2 | [TeX](items/174048_author_proof.tex) | [source](https://arxiv.org/abs/2502.21249v2) [provenance](sources/174048/provenance.json) |
 | 174073 | Cauchy Random Features for Operator Learning in Sobolev Space | H2 | [TeX](items/174073_author_proof.tex) | [source](https://arxiv.org/abs/2503.00300v2) [provenance](sources/174073/provenance.json) |
 | 174086 | Asymptotics of Riemannian Lie groups with nilpotency step 2 | H2 | [TeX](items/174086_author_proof.tex) | [source](https://arxiv.org/abs/2503.00560v2) [provenance](sources/174086/provenance.json) |
+| 174096 | Representations of Hamiltonian Lie algebras | H2 | [TeX](items/174096_author_proof.tex) | [source](https://arxiv.org/abs/2503.00749v3) [provenance](sources/174096/provenance.json) |
 | 174106 | Two characterizations of Bass orders via branches | H2 | [TeX](items/174106_author_proof.tex) | [source](https://arxiv.org/abs/2503.00911v2) [provenance](sources/174106/provenance.json) |
 | 174112 | Maximum Percolation Time on the q-ary Hypercube | H2 | [TeX](items/174112_author_proof.tex) | [source](https://arxiv.org/abs/2503.00990v2) [provenance](sources/174112/provenance.json) |
 | 174115 | On a problem of Caro on the $\Z_3$-Ramsey number of forests | H2 | [TeX](items/174115_author_proof.tex) | [source](https://arxiv.org/abs/2503.01032v3) [provenance](sources/174115/provenance.json) |
@@ -3532,6 +3575,7 @@
 | 174763 | Entropy of Random Geometric Graphs in High and Low Dimensions | H2 | [TeX](items/174763_author_proof.tex) | [source](https://arxiv.org/abs/2503.11418v3) [provenance](sources/174763/provenance.json) |
 | 174767 | Scenario Reduction for Distributionally Robust Optimization | H3 | [TeX](items/174767_author_proof.tex) | [source](https://arxiv.org/abs/2503.11484v3) [provenance](sources/174767/provenance.json) |
 | 174768 | H\"older continuous mappings, differential forms and the Heisenberg groups | H2 | [TeX](items/174768_author_proof.tex) | [source](https://arxiv.org/abs/2503.11506v3) [provenance](sources/174768/provenance.json) |
+| 174772 | Para-K\"ahler immersions in \pk space forms | H2 | [TeX](items/174772_author_proof.tex) | [source](https://arxiv.org/abs/2503.11582v1) [provenance](sources/174772/provenance.json) |
 | 174773 | From Score Matching to Diffusion: \\ A Fine-Grained Error Analysis in the Gaussian Setting | H3 | [TeX](items/174773_author_proof.tex) | [source](https://arxiv.org/abs/2503.11615v3) [provenance](sources/174773/provenance.json) |
 | 174784 | A note on solitary numbers | H2 | [TeX](items/174784_author_proof.tex) | [source](https://arxiv.org/abs/2503.11694v2) [provenance](sources/174784/provenance.json) |
 | 174790 | An Improved Lower Bound on the Image of the 2-adic Character Map for the Heisenberg Algebra via Modular Linear Differential Equations | H2 | [TeX](items/174790_author_proof.tex) | [source](https://arxiv.org/abs/2503.11817v2) [provenance](sources/174790/provenance.json) |
@@ -3660,8 +3704,10 @@
 | 176040 | Permutohedral complex and complements of diagonal subspace arrangements | H2 | [TeX](items/176040_author_proof.tex) | [source](https://arxiv.org/abs/2504.04183v2) [provenance](sources/176040/provenance.json) |
 | 176055 | On the cosine similarity and orthogonality between persistence diagrams | H2 | [TeX](items/176055_author_proof.tex) | [source](https://arxiv.org/abs/2504.04361v1) [provenance](sources/176055/provenance.json) |
 | 176070 | On the Nature of Fractal Numbers and the Classical Continuum Hypothesis (CH) | H2 | [TeX](items/176070_author_proof.tex) | [source](https://arxiv.org/abs/2504.04637v5) [provenance](sources/176070/provenance.json) |
+| 176087 | How Far do Lindbladians Go? | H2 | [TeX](items/176087_author_proof.tex) | [source](https://arxiv.org/abs/2504.04883v2) [provenance](sources/176087/provenance.json) |
 | 176102 | Laplacian eigenvalues for large negative Robin parameters on domains with outward peaks (Lemma 15) | H2 | [TeX](items/176102_author_proof.tex) | [source](https://arxiv.org/abs/2504.04996v2) [provenance](sources/176102/provenance.json) |
 | 176109 | Supports for Outerplanar and Bounded Treewidth Graphs | H2 | [TeX](items/176109_author_proof.tex) | [source](https://arxiv.org/abs/2504.05039v3) [provenance](sources/176109/provenance.json) |
+| 176117 | {\textbf{\large{Generators of $H^1(\Gamma, \partial \Gamma^c)$ with $\partial \Gamma^c \subset \partial \Gamma$ for Triangulated Surfaces $\Gamma$: Construction and Classification of Global Loops}}} | H2 | [TeX](items/176117_author_proof.tex) | [source](https://arxiv.org/abs/2504.05124v2) [provenance](sources/176117/provenance.json) |
 | 176125 | A general framework for quasi-isometries in symbolic dynamics beyond groups | H3 | [TeX](items/176125_author_proof.tex) | [source](https://arxiv.org/abs/2504.05194v2) [provenance](sources/176125/provenance.json) |
 | 176127 | The H\"{o}rmander--Bernhardsson extremal function | H2 | [TeX](items/176127_author_proof.tex) | [source](https://arxiv.org/abs/2504.05205v2) [provenance](sources/176127/provenance.json) |
 | 176128 | On the cyclic behavior of singular inner functions in Besov and sequence spaces | H2 | [TeX](items/176128_author_proof.tex) | [source](https://arxiv.org/abs/2504.05208v3) [provenance](sources/176128/provenance.json) |
@@ -3672,6 +3718,7 @@
 | 176171 | On free line arrangements with double, triple and quadruple points | H2 | [TeX](items/176171_author_proof.tex) | [source](https://arxiv.org/abs/2504.05872v2) [provenance](sources/176171/provenance.json) |
 | 176177 | Totally equimodular matrices: decomposition and triangulation | H3 | [TeX](items/176177_author_proof.tex) | [source](https://arxiv.org/abs/2504.05930v2) [provenance](sources/176177/provenance.json) |
 | 176184 | Nehari's Theorem and Hardy's inequality for Paley--Wiener spaces | H2 | [TeX](items/176184_author_proof.tex) | [source](https://arxiv.org/abs/2504.05986v3) [provenance](sources/176184/provenance.json) |
+| 176189 | On Contact Round Surgeries on $(\mathbb{S}^3, \xi_{st})$ and their Diagrams | H3 | [TeX](items/176189_author_proof.tex) | [source](https://arxiv.org/abs/2504.06074v3) [provenance](sources/176189/provenance.json) |
 | 176192 | On the tightness of left-invariant contact structures | H2 | [TeX](items/176192_author_proof.tex) | [source](https://arxiv.org/abs/2504.06085v3) [provenance](sources/176192/provenance.json) |
 | 176193 | Talenti comparison results for solutions to $p$-Laplace equation on multiply connected domains | H2 | [TeX](items/176193_author_proof.tex) | [source](https://arxiv.org/abs/2504.06103v2) [provenance](sources/176193/provenance.json) |
 | 176243 | Convergence to the equilibrium for the kinetic transport equation in the two-dimensional periodic Lorentz Gas | H3 | [TeX](items/176243_author_proof.tex) | [source](https://arxiv.org/abs/2504.06839v3) [provenance](sources/176243/provenance.json) |
@@ -3699,6 +3746,7 @@
 | 176440 | Strong order $1$ adaptive approximation of jump-diffusion SDEs with discontinuous drift | H2 | [TeX](items/176440_author_proof.tex) | [source](https://arxiv.org/abs/2504.09452v2) [provenance](sources/176440/provenance.json) |
 | 176442 | Some Geometric Aspects Related to Lim's Condition | H2 | [TeX](items/176442_author_proof.tex) | [source](https://arxiv.org/abs/2504.09464v3) [provenance](sources/176442/provenance.json) |
 | 176445 | Quantitative and exact concavity principles for parabolic and elliptic equations | H2 | [TeX](items/176445_author_proof.tex) | [source](https://arxiv.org/abs/2504.09494v2) [provenance](sources/176445/provenance.json) |
+| 176448 | The impossibility of extending\\the Naimark complement | H3 | [TeX](items/176448_author_proof.tex) | [source](https://arxiv.org/abs/2504.09534v2) [provenance](sources/176448/provenance.json) |
 | 176449 | Note on a problem of S\'ark\"ozy on multiplicative representation functions | H2 | [TeX](items/176449_author_proof.tex) | [source](https://arxiv.org/abs/2504.09545v2) [provenance](sources/176449/provenance.json) |
 | 176452 | Improved regularity for a nonlocal dead-core problem | H2 | [TeX](items/176452_author_proof.tex) | [source](https://arxiv.org/abs/2504.09557v2) [provenance](sources/176452/provenance.json) |
 | 176455 | Understanding LLM Behaviors via Compression: Data Generation, Knowledge Acquisition and Scaling Laws | H2 | [TeX](items/176455_author_proof.tex) | [source](https://arxiv.org/abs/2504.09597v6) [provenance](sources/176455/provenance.json) |
@@ -3715,6 +3763,7 @@
 | 176619 | Tilings from Tops of Overlapping Iterated Function Systems | H2 | [TeX](items/176619_author_proof.tex) | [source](https://arxiv.org/abs/2504.11710v3) [provenance](sources/176619/provenance.json) |
 | 176633 | Fractional powers of the backward heat operator and Carleman type inequalities | H2 | [TeX](items/176633_author_proof.tex) | [source](https://arxiv.org/abs/2504.11950v1) [provenance](sources/176633/provenance.json) |
 | 176638 | Epstein zeta method for many-body lattice sums | H3 | [TeX](items/176638_author_proof.tex) | [source](https://arxiv.org/abs/2504.11989v2) [provenance](sources/176638/provenance.json) |
+| 176652 | Feature Selection for Data-Driven Explainable Optimization | H2 | [TeX](items/176652_author_proof.tex) | [source](https://arxiv.org/abs/2504.12184v2) [provenance](sources/176652/provenance.json) |
 | 176654 | Loose paths in random ordered hypergraphs | H2 | [TeX](items/176654_author_proof.tex) | [source](https://arxiv.org/abs/2504.12196v2) [provenance](sources/176654/provenance.json) |
 | 176673 | The Hard Lefschetz Theorem on K\"ahler Lie Algebroids | H2 | [TeX](items/176673_author_proof.tex) | [source](https://arxiv.org/abs/2504.12550v2) [provenance](sources/176673/provenance.json) |
 | 176691 | An etude on a renormalization | H2 | [TeX](items/176691_author_proof.tex) | [source](https://arxiv.org/abs/2504.12818v1) [provenance](sources/176691/provenance.json) |
@@ -3741,6 +3790,7 @@
 | 176864 | Thirty-six officers, artisanally entangled | H2 | [TeX](items/176864_author_proof.tex) | [source](https://arxiv.org/abs/2504.15401v2) [provenance](sources/176864/provenance.json) |
 | 176866 | Highest weight vectors of tensors | H2 | [TeX](items/176866_author_proof.tex) | [source](https://arxiv.org/abs/2504.15413v2) [provenance](sources/176866/provenance.json) |
 | 176873 | Cayley's First Hyperdeterminant is an Entanglement Measure | H2 | [TeX](items/176873_author_proof.tex) | [source](https://arxiv.org/abs/2504.15511v3) [provenance](sources/176873/provenance.json) |
+| 176880 | \bf Mean Curvature Flow for Isoparametric Submanifolds in Hyperbolic Spaces | H2 | [TeX](items/176880_author_proof.tex) | [source](https://arxiv.org/abs/2504.15602v3) [provenance](sources/176880/provenance.json) |
 | 176884 | The $\lambda$-$\mathsf{PSP}$ at $\lambda$-$\Pi^1_1$ sets | H2 | [TeX](items/176884_author_proof.tex) | [source](https://arxiv.org/abs/2504.15675v2) [provenance](sources/176884/provenance.json) |
 | 176897 | Modulus of continuity of Monge--Amp\`ere potentials in big cohomology classes | H2 | [TeX](items/176897_author_proof.tex) | [source](https://arxiv.org/abs/2504.15763v2) [provenance](sources/176897/provenance.json) |
 | 176898 | Gradient higher integrability for degenerate parabolic double phase systems with two modulating coefficients | H3 | [TeX](items/176898_author_proof.tex) | [source](https://arxiv.org/abs/2504.15799v2) [provenance](sources/176898/provenance.json) |
@@ -3845,6 +3895,7 @@
 | 177871 | Efficient time-domain scattering synthesis via\\ frequency-domain singularity subtraction | H2 | [TeX](items/177871_author_proof.tex) | [source](https://arxiv.org/abs/2505.06189v2) [provenance](sources/177871/provenance.json) |
 | 177876 | Determining monogenity of pure cubic number fields using elliptic curves | H2 | [TeX](items/177876_author_proof.tex) | [source](https://arxiv.org/abs/2505.06213v2) [provenance](sources/177876/provenance.json) |
 | 177877 | \Large Neural Network Operator-Based Fractal Approximation: Smoothness Preservation and Convergence Analysis | H2 | [TeX](items/177877_author_proof.tex) | [source](https://arxiv.org/abs/2505.06229v2) [provenance](sources/177877/provenance.json) |
+| 177898 | Structure Theorem for Quantum Replacer Codes | H2 | [TeX](items/177898_author_proof.tex) | [source](https://arxiv.org/abs/2505.06659v1) [provenance](sources/177898/provenance.json) |
 | 177902 | Chern character and Fermi point | H2 | [TeX](items/177902_author_proof.tex) | [source](https://arxiv.org/abs/2505.06704v2) [provenance](sources/177902/provenance.json) |
 | 177913 | Spherical Designs on $S^1$ of Finite Harmonic Strength | H2 | [TeX](items/177913_author_proof.tex) | [source](https://arxiv.org/abs/2505.06893v2) [provenance](sources/177913/provenance.json) |
 | 177929 | A Sparse Bayesian Learning Algorithm for Estimation of Interaction Kernels in Motsch-Tadmor Model | H2 | [TeX](items/177929_author_proof.tex) | [source](https://arxiv.org/abs/2505.07068v2) [provenance](sources/177929/provenance.json) |
@@ -3852,6 +3903,7 @@
 | 177944 | The Influence of the Memory Capacity of Neural DDEs on the Universal Approximation Property | H2 | [TeX](items/177944_author_proof.tex) | [source](https://arxiv.org/abs/2505.07244v2) [provenance](sources/177944/provenance.json) |
 | 177946 | Further results on latin squares with disjoint subsquares using rational outline squares | H2 | [TeX](items/177946_author_proof.tex) | [source](https://arxiv.org/abs/2505.07252v1) [provenance](sources/177946/provenance.json) |
 | 177950 | Brownian behaviour of the Riemann zeta function around the critical line | H2 | [TeX](items/177950_author_proof.tex) | [source](https://arxiv.org/abs/2505.07352v2) [provenance](sources/177950/provenance.json) |
+| 177959 | Global-local mixing for \\ infinite measure dynamical systems | H3 | [TeX](items/177959_author_proof.tex) | [source](https://arxiv.org/abs/2505.07492v2) [provenance](sources/177959/provenance.json) |
 | 177962 | Improved Mixing of Critical Hardcore Model | H2 | [TeX](items/177962_author_proof.tex) | [source](https://arxiv.org/abs/2505.07515v2) [provenance](sources/177962/provenance.json) |
 | 177965 | Exponential Relative Entropy Decay Along Quantum Markov Semigroups | H2 | [TeX](items/177965_author_proof.tex) | [source](https://arxiv.org/abs/2505.07549v2) [provenance](sources/177965/provenance.json) |
 | 177971 | \vspace*{-1.4cm}Identifiability of SDEs for reaction networks | H2 | [TeX](items/177971_author_proof.tex) | [source](https://arxiv.org/abs/2505.07638v3) [provenance](sources/177971/provenance.json) |
@@ -3941,8 +3993,11 @@
 | 178530 | Families of tractable problems with respect to vertex-interval-membership width and its generalisations | H2 | [TeX](items/178530_author_proof.tex) | [source](https://arxiv.org/abs/2505.15699v5) [provenance](sources/178530/provenance.json) |
 | 178532 | Linearized Polynomial Chinese remainder codes | H2 | [TeX](items/178532_author_proof.tex) | [source](https://arxiv.org/abs/2505.15720v2) [provenance](sources/178532/provenance.json) |
 | 178534 | Characterization of bi-parametric potentials and rate of convergence of truncated hypersingular integrals in the Dunkl setting | H2 | [TeX](items/178534_author_proof.tex) | [source](https://arxiv.org/abs/2505.15748v3) [provenance](sources/178534/provenance.json) |
+| 178535 | A note on the Brill-Noether loci of small codimension in moduli space of stable bundles | H2 | [TeX](items/178535_author_proof.tex) | [source](https://arxiv.org/abs/2505.15749v2) [provenance](sources/178535/provenance.json) |
+| 178536 | Variable Calder\'on-Hardy spaces on the Heisenberg group | H2 | [TeX](items/178536_author_proof.tex) | [source](https://arxiv.org/abs/2505.15760v2) [provenance](sources/178536/provenance.json) |
 | 178537 | A Hermitian metric on hyperbolic complex manifolds | H2 | [TeX](items/178537_author_proof.tex) | [source](https://arxiv.org/abs/2505.15780v1) [provenance](sources/178537/provenance.json) |
 | 178539 | On an Euler-Schr\"{o}dinger system appearing in laser-plasma interaction | H2 | [TeX](items/178539_author_proof.tex) | [source](https://arxiv.org/abs/2505.15815v1) [provenance](sources/178539/provenance.json) |
+| 178542 | Constant-Sum High-Order Barrier Functions\\ for Safety Between Parallel Boundaries | H2 | [TeX](items/178542_author_proof.tex) | [source](https://arxiv.org/abs/2505.15932v1) [provenance](sources/178542/provenance.json) |
 | 178544 | Grassmann and Flag Varieties in Linear Algebra, Optimization, and Statistics: An Algebraic Perspective | H2 | [TeX](items/178544_author_proof.tex) | [source](https://arxiv.org/abs/2505.15969v2) [provenance](sources/178544/provenance.json) |
 | 178550 | CUR Matrix Approximation through Convex Optimization for Feature Selection | H2 | [TeX](items/178550_author_proof.tex) | [source](https://arxiv.org/abs/2505.16032v1) [provenance](sources/178550/provenance.json) |
 | 178551 | Causal LLM Routing: End-to-End Regret Minimization from Observational Data | H2 | [TeX](items/178551_author_proof.tex) | [source](https://arxiv.org/abs/2505.16037v2) [provenance](sources/178551/provenance.json) |
@@ -3975,6 +4030,7 @@
 | 178683 | On the Rigidity of the Roots of Power Series with Constrained Coefficients | H2 | [TeX](items/178683_author_proof.tex) | [source](https://arxiv.org/abs/2505.18317v1) [provenance](sources/178683/provenance.json) |
 | 178691 | Clark-Ocone formula for the maximum of processes with the stochastic intensity and its application | H2 | [TeX](items/178691_author_proof.tex) | [source](https://arxiv.org/abs/2505.18370v1) [provenance](sources/178691/provenance.json) |
 | 178692 | Optimal community detection in dense bipartite graphs | H2 | [TeX](items/178692_author_proof.tex) | [source](https://arxiv.org/abs/2505.18372v1) [provenance](sources/178692/provenance.json) |
+| 178695 | On the PPW Conjecture for Hopf-Symmetric Sets in Non-compact Rank One Symmetric Space | H2 | [TeX](items/178695_author_proof.tex) | [source](https://arxiv.org/abs/2505.18439v3) [provenance](sources/178695/provenance.json) |
 | 178699 | Higher Order Bell Symmetric Functions | H2 | [TeX](items/178699_author_proof.tex) | [source](https://arxiv.org/abs/2505.18504v2) [provenance](sources/178699/provenance.json) |
 | 178700 | Convergence, Sticking and Escape: Stochastic Dynamics Near Critical Points in SGD | H2 | [TeX](items/178700_author_proof.tex) | [source](https://arxiv.org/abs/2505.18535v2) [provenance](sources/178700/provenance.json) |
 | 178701 | Local rigidity of convex hypersurfaces in spaces of constant curvature | H2 | [TeX](items/178701_author_proof.tex) | [source](https://arxiv.org/abs/2505.18564v2) [provenance](sources/178701/provenance.json) |
@@ -4022,6 +4078,7 @@
 | 178864 | Optimal Structure of Signal Networks for Efficient Information Aggregation | H2 | [TeX](items/178864_author_proof.tex) | [source](https://arxiv.org/abs/2505.21350v2) [provenance](sources/178864/provenance.json) |
 | 178865 | Counting Reciprocal Hyperbolic Elements in Hecke Groups | H2 | [TeX](items/178865_author_proof.tex) | [source](https://arxiv.org/abs/2505.21365v1) [provenance](sources/178865/provenance.json) |
 | 178866 | Proof of the KAMAK tree conjecture | H2 | [TeX](items/178866_author_proof.tex) | [source](https://arxiv.org/abs/2505.21367v1) [provenance](sources/178866/provenance.json) |
+| 178870 | Pushing Cops and Robber on Graphs of Maximum Degree 4 | H2 | [TeX](items/178870_author_proof.tex) | [source](https://arxiv.org/abs/2505.21450v2) [provenance](sources/178870/provenance.json) |
 | 178873 | A fixed-point theorem for face maps,\\ or deletion-tolerant random finite sets | H2 | [TeX](items/178873_author_proof.tex) | [source](https://arxiv.org/abs/2505.21484v2) [provenance](sources/178873/provenance.json) |
 | 178878 | Apprenticeship learning with prior beliefs using inverse optimization | H2 | [TeX](items/178878_author_proof.tex) | [source](https://arxiv.org/abs/2505.21639v2) [provenance](sources/178878/provenance.json) |
 | 178881 | What Data Enables Optimal Decisions? An Exact Characterization for Linear Optimization | H2 | [TeX](items/178881_author_proof.tex) | [source](https://arxiv.org/abs/2505.21692v1) [provenance](sources/178881/provenance.json) |
@@ -4072,6 +4129,7 @@
 | 179044 | Spaces with the maximal projection constant revisited | H2 | [TeX](items/179044_author_proof.tex) | [source](https://arxiv.org/abs/2505.24526v2) [provenance](sources/179044/provenance.json) |
 | 179048 | On compact sets possessing $q$-convex functions | H2 | [TeX](items/179048_author_proof.tex) | [source](https://arxiv.org/abs/2505.24588v1) [provenance](sources/179048/provenance.json) |
 | 179049 | From Group Operations to Geometric Structures: Amalgamations, HNN-Extensions, and Twisting in Coset Geometries | H2 | [TeX](items/179049_author_proof.tex) | [source](https://arxiv.org/abs/2505.24662v1) [provenance](sources/179049/provenance.json) |
+| 179053 | On the geometry of holomorphic curves and complex surface | H2 | [TeX](items/179053_author_proof.tex) | [source](https://arxiv.org/abs/2505.24719v2) [provenance](sources/179053/provenance.json) |
 | 179056 | On Noether's Degree Bound for Finite Group Schemes | H2 | [TeX](items/179056_author_proof.tex) | [source](https://arxiv.org/abs/2505.24752v1) [provenance](sources/179056/provenance.json) |
 | 179059 | Cardinalities of the total number of independent sets | H2 | [TeX](items/179059_author_proof.tex) | [source](https://arxiv.org/abs/2505.24794v2) [provenance](sources/179059/provenance.json) |
 | 179066 | Non-Hausdorff Incidence Completions of Finite Coverings: Monodromy, Transport, and Defect Posets | H2 | [TeX](items/179066_author_proof.tex) | [source](https://arxiv.org/abs/2506.00031v6) [provenance](sources/179066/provenance.json) |
@@ -4091,6 +4149,7 @@
 | 179124 | The average-case complexity of the Word Problem for groups of matrices over $\mathbb{Z}$ is linear | H2 | [TeX](items/179124_author_proof.tex) | [source](https://arxiv.org/abs/2506.00948v2) [provenance](sources/179124/provenance.json) |
 | 179127 | On a Variation of Gambler's Ruin Problem | H2 | [TeX](items/179127_author_proof.tex) | [source](https://arxiv.org/abs/2506.00990v1) [provenance](sources/179127/provenance.json) |
 | 179132 | Typical $T$-free graphs | H2 | [TeX](items/179132_author_proof.tex) | [source](https://arxiv.org/abs/2506.01067v1) [provenance](sources/179132/provenance.json) |
+| 179136 | On some indices of foliations and applications | H2 | [TeX](items/179136_author_proof.tex) | [source](https://arxiv.org/abs/2506.01090v2) [provenance](sources/179136/provenance.json) |
 | 179141 | Finite version of the $q$-analogue of de Finetti's theorem | H2 | [TeX](items/179141_author_proof.tex) | [source](https://arxiv.org/abs/2506.01176v1) [provenance](sources/179141/provenance.json) |
 | 179142 | SVarM: Linear Support Varifold Machines for Classification and Regression on Geometric Data | H2 | [TeX](items/179142_author_proof.tex) | [source](https://arxiv.org/abs/2506.01189v2) [provenance](sources/179142/provenance.json) |
 | 179144 | Learning collective variables that preserve transition rates | H2 | [TeX](items/179144_author_proof.tex) | [source](https://arxiv.org/abs/2506.01222v2) [provenance](sources/179144/provenance.json) |
@@ -4165,6 +4224,7 @@
 | 179396 | Global dynamics above the ground state for the energy-critical Hartree equation with radial data | H2 | [TeX](items/179396_author_proof.tex) | [source](https://arxiv.org/abs/2506.05406v1) [provenance](sources/179396/provenance.json) |
 | 179399 | Orthonormal Strichartz estimates for Dunkl-Schr\"{o}dinger equation of initial data with Sobolev regularity | H2 | [TeX](items/179399_author_proof.tex) | [source](https://arxiv.org/abs/2506.05493v2) [provenance](sources/179399/provenance.json) |
 | 179402 | Combinatorics of descent algebras and graph coverings | H2 | [TeX](items/179402_author_proof.tex) | [source](https://arxiv.org/abs/2506.05528v1) [provenance](sources/179402/provenance.json) |
+| 179405 | On the orbital stability of periodic snoidal waves for the $\phi^4-$equation | H3 | [TeX](items/179405_author_proof.tex) | [source](https://arxiv.org/abs/2506.05547v4) [provenance](sources/179405/provenance.json) |
 | 179407 | Deformations of OP ensembles in a bulk critical scaling | H2 | [TeX](items/179407_author_proof.tex) | [source](https://arxiv.org/abs/2506.05622v1) [provenance](sources/179407/provenance.json) |
 | 179409 | Two dimensional integral representations via branches of the Bruhat-Tits tree | H2 | [TeX](items/179409_author_proof.tex) | [source](https://arxiv.org/abs/2506.05661v2) [provenance](sources/179409/provenance.json) |
 | 179413 | Permutations with a fixed number of occurrences of a monotone pattern | H2 | [TeX](items/179413_author_proof.tex) | [source](https://arxiv.org/abs/2506.05712v2) [provenance](sources/179413/provenance.json) |
@@ -4199,6 +4259,7 @@
 | 179531 | Spencer Differential Degeneration Theory and Its Applications in Algebraic Geometry | H2 | [TeX](items/179531_author_proof.tex) | [source](https://arxiv.org/abs/2506.07410v2) [provenance](sources/179531/provenance.json) |
 | 179534 | Uniform \v{S}olt\'es' hypergraphs and \v{S}olt\'es' weighted graphs | H2 | [TeX](items/179534_author_proof.tex) | [source](https://arxiv.org/abs/2506.07511v1) [provenance](sources/179534/provenance.json) |
 | 179535 | Critical singular problems in Carnot groups | H2 | [TeX](items/179535_author_proof.tex) | [source](https://arxiv.org/abs/2506.07521v1) [provenance](sources/179535/provenance.json) |
+| 179538 | Tug-of-war games related to $p$-Laplace type equations with zeroth order terms | H3 | [TeX](items/179538_author_proof.tex) | [source](https://arxiv.org/abs/2506.07537v3) [provenance](sources/179538/provenance.json) |
 | 179541 | Existence and Uniqueness for the Fractional Gelfand Equation in $\mathbb{R}$ | H2 | [TeX](items/179541_author_proof.tex) | [source](https://arxiv.org/abs/2506.07577v1) [provenance](sources/179541/provenance.json) |
 | 179542 | On the stability of the annulus for the torsion of multiply connected domains | H3 | [TeX](items/179542_author_proof.tex) | [source](https://arxiv.org/abs/2506.07592v2) [provenance](sources/179542/provenance.json) |
 | 179547 | Simple polynomial equations over $(2 \times 2)$-matrices | H2 | [TeX](items/179547_author_proof.tex) | [source](https://arxiv.org/abs/2506.07689v1) [provenance](sources/179547/provenance.json) |
@@ -4447,6 +4508,7 @@
 | 180471 | Fundamental Solutions of the Logarithmic Laplacian: An Approach via the Division Problem | H2 | [TeX](items/180471_author_proof.tex) | [source](https://arxiv.org/abs/2506.20121v1) [provenance](sources/180471/provenance.json) |
 | 180473 | Values at non-positive integers of partially twisted multiple zeta-functions II | H2 | [TeX](items/180473_author_proof.tex) | [source](https://arxiv.org/abs/2506.20150v1) [provenance](sources/180473/provenance.json) |
 | 180475 | On the Minimality of the Conductor for Elliptic Curve $L$-Functions | H2 | [TeX](items/180475_author_proof.tex) | [source](https://arxiv.org/abs/2506.20175v2) [provenance](sources/180475/provenance.json) |
+| 180479 | DefElement: an encyclopedia of finite element definitions | H2 | [TeX](items/180479_author_proof.tex) | [source](https://arxiv.org/abs/2506.20188v2) [provenance](sources/180479/provenance.json) |
 | 180489 | Enumeration of subsets with closedness in finite fields of characteristic 2 | H2 | [TeX](items/180489_author_proof.tex) | [source](https://arxiv.org/abs/2506.20351v1) [provenance](sources/180489/provenance.json) |
 | 180491 | On Hardy-Littlewood-Sobolev estimates for degenerate Laplacians | H2 | [TeX](items/180491_author_proof.tex) | [source](https://arxiv.org/abs/2506.20368v3) [provenance](sources/180491/provenance.json) |
 | 180495 | More about solutions of quadratic equations | H2 | [TeX](items/180495_author_proof.tex) | [source](https://arxiv.org/abs/2506.20429v1) [provenance](sources/180495/provenance.json) |
@@ -4514,6 +4576,7 @@
 | 180718 | Quasi-isometric embeddings of Ramanujan complexes | H2 | [TeX](items/180718_author_proof.tex) | [source](https://arxiv.org/abs/2506.23585v2) [provenance](sources/180718/provenance.json) |
 | 180722 | Spectral properties of Schr\"odinger operator with translations and Neumann boundary conditions | H2 | [TeX](items/180722_author_proof.tex) | [source](https://arxiv.org/abs/2506.23645v1) [provenance](sources/180722/provenance.json) |
 | 180726 | Hybrid Risk Processes: A Versatile Framework for Modern Ruin Problems | H2 | [TeX](items/180726_author_proof.tex) | [source](https://arxiv.org/abs/2506.23685v1) [provenance](sources/180726/provenance.json) |
+| 180729 | On outer automorphisms of certain graph $\textrm{C}^{\ast}$-algebras | H2 | [TeX](items/180729_author_proof.tex) | [source](https://arxiv.org/abs/2506.23709v1) [provenance](sources/180729/provenance.json) |
 | 180732 | On the distribution of shapes of pure quartic number fields | H2 | [TeX](items/180732_author_proof.tex) | [source](https://arxiv.org/abs/2506.23766v2) [provenance](sources/180732/provenance.json) |
 | 180734 | Production Planning Under Demand and Endogenous Supply Uncertainty | H2 | [TeX](items/180734_author_proof.tex) | [source](https://arxiv.org/abs/2506.23780v1) [provenance](sources/180734/provenance.json) |
 | 180735 | \bf\Large Sabotaging Mantel's Theorem | H2 | [TeX](items/180735_author_proof.tex) | [source](https://arxiv.org/abs/2506.23794v2) [provenance](sources/180735/provenance.json) |
@@ -4553,6 +4616,7 @@
 | 180847 | The Sadovskii vortex family: existence, regularity and orbital stability of axis-touching maximizers | H2 | [TeX](items/180847_author_proof.tex) | [source](https://arxiv.org/abs/2507.00910v3) [provenance](sources/180847/provenance.json) |
 | 180848 | Convergence Rate Analysis for Monotone Accelerated Proximal Gradient Method | H2 | [TeX](items/180848_author_proof.tex) | [source](https://arxiv.org/abs/2507.00939v3) [provenance](sources/180848/provenance.json) |
 | 180859 | $\mathsf{MA} (\mathcal{I}$) and a Failure of Separation on the third Level | H2 | [TeX](items/180859_author_proof.tex) | [source](https://arxiv.org/abs/2507.01187v1) [provenance](sources/180859/provenance.json) |
+| 180870 | A Permanental Analog of the Rank--Nullity Theorem for Symmetric Matrices | H2 | [TeX](items/180870_author_proof.tex) | [source](https://arxiv.org/abs/2507.01344v4) [provenance](sources/180870/provenance.json) |
 | 180871 | Unimodality for Radon partitions of random vectors | H2 | [TeX](items/180871_author_proof.tex) | [source](https://arxiv.org/abs/2507.01353v1) [provenance](sources/180871/provenance.json) |
 | 180873 | Suleimanov-Talanov self-focusing and the hierarchy of the focusing nonlinear Schr\"odinger equation | H2 | [TeX](items/180873_author_proof.tex) | [source](https://arxiv.org/abs/2507.01393v1) [provenance](sources/180873/provenance.json) |
 | 180876 | On Iterated Lorenz Curves with Applications: The Multivariate Case | H2 | [TeX](items/180876_author_proof.tex) | [source](https://arxiv.org/abs/2507.01406v3) [provenance](sources/180876/provenance.json) |
@@ -4625,6 +4689,7 @@
 | 181112 | Bounds for the number of basic feasible solutions generated by the simplex method with the largest distance rule | H2 | [TeX](items/181112_author_proof.tex) | [source](https://arxiv.org/abs/2507.04672v3) [provenance](sources/181112/provenance.json) |
 | 181113 | Joint numerical radius of Tuples: Extreme points, subdifferential set and Gateaux derivative | H2 | [TeX](items/181113_author_proof.tex) | [source](https://arxiv.org/abs/2507.04700v1) [provenance](sources/181113/provenance.json) |
 | 181115 | A description of classical field equations using extensions of graded Poisson brackets | H2 | [TeX](items/181115_author_proof.tex) | [source](https://arxiv.org/abs/2507.04743v1) [provenance](sources/181115/provenance.json) |
+| 181116 | \textbf{Best approximation of a three-variable function by sum of one-variable coordinate functions} | H3 | [TeX](items/181116_author_proof.tex) | [source](https://arxiv.org/abs/2507.04747v2) [provenance](sources/181116/provenance.json) |
 | 181128 | Time-inconsistent singular control problems: Reflection and Absolutely continuous controls with exploding rates | H2 | [TeX](items/181128_author_proof.tex) | [source](https://arxiv.org/abs/2507.04836v1) [provenance](sources/181128/provenance.json) |
 | 181130 | Computing Expansions in Infinitely Many Cantor Real Bases via a Single Transducer | H2 | [TeX](items/181130_author_proof.tex) | [source](https://arxiv.org/abs/2507.04848v1) [provenance](sources/181130/provenance.json) |
 | 181133 | Total sequences and the lower frame inequality | H2 | [TeX](items/181133_author_proof.tex) | [source](https://arxiv.org/abs/2507.04899v2) [provenance](sources/181133/provenance.json) |
@@ -4759,6 +4824,7 @@
 | 181584 | On the forts and related parameters of the hypercube graph | H2 | [TeX](items/181584_author_proof.tex) | [source](https://arxiv.org/abs/2507.10826v1) [provenance](sources/181584/provenance.json) |
 | 181586 | Covering Complete Geometric Graphs by Monotone Paths | H2 | [TeX](items/181586_author_proof.tex) | [source](https://arxiv.org/abs/2507.10840v2) [provenance](sources/181586/provenance.json) |
 | 181589 | Orders of commutators and Products of conjugacy classes in finite groups | H2 | [TeX](items/181589_author_proof.tex) | [source](https://arxiv.org/abs/2507.10882v3) [provenance](sources/181589/provenance.json) |
+| 181590 | Learning from Imperfect Data: Robust Inference of Dynamic Systems using Simulation-based Generative Model | H2 | [TeX](items/181590_author_proof.tex) | [source](https://arxiv.org/abs/2507.10884v2) [provenance](sources/181590/provenance.json) |
 | 181591 | Cappell-Shaneson polynomials | H2 | [TeX](items/181591_author_proof.tex) | [source](https://arxiv.org/abs/2507.10885v1) [provenance](sources/181591/provenance.json) |
 | 181597 | Rapid Mixing of Glauber Dynamics for Monotone Systems via Entropic Independence | H2 | [TeX](items/181597_author_proof.tex) | [source](https://arxiv.org/abs/2507.11031v1) [provenance](sources/181597/provenance.json) |
 | 181608 | On maximal curves of $n$-correct sets | H2 | [TeX](items/181608_author_proof.tex) | [source](https://arxiv.org/abs/2507.11207v1) [provenance](sources/181608/provenance.json) |
@@ -4775,6 +4841,7 @@
 | 181641 | State-based approach to the numerical solution of Dirichlet boundary optimal control problems for the Laplace equation | H2 | [TeX](items/181641_author_proof.tex) | [source](https://arxiv.org/abs/2507.11646v1) [provenance](sources/181641/provenance.json) |
 | 181642 | On a family of sums of powers of the floor function and their links with generalized Dedekind sums | H2 | [TeX](items/181642_author_proof.tex) | [source](https://arxiv.org/abs/2507.11666v1) [provenance](sources/181642/provenance.json) |
 | 181645 | Multiset Metric Dimension of Binomial Random Graphs | H2 | [TeX](items/181645_author_proof.tex) | [source](https://arxiv.org/abs/2507.11686v2) [provenance](sources/181645/provenance.json) |
+| 181649 | Jacobi-Haantjes manifolds, Integrability \\ and Dissipative Mechanical Systems | H3 | [TeX](items/181649_author_proof.tex) | [source](https://arxiv.org/abs/2507.11715v3) [provenance](sources/181649/provenance.json) |
 | 181653 | A Relativity-Based Framework for Statistical Testing Guided by the Independence of Ancillary Statistics: Methodology and Nonparametric Illustrations | H2 | [TeX](items/181653_author_proof.tex) | [source](https://arxiv.org/abs/2507.11816v2) [provenance](sources/181653/provenance.json) |
 | 181656 | Blocking Sets and Power Residue Modulo Integers with Bounded Number of Prime Factors | H2 | [TeX](items/181656_author_proof.tex) | [source](https://arxiv.org/abs/2507.11828v1) [provenance](sources/181656/provenance.json) |
 | 181659 | Asymptotic Critical Radii in Random Geometric Graphs over Higher-dimensional Regions | H2 | [TeX](items/181659_author_proof.tex) | [source](https://arxiv.org/abs/2507.11879v1) [provenance](sources/181659/provenance.json) |
@@ -4999,6 +5066,7 @@
 | 182422 | Maker playing against an invisible Breaker | H2 | [TeX](items/182422_author_proof.tex) | [source](https://arxiv.org/abs/2507.22519v1) [provenance](sources/182422/provenance.json) |
 | 182423 | Supersymmetric Schur polynomials have saturated Newton polytopes | H2 | [TeX](items/182423_author_proof.tex) | [source](https://arxiv.org/abs/2507.22528v2) [provenance](sources/182423/provenance.json) |
 | 182430 | A Structure-Preserving Rational Integrator for the Replicator Dynamics on the Probability Simplex | H2 | [TeX](items/182430_author_proof.tex) | [source](https://arxiv.org/abs/2507.22609v1) [provenance](sources/182430/provenance.json) |
+| 182435 | Local smoothing and maximal estimates for average over surfaces of codimension 2 in $\mathbb R^4$ | H2 | [TeX](items/182435_author_proof.tex) | [source](https://arxiv.org/abs/2507.22695v2) [provenance](sources/182435/provenance.json) |
 | 182438 | Dynamic Exponent Market Maker: Personalized Portfolio Manager and One Pool to Trade Them All | H2 | [TeX](items/182438_author_proof.tex) | [source](https://arxiv.org/abs/2507.22732v1) [provenance](sources/182438/provenance.json) |
 | 182441 | Sections and cones | H2 | [TeX](items/182441_author_proof.tex) | [source](https://arxiv.org/abs/2507.22783v3) [provenance](sources/182441/provenance.json) |
 | 182444 | Numerical Fredholm determinants for matrix-valued kernels on the real line | H2 | [TeX](items/182444_author_proof.tex) | [source](https://arxiv.org/abs/2507.22875v1) [provenance](sources/182444/provenance.json) |
@@ -5275,6 +5343,7 @@
 | 183535 | Mean field social optimization: feedback person-by-person optimality and the dynamic programming equation | H2 | [TeX](items/183535_author_proof.tex) | [source](https://arxiv.org/abs/2508.14236v2) [provenance](sources/183535/provenance.json) |
 | 183536 | The Exponential Hyper-Zagreb Indices and Structural Properties of Trees and Bipartite Graphs | H2 | [TeX](items/183536_author_proof.tex) | [source](https://arxiv.org/abs/2508.14238v1) [provenance](sources/183536/provenance.json) |
 | 183545 | More on Nosal's spectral theorem: Books and $4$-cycles | H3 | [TeX](items/183545_author_proof.tex) | [source](https://arxiv.org/abs/2508.14366v1) [provenance](sources/183545/provenance.json) |
+| 183546 | A generalized Hurwitz stability criterion via rectangular block Hankel matrices for nonmonic matrix polynomials | H2 | [TeX](items/183546_author_proof.tex) | [source](https://arxiv.org/abs/2508.14376v7) [provenance](sources/183546/provenance.json) |
 | 183553 | Centralizers in Hecke Algebras of Any Coxeter Group | H2 | [TeX](items/183553_author_proof.tex) | [source](https://arxiv.org/abs/2508.14473v1) [provenance](sources/183553/provenance.json) |
 | 183554 | Injective (edge) colorings of generalized Sierpi\'{n}ski graphs | H2 | [TeX](items/183554_author_proof.tex) | [source](https://arxiv.org/abs/2508.14479v2) [provenance](sources/183554/provenance.json) |
 | 183556 | An elementary construction of the ring of dual $K$-$Q$-cancellation property | H2 | [TeX](items/183556_author_proof.tex) | [source](https://arxiv.org/abs/2508.14484v1) [provenance](sources/183556/provenance.json) |
@@ -5424,6 +5493,7 @@
 | 184031 | Free energy of the Coulomb gas in the determinantal case on Riemann surfaces | H2 | [TeX](items/184031_author_proof.tex) | [source](https://arxiv.org/abs/2508.20598v5) [provenance](sources/184031/provenance.json) |
 | 184036 | Invariant Einstein metrics on basic classical Lie supergroups | H2 | [TeX](items/184036_author_proof.tex) | [source](https://arxiv.org/abs/2508.20639v1) [provenance](sources/184036/provenance.json) |
 | 184044 | Transparent Semantic Spaces: A Categorical Approach to Explainable Word Embeddings | H2 | [TeX](items/184044_author_proof.tex) | [source](https://arxiv.org/abs/2508.20701v1) [provenance](sources/184044/provenance.json) |
+| 184046 | Separating subsets from their images | H2 | [TeX](items/184046_author_proof.tex) | [source](https://arxiv.org/abs/2508.20731v2) [provenance](sources/184046/provenance.json) |
 | 184051 | Higher-Order Linear Differential Equations for Unitary Matrix Integrals: Applications and Generalisations | H2 | [TeX](items/184051_author_proof.tex) | [source](https://arxiv.org/abs/2508.20797v3) [provenance](sources/184051/provenance.json) |
 | 184056 | Annihilating ideals and Agler--McCarthy spectral varieties in the bidisc | H2 | [TeX](items/184056_author_proof.tex) | [source](https://arxiv.org/abs/2508.20826v2) [provenance](sources/184056/provenance.json) |
 | 184057 | On the Prym map of degree 4 cyclic covers of hyperelliptic curves | H2 | [TeX](items/184057_author_proof.tex) | [source](https://arxiv.org/abs/2508.20838v2) [provenance](sources/184057/provenance.json) |
@@ -5604,10 +5674,12 @@
 | 184891 | Long time strong convergence analysis of one-step methods for McKean-Vlasov SDEs with superlinear growth coefficients | H2 | [TeX](items/184891_author_proof.tex) | [source](https://arxiv.org/abs/2509.09274v1) [provenance](sources/184891/provenance.json) |
 | 184896 | Parke-Taylor varieties | H2 | [TeX](items/184896_author_proof.tex) | [source](https://arxiv.org/abs/2509.09323v1) [provenance](sources/184896/provenance.json) |
 | 184898 | Endomorphisms of the Cohomology Algebra of the Even Orthogonal Grassmannian | H2 | [TeX](items/184898_author_proof.tex) | [source](https://arxiv.org/abs/2509.09363v2) [provenance](sources/184898/provenance.json) |
+| 184899 | Approximation by Neural Network operators in\\ $L^p$ spaces associated with an arbitrary measure | H2 | [TeX](items/184899_author_proof.tex) | [source](https://arxiv.org/abs/2509.09377v2) [provenance](sources/184899/provenance.json) |
 | 184903 | Moduli spaces of open strings have polylogarithmic Mirzakhani volumes | H2 | [TeX](items/184903_author_proof.tex) | [source](https://arxiv.org/abs/2509.09401v2) [provenance](sources/184903/provenance.json) |
 | 184909 | The minimal periodicity for integral bases of pure number fields | H2 | [TeX](items/184909_author_proof.tex) | [source](https://arxiv.org/abs/2509.09457v3) [provenance](sources/184909/provenance.json) |
 | 184910 | Minimality of Tree Tensor Network Ranks | H2 | [TeX](items/184910_author_proof.tex) | [source](https://arxiv.org/abs/2509.09463v2) [provenance](sources/184910/provenance.json) |
 | 184911 | The Schwarz lemma for holomorphic and minimal disks at the boundary | H2 | [TeX](items/184911_author_proof.tex) | [source](https://arxiv.org/abs/2509.09471v4) [provenance](sources/184911/provenance.json) |
+| 184914 | $H^\infty$-calculus for the Dirichlet Laplacian on conical domains | H3 | [TeX](items/184914_author_proof.tex) | [source](https://arxiv.org/abs/2509.09519v2) [provenance](sources/184914/provenance.json) |
 | 184918 | Boolean Rank via Monomial Ideals: monomials in the determinantal ideal correspond to isolated sets (printed as Theorem 4.13) | H2 | [TeX](items/184918_author_proof.tex) | [source](https://arxiv.org/abs/2509.09570v2) [provenance](sources/184918/provenance.json) |
 | 184922 | Orthogonal Latin Squares of Order Ten with Two Relations: A SAT Investigation | H2 | [TeX](items/184922_author_proof.tex) | [source](https://arxiv.org/abs/2509.09633v3) [provenance](sources/184922/provenance.json) |
 | 184926 | On the edge expansion of random polytopes | H2 | [TeX](items/184926_author_proof.tex) | [source](https://arxiv.org/abs/2509.09831v1) [provenance](sources/184926/provenance.json) |
@@ -5629,6 +5701,7 @@
 | 184990 | Etudes in the inverse spectral problem, II | H2 | [TeX](items/184990_author_proof.tex) | [source](https://arxiv.org/abs/2509.10699v1) [provenance](sources/184990/provenance.json) |
 | 185003 | Cops and Robbers on Graphs with Path Constraints | H2 | [TeX](items/185003_author_proof.tex) | [source](https://arxiv.org/abs/2509.10941v1) [provenance](sources/185003/provenance.json) |
 | 185014 | Existence and uniqueness of Remotely Almost Periodic solutions of differential equations and applications | H2 | [TeX](items/185014_author_proof.tex) | [source](https://arxiv.org/abs/2509.11069v1) [provenance](sources/185014/provenance.json) |
+| 185015 | Hanlon-Hicks-Lazarev resolution revisited | H2 | [TeX](items/185015_author_proof.tex) | [source](https://arxiv.org/abs/2509.11077v2) [provenance](sources/185015/provenance.json) |
 | 185019 | New examples of words for which binomial complexities and subword complexity coincide | H2 | [TeX](items/185019_author_proof.tex) | [source](https://arxiv.org/abs/2509.11172v2) [provenance](sources/185019/provenance.json) |
 | 185022 | Log-Concavity and Log-Convexity of Restricted Infinite Products | H2 | [TeX](items/185022_author_proof.tex) | [source](https://arxiv.org/abs/2509.11246v1) [provenance](sources/185022/provenance.json) |
 | 185028 | Some Robustness Properties of Label Cleaning | H3 | [TeX](items/185028_author_proof.tex) | [source](https://arxiv.org/abs/2509.11379v3) [provenance](sources/185028/provenance.json) |
@@ -5867,6 +5940,7 @@
 | 185852 | When is the canonical conductor minimal? | H2 | [TeX](items/185852_author_proof.tex) | [source](https://arxiv.org/abs/2509.22966v2) [provenance](sources/185852/provenance.json) |
 | 185856 | Global boundedness of solutions of degenerate and non-uniform parabolic equations | H2 | [TeX](items/185856_author_proof.tex) | [source](https://arxiv.org/abs/2509.23064v1) [provenance](sources/185856/provenance.json) |
 | 185858 | Decompositions of graphs with degree constraints relative to prescribed subgraphs | H2 | [TeX](items/185858_author_proof.tex) | [source](https://arxiv.org/abs/2509.23078v1) [provenance](sources/185858/provenance.json) |
+| 185865 | An analytic proof of Griffiths' conjecture on compact Riemann surfaces | H2 | [TeX](items/185865_author_proof.tex) | [source](https://arxiv.org/abs/2509.23201v2) [provenance](sources/185865/provenance.json) |
 | 185868 | On a class of m-Isometric and Quasi-m-isometric operators | H2 | [TeX](items/185868_author_proof.tex) | [source](https://arxiv.org/abs/2509.23239v1) [provenance](sources/185868/provenance.json) |
 | 185869 | Deep Learning for Subspace Regression | H2 | [TeX](items/185869_author_proof.tex) | [source](https://arxiv.org/abs/2509.23249v4) [provenance](sources/185869/provenance.json) |
 | 185874 | Finding the diameter of a tree with distance queries | H2 | [TeX](items/185874_author_proof.tex) | [source](https://arxiv.org/abs/2509.23326v1) [provenance](sources/185874/provenance.json) |
@@ -5877,6 +5951,7 @@
 | 185885 | Unifying local and nonlocal corrosion frameworks: A convergent nonlocal extension of the KKS phase-field model | H2 | [TeX](items/185885_author_proof.tex) | [source](https://arxiv.org/abs/2509.23503v1) [provenance](sources/185885/provenance.json) |
 | 185887 | Bounds for the Permutation Flowshop Scheduling Problem: New Framework and Theoretical Insights | H2 | [TeX](items/185887_author_proof.tex) | [source](https://arxiv.org/abs/2509.23512v1) [provenance](sources/185887/provenance.json) |
 | 185891 | Asymptotic Error Analysis of Gauss Quadrature for Nonsmooth Functions | H2 | [TeX](items/185891_author_proof.tex) | [source](https://arxiv.org/abs/2509.23532v1) [provenance](sources/185891/provenance.json) |
+| 185893 | Noncommutative localizations of a contractive quantum plane | H3 | [TeX](items/185893_author_proof.tex) | [source](https://arxiv.org/abs/2509.23539v2) [provenance](sources/185893/provenance.json) |
 | 185894 | Wave packet decompositions and sharp bilinear estimates for rough Hamiltonian flows | H2 | [TeX](items/185894_author_proof.tex) | [source](https://arxiv.org/abs/2509.23551v3) [provenance](sources/185894/provenance.json) |
 | 185897 | Calibration Meets Reality: Making Machine Learning Predictions Trustworthy | H2 | [TeX](items/185897_author_proof.tex) | [source](https://arxiv.org/abs/2509.23665v1) [provenance](sources/185897/provenance.json) |
 | 185908 | Zero-Waiting Load Balancing with Heterogeneous Servers in \\ Heavy Traffic | H2 | [TeX](items/185908_author_proof.tex) | [source](https://arxiv.org/abs/2509.23918v2) [provenance](sources/185908/provenance.json) |
@@ -5985,6 +6060,7 @@
 | 186277 | Diffusion Models and the Manifold Hypothesis: Log-Domain Smoothing is Geometry Adaptive | H2 | [TeX](items/186277_author_proof.tex) | [source](https://arxiv.org/abs/2510.02305v1) [provenance](sources/186277/provenance.json) |
 | 186286 | Two Proofs of the Hamiltonian Cycle Identity | H2 | [TeX](items/186286_author_proof.tex) | [source](https://arxiv.org/abs/2510.02473v1) [provenance](sources/186286/provenance.json) |
 | 186292 | The Log-Rank Conjecture: New Equivalent Formulations | H2 | [TeX](items/186292_author_proof.tex) | [source](https://arxiv.org/abs/2510.02583v3) [provenance](sources/186292/provenance.json) |
+| 186294 | The shrinking target and recurrence problem for non-autonomous systems | H2 | [TeX](items/186294_author_proof.tex) | [source](https://arxiv.org/abs/2510.02586v2) [provenance](sources/186294/provenance.json) |
 | 186301 | On the invariant surface area functionals in 3-dimensional CR geometry | H2 | [TeX](items/186301_author_proof.tex) | [source](https://arxiv.org/abs/2510.02632v2) [provenance](sources/186301/provenance.json) |
 | 186304 | Flow Matching for Measure Transport and Feedback Control of Control-Affine Systems | H3 | [TeX](items/186304_author_proof.tex) | [source](https://arxiv.org/abs/2510.02706v3) [provenance](sources/186304/provenance.json) |
 | 186308 | Box dimension of the graphs of recurrent fractal interpolation functions | H2 | [TeX](items/186308_author_proof.tex) | [source](https://arxiv.org/abs/2510.02754v1) [provenance](sources/186308/provenance.json) |
@@ -6064,6 +6140,7 @@
 | 186571 | Minimal Unimodal Decomposition is NP-Hard on Graphs | H2 | [TeX](items/186571_author_proof.tex) | [source](https://arxiv.org/abs/2510.05944v1) [provenance](sources/186571/provenance.json) |
 | 186573 | Eigenstructure of the linearized electrical impedance tomography problem under radial perturbations | H3 | [TeX](items/186573_author_proof.tex) | [source](https://arxiv.org/abs/2510.05966v2) [provenance](sources/186573/provenance.json) |
 | 186575 | Existence and Nonexistence Breaking Results For a Weighted Elliptic Problem in Half-Space | H2 | [TeX](items/186575_author_proof.tex) | [source](https://arxiv.org/abs/2510.05999v1) [provenance](sources/186575/provenance.json) |
+| 186576 | Automorphically Equivalent Elements Of Finite Abelian Groups | H2 | [TeX](items/186576_author_proof.tex) | [source](https://arxiv.org/abs/2510.06013v2) [provenance](sources/186576/provenance.json) |
 | 186577 | A Generalisation on Erd\H{o}s Distinct Subset Sums Problem | H2 | [TeX](items/186577_author_proof.tex) | [source](https://arxiv.org/abs/2510.06032v1) [provenance](sources/186577/provenance.json) |
 | 186578 | Quantitative Driver-Only Capacity Cores and Simultaneous Scalar It\^o Flows | H3 | [TeX](items/186578_author_proof.tex) | [source](https://arxiv.org/abs/2510.06054v6) [provenance](sources/186578/provenance.json) |
 | 186583 | Lagrangian Dual Sections: A Topological Perspective on Hidden Convexity | H2 | [TeX](items/186583_author_proof.tex) | [source](https://arxiv.org/abs/2510.06112v3) [provenance](sources/186583/provenance.json) |
@@ -6077,6 +6154,7 @@
 | 186614 | Stable Central Limit Theorems for Discrete-time Lag Martingale Difference Arrays: Applications to Dynamic Causal Inference | H3 | [TeX](items/186614_author_proof.tex) | [source](https://arxiv.org/abs/2510.06524v6) [provenance](sources/186614/provenance.json) |
 | 186615 | Sequences that do frame reconstruction | H2 | [TeX](items/186615_author_proof.tex) | [source](https://arxiv.org/abs/2510.06553v3) [provenance](sources/186615/provenance.json) |
 | 186617 | Safe Stabilization of the Stefan Problem with a High-Order Moving Boundary Dynamics by PDE Backstepping | H2 | [TeX](items/186617_author_proof.tex) | [source](https://arxiv.org/abs/2510.06571v1) [provenance](sources/186617/provenance.json) |
+| 186618 | Fully nonlinear prescribed curvature problems on closed manifolds with negative curvature | H3 | [TeX](items/186618_author_proof.tex) | [source](https://arxiv.org/abs/2510.06577v2) [provenance](sources/186618/provenance.json) |
 | 186623 | 3-manifold polynomials | H2 | [TeX](items/186623_author_proof.tex) | [source](https://arxiv.org/abs/2510.06651v2) [provenance](sources/186623/provenance.json) |
 | 186624 | Mass-Lumped Virtual Element Method with Strong Stability-Preserving Runge-Kutta Time Stepping for Two-Dimensional Parabolic Problems | H2 | [TeX](items/186624_author_proof.tex) | [source](https://arxiv.org/abs/2510.06653v2) [provenance](sources/186624/provenance.json) |
 | 186625 | Global weak solutions to nonlinear kinetic Fokker--Planck equations in bounded domains under physical initial data | H2 | [TeX](items/186625_author_proof.tex) | [source](https://arxiv.org/abs/2510.06656v1) [provenance](sources/186625/provenance.json) |
@@ -6093,6 +6171,7 @@
 | 186672 | Representation theory of mirabolic quantum $\mathfrak{sl}_n$ | H3 | [TeX](items/186672_author_proof.tex) | [source](https://arxiv.org/abs/2510.07469v2) [provenance](sources/186672/provenance.json) |
 | 186675 | Determination of Range Conditions for General Projection Pair Operators | H2 | [TeX](items/186675_author_proof.tex) | [source](https://arxiv.org/abs/2510.07480v1) [provenance](sources/186675/provenance.json) |
 | 186678 | Black-Box Detection of LLM-Generated Text Using Generalized Jensen-Shannon Divergence | H2 | [TeX](items/186678_author_proof.tex) | [source](https://arxiv.org/abs/2510.07500v3) [provenance](sources/186678/provenance.json) |
+| 186680 | Nested superposition principle for random measures and the geometry of the Wasserstein on Wasserstein space | H2 | [TeX](items/186680_author_proof.tex) | [source](https://arxiv.org/abs/2510.07523v2) [provenance](sources/186680/provenance.json) |
 | 186682 | A variant of Collatz's Conjecture over Binary Polynomials | H2 | [TeX](items/186682_author_proof.tex) | [source](https://arxiv.org/abs/2510.07530v1) [provenance](sources/186682/provenance.json) |
 | 186684 | A quantum N-dimer model | H2 | [TeX](items/186684_author_proof.tex) | [source](https://arxiv.org/abs/2510.07543v3) [provenance](sources/186684/provenance.json) |
 | 186692 | Adjoining universal inverses to families of elements of free monoids | H2 | [TeX](items/186692_author_proof.tex) | [source](https://arxiv.org/abs/2510.07617v1) [provenance](sources/186692/provenance.json) |
@@ -6310,8 +6389,10 @@
 | 187578 | Cowen-Douglas operators on quaternionic Hilbert spaces | H2 | [TeX](items/187578_author_proof.tex) | [source](https://arxiv.org/abs/2510.19523v1) [provenance](sources/187578/provenance.json) |
 | 187579 | Learning Upper Lower Value Envelopes to Shape Online RL: A Principled Approach | H3 | [TeX](items/187579_author_proof.tex) | [source](https://arxiv.org/abs/2510.19528v2) [provenance](sources/187579/provenance.json) |
 | 187581 | Mixed tori in contact surgery diagrams | H2 | [TeX](items/187581_author_proof.tex) | [source](https://arxiv.org/abs/2510.19580v1) [provenance](sources/187581/provenance.json) |
+| 187586 | Toric para-K\"{a}hler-Einstein manifolds immersed in para-K\"{a}hler space forms | H2 | [TeX](items/187586_author_proof.tex) | [source](https://arxiv.org/abs/2510.19625v1) [provenance](sources/187586/provenance.json) |
 | 187589 | On a refinement of the Ahlswede--Katona Theorem | H2 | [TeX](items/187589_author_proof.tex) | [source](https://arxiv.org/abs/2510.19681v2) [provenance](sources/187589/provenance.json) |
 | 187591 | Open Neighborhood Ideals of Well-Totally Dominated Trees are Cohen-Macaulay | H2 | [TeX](items/187591_author_proof.tex) | [source](https://arxiv.org/abs/2510.19707v4) [provenance](sources/187591/provenance.json) |
+| 187594 | Finsler geometry in anisotropic superconductivity: a Ginzburg-Landau approach | H2 | [TeX](items/187594_author_proof.tex) | [source](https://arxiv.org/abs/2510.19720v4) [provenance](sources/187594/provenance.json) |
 | 187596 | Statistical Inference for Linear Functionals of Online Least-squares SGD when $t \gtrsim d^{1+\delta}$ | H2 | [TeX](items/187596_author_proof.tex) | [source](https://arxiv.org/abs/2510.19734v1) [provenance](sources/187596/provenance.json) |
 | 187597 | A central limit theorem for partitions involving generalised divisor functions | H2 | [TeX](items/187597_author_proof.tex) | [source](https://arxiv.org/abs/2510.19740v2) [provenance](sources/187597/provenance.json) |
 | 187598 | full title | H2 | [TeX](items/187598_author_proof.tex) | [source](https://arxiv.org/abs/2510.19744v2) [provenance](sources/187598/provenance.json) |
@@ -6487,6 +6568,7 @@
 | 188385 | On the integrality of some P-recursive sequences | H2 | [TeX](items/188385_author_proof.tex) | [source](https://arxiv.org/abs/2511.02121v1) [provenance](sources/188385/provenance.json) |
 | 188387 | Explicit invariant-preserving integration of differential equations using homogeneous projection | H2 | [TeX](items/188387_author_proof.tex) | [source](https://arxiv.org/abs/2511.02131v1) [provenance](sources/188387/provenance.json) |
 | 188390 | Asset-liability management with Epstein-Zin utility under stochastic interest rate and unknown market price of risk | H2 | [TeX](items/188390_author_proof.tex) | [source](https://arxiv.org/abs/2511.02158v3) [provenance](sources/188390/provenance.json) |
+| 188394 | Descent Theory for Vertex Algebras | H2 | [TeX](items/188394_author_proof.tex) | [source](https://arxiv.org/abs/2511.02251v2) [provenance](sources/188394/provenance.json) |
 | 188396 | Non Asymptotic Mixing Time Analysis of Non-Reversible Markov Chains | H2 | [TeX](items/188396_author_proof.tex) | [source](https://arxiv.org/abs/2511.02265v1) [provenance](sources/188396/provenance.json) |
 | 188400 | Clebsch-Gordan and the theta filtration for modular representations of $\mathrm{GL}_2({\mathbb F}_q)$ | H2 | [TeX](items/188400_author_proof.tex) | [source](https://arxiv.org/abs/2511.02299v1) [provenance](sources/188400/provenance.json) |
 | 188401 | Restricted Liouville Operator for the study of Non-Analytic Dynamics within the Disk | H2 | [TeX](items/188401_author_proof.tex) | [source](https://arxiv.org/abs/2511.02305v2) [provenance](sources/188401/provenance.json) |
@@ -6543,6 +6625,7 @@
 | 188585 | Hyperbolicity and fundamental groups of complex quasi-projective varieties (I): Maximal quasi-Albanese dimension by Nevanlinna theory | H2 | [TeX](items/188585_author_proof.tex) | [source](https://arxiv.org/abs/2511.04405v1) [provenance](sources/188585/provenance.json) |
 | 188588 | Symmetry-enriched topological order and quasifractonic behavior in $\mathbb{Z}_N$ stabilizer codes | H2 | [TeX](items/188588_author_proof.tex) | [source](https://arxiv.org/abs/2511.04430v2) [provenance](sources/188588/provenance.json) |
 | 188591 | The cyclic open--closed map and variations of Hodge structures | H2 | [TeX](items/188591_author_proof.tex) | [source](https://arxiv.org/abs/2511.04498v1) [provenance](sources/188591/provenance.json) |
+| 188593 | Weighted wave envelope estimates for the parabola | H2 | [TeX](items/188593_author_proof.tex) | [source](https://arxiv.org/abs/2511.04503v2) [provenance](sources/188593/provenance.json) |
 | 188597 | Class groups of imaginary biquadratic fields | H2 | [TeX](items/188597_author_proof.tex) | [source](https://arxiv.org/abs/2511.04529v1) [provenance](sources/188597/provenance.json) |
 | 188612 | Waterborne epidemics via a new coupled SIR--Pathogen--Navier-Stokes system: Mathematical modeling, nonlinear analysis and numerical simulation | H2 | [TeX](items/188612_author_proof.tex) | [source](https://arxiv.org/abs/2511.04841v1) [provenance](sources/188612/provenance.json) |
 | 188615 | Log algebraic hyperbolicity of $\overline{M}_{0,n}$ | H2 | [TeX](items/188615_author_proof.tex) | [source](https://arxiv.org/abs/2511.04889v1) [provenance](sources/188615/provenance.json) |
@@ -6551,6 +6634,7 @@
 | 188630 | On the pre-Schwarzian and Schwarzian derivatives of log-harmonic mappings | H2 | [TeX](items/188630_author_proof.tex) | [source](https://arxiv.org/abs/2511.05076v1) [provenance](sources/188630/provenance.json) |
 | 188631 | Forcing upper $\Sigma$-uniformization in the presence of lower $\Pi$-reduction or uniformization | H2 | [TeX](items/188631_author_proof.tex) | [source](https://arxiv.org/abs/2511.05081v2) [provenance](sources/188631/provenance.json) |
 | 188632 | Adjoint and duality for rank-metric codes in a skew polynomial framework | H2 | [TeX](items/188632_author_proof.tex) | [source](https://arxiv.org/abs/2511.05084v1) [provenance](sources/188632/provenance.json) |
+| 188636 | Optimal Quantization on Spherical Surfaces: \\ Continuous and Discrete Models -- A Beginner-Friendly Expository Study | H2 | [TeX](items/188636_author_proof.tex) | [source](https://arxiv.org/abs/2511.05099v2) [provenance](sources/188636/provenance.json) |
 | 188637 | Mono-anabelian Reconstruction of Number Fields with Restricted Ramification | H2 | [TeX](items/188637_author_proof.tex) | [source](https://arxiv.org/abs/2511.05101v1) [provenance](sources/188637/provenance.json) |
 | 188639 | Multivariate MM-estimators with auxiliary Scale for Linear Models with Structured Covariance Matrices | H2 | [TeX](items/188639_author_proof.tex) | [source](https://arxiv.org/abs/2511.05134v1) [provenance](sources/188639/provenance.json) |
 | 188645 | Kac's Program and Relative Entropy Decay for Nonlinear Spin-Exchange Dynamics | H2 | [TeX](items/188645_author_proof.tex) | [source](https://arxiv.org/abs/2511.05223v1) [provenance](sources/188645/provenance.json) |
@@ -6568,6 +6652,7 @@
 | 188674 | The exceptional set of Goldbach problem and Linnik's constant | H2 | [TeX](items/188674_author_proof.tex) | [source](https://arxiv.org/abs/2511.05631v2) [provenance](sources/188674/provenance.json) |
 | 188678 | The Liv\v{s}ic equation on differential forms over Anosov flows and applications | H2 | [TeX](items/188678_author_proof.tex) | [source](https://arxiv.org/abs/2511.05678v1) [provenance](sources/188678/provenance.json) |
 | 188679 | Network and Risk Analysis of Surety Bonds | H2 | [TeX](items/188679_author_proof.tex) | [source](https://arxiv.org/abs/2511.05691v2) [provenance](sources/188679/provenance.json) |
+| 188685 | Enhancing Diffusion Model Guidance through Calibration and Regularization | H2 | [TeX](items/188685_author_proof.tex) | [source](https://arxiv.org/abs/2511.05844v3) [provenance](sources/188685/provenance.json) |
 | 188689 | Grothendieck-Teichm\"uller Symmetries of Cyclic Operads and Tangles | H3 | [TeX](items/188689_author_proof.tex) | [source](https://arxiv.org/abs/2511.05911v3) [provenance](sources/188689/provenance.json) |
 | 188691 | On the exchange of stability for the subcritical laminar flow | H2 | [TeX](items/188691_author_proof.tex) | [source](https://arxiv.org/abs/2511.05942v2) [provenance](sources/188691/provenance.json) |
 | 188693 | Co-rotating nearly parallel helical vortices with small cross-section in 3D incompressible Euler equations | H2 | [TeX](items/188693_author_proof.tex) | [source](https://arxiv.org/abs/2511.05956v1) [provenance](sources/188693/provenance.json) |
@@ -6666,6 +6751,7 @@
 | 189064 | Support Recovery in One-bit Compressed Sensing with Near-Optimal Measurements and Sublinear Time | H2 | [TeX](items/189064_author_proof.tex) | [source](https://arxiv.org/abs/2511.10777v4) [provenance](sources/189064/provenance.json) |
 | 189072 | Minimal simplicial spherical mappings with a given degree | H2 | [TeX](items/189072_author_proof.tex) | [source](https://arxiv.org/abs/2511.10870v4) [provenance](sources/189072/provenance.json) |
 | 189073 | Johnson's axioms revisited: Bases for Boolean algebras containing identities of associative type. I | H2 | [TeX](items/189073_author_proof.tex) | [source](https://arxiv.org/abs/2511.10883v1) [provenance](sources/189073/provenance.json) |
+| 189074 | Guaranteeing Higher Order Convergence Rates for Accelerated Wasserstein gradient Flow Schemes | H2 | [TeX](items/189074_author_proof.tex) | [source](https://arxiv.org/abs/2511.10884v2) [provenance](sources/189074/provenance.json) |
 | 189077 | Two Generalized Derivative-free Methods to Solve Large Scale Nonlinear Equations with Convex Constraints | H2 | [TeX](items/189077_author_proof.tex) | [source](https://arxiv.org/abs/2511.10928v1) [provenance](sources/189077/provenance.json) |
 | 189080 | \LARGE \textbf{Autocovariance and Optimal Design for Random Walk Metropolis--Hastings Algorithm} | H2 | [TeX](items/189080_author_proof.tex) | [source](https://arxiv.org/abs/2511.10967v2) [provenance](sources/189080/provenance.json) |
 | 189084 | Autonomous motion in changing environment, fibrations and reaction mechanisms | H2 | [TeX](items/189084_author_proof.tex) | [source](https://arxiv.org/abs/2511.11042v2) [provenance](sources/189084/provenance.json) |
@@ -6703,6 +6789,7 @@
 | 189214 | Patterns that require distinct singular values | H2 | [TeX](items/189214_author_proof.tex) | [source](https://arxiv.org/abs/2511.12641v1) [provenance](sources/189214/provenance.json) |
 | 189215 | Global synchronization beyond dense graphs: the case of threshold graphs | H2 | [TeX](items/189215_author_proof.tex) | [source](https://arxiv.org/abs/2511.12646v6) [provenance](sources/189215/provenance.json) |
 | 189216 | Stability of intrinsic localized modes on the lattice with competing power nonlinearities | H2 | [TeX](items/189216_author_proof.tex) | [source](https://arxiv.org/abs/2511.12649v1) [provenance](sources/189216/provenance.json) |
+| 189220 | On the entropy for indeterminate moment problems | H2 | [TeX](items/189220_author_proof.tex) | [source](https://arxiv.org/abs/2511.12684v2) [provenance](sources/189220/provenance.json) |
 | 189223 | Soft Connectedness, Soft Path Connectedness and the Category of Soft Topological Groups | H2 | [TeX](items/189223_author_proof.tex) | [source](https://arxiv.org/abs/2511.12724v1) [provenance](sources/189223/provenance.json) |
 | 189226 | Packing coloring of graphs with long paths | H2 | [TeX](items/189226_author_proof.tex) | [source](https://arxiv.org/abs/2511.12761v1) [provenance](sources/189226/provenance.json) |
 | 189228 | On planar sections of the dodecahedron | H3 | [TeX](items/189228_author_proof.tex) | [source](https://arxiv.org/abs/2511.12773v4) [provenance](sources/189228/provenance.json) |
@@ -6737,6 +6824,7 @@
 | 189308 | Stability phenomena in Deligne--Mumford compactifications via Morse theory | H2 | [TeX](items/189308_author_proof.tex) | [source](https://arxiv.org/abs/2511.13695v2) [provenance](sources/189308/provenance.json) |
 | 189310 | Composition and Coherence: The Syntax of Operator Networks | H2 | [TeX](items/189310_author_proof.tex) | [source](https://arxiv.org/abs/2511.13706v1) [provenance](sources/189310/provenance.json) |
 | 189339 | Radial Compensation: The Inverse Base-Distribution Problem for Chart-Based Generative Models on Riemannian Manifolds | H2 | [TeX](items/189339_author_proof.tex) | [source](https://arxiv.org/abs/2511.14056v3) [provenance](sources/189339/provenance.json) |
+| 189352 | Martingale Characterizations of Non-Homogeneous Counting Processes and Their Fractional Variants | H2 | [TeX](items/189352_author_proof.tex) | [source](https://arxiv.org/abs/2511.14328v2) [provenance](sources/189352/provenance.json) |
 | 189353 | Hermitian-Singer Functional and Differential Codes | H2 | [TeX](items/189353_author_proof.tex) | [source](https://arxiv.org/abs/2511.14345v2) [provenance](sources/189353/provenance.json) |
 | 189363 | Dynamic Carbon Intensity Indicator (CII) Management in Stochastic Tramp Shipping Market | H2 | [TeX](items/189363_author_proof.tex) | [source](https://arxiv.org/abs/2511.14471v1) [provenance](sources/189363/provenance.json) |
 | 189383 | Asymptotically optimal approximate Hadamard matrices | H2 | [TeX](items/189383_author_proof.tex) | [source](https://arxiv.org/abs/2511.14653v2) [provenance](sources/189383/provenance.json) |
@@ -6774,6 +6862,7 @@
 | 189639 | On zero-sum problems over metacyclic groups $C_n \rtimes_s C_2$ | H2 | [TeX](items/189639_author_proof.tex) | [source](https://arxiv.org/abs/2511.18246v2) [provenance](sources/189639/provenance.json) |
 | 189640 | Tail Distribution of Regret in Optimistic Reinforcement Learning | H2 | [TeX](items/189640_author_proof.tex) | [source](https://arxiv.org/abs/2511.18247v3) [provenance](sources/189640/provenance.json) |
 | 189645 | Explicit Formulas and Combinatorial Interpretation of Triangular Arrays | H2 | [TeX](items/189645_author_proof.tex) | [source](https://arxiv.org/abs/2511.18351v4) [provenance](sources/189645/provenance.json) |
+| 189652 | Hilbert properties of varieties | H2 | [TeX](items/189652_author_proof.tex) | [source](https://arxiv.org/abs/2511.18431v2) [provenance](sources/189652/provenance.json) |
 | 189661 | Height zero characters and Galois automorphisms | H2 | [TeX](items/189661_author_proof.tex) | [source](https://arxiv.org/abs/2511.18535v1) [provenance](sources/189661/provenance.json) |
 | 189663 | On finiteness properties of the separating semigroup of a real curve | H2 | [TeX](items/189663_author_proof.tex) | [source](https://arxiv.org/abs/2511.18545v5) [provenance](sources/189663/provenance.json) |
 | 189676 | On the Stability of Discrete Reaction-Diffusion System of Networked Dynamical Systems | H2 | [TeX](items/189676_author_proof.tex) | [source](https://arxiv.org/abs/2511.18798v2) [provenance](sources/189676/provenance.json) |
@@ -6832,6 +6921,7 @@
 | 190218 | Martingales, laminates and minimal Korn inequalities | H2 | [TeX](items/190218_author_proof.tex) | [source](https://arxiv.org/abs/2512.02784v2) [provenance](sources/190218/provenance.json) |
 | 190224 | Syntomic formalism with coefficients | H2 | [TeX](items/190224_author_proof.tex) | [source](https://arxiv.org/abs/2512.02905v2) [provenance](sources/190224/provenance.json) |
 | 190227 | Eisenstein cohomology and congruences for the ratios of Rankin--Selberg $L$-functions | H3 | [TeX](items/190227_author_proof.tex) | [source](https://arxiv.org/abs/2512.02927v2) [provenance](sources/190227/provenance.json) |
+| 190231 | \bf Bright and dark breathers on an elliptic wave \\in the defocusing mKdV equation | H3 | [TeX](items/190231_author_proof.tex) | [source](https://arxiv.org/abs/2512.02959v2) [provenance](sources/190231/provenance.json) |
 | 190234 | Hyperbolic links associated to Hamiltonian subgraphs in simple 3-polytopes: links of Hamiltonian theta-subgraphs (printed as Theorem 6.3) | H2 | [TeX](items/190234_author_proof.tex) | [source](https://arxiv.org/abs/2512.03017v7) [provenance](sources/190234/provenance.json) |
 | 190244 | Finding equations of the fake projective plane $(C18,p=3,\{2I\})$ | H2 | [TeX](items/190244_author_proof.tex) | [source](https://arxiv.org/abs/2512.03213v2) [provenance](sources/190244/provenance.json) |
 | 190262 | Local categories: a new framework for partiality | H3 | [TeX](items/190262_author_proof.tex) | [source](https://arxiv.org/abs/2512.03371v2) [provenance](sources/190262/provenance.json) |
@@ -6854,6 +6944,7 @@
 | 190371 | Frobenius generation for algebraic stacks | H2 | [TeX](items/190371_author_proof.tex) | [source](https://arxiv.org/abs/2512.05026v3) [provenance](sources/190371/provenance.json) |
 | 190400 | Symmetric Linear Dynamical Systems are Learnable from Few Observations | H2 | [TeX](items/190400_author_proof.tex) | [source](https://arxiv.org/abs/2512.05337v2) [provenance](sources/190400/provenance.json) |
 | 190410 | Stable Vectorization of Persistent Laplacians via Spectral Descriptors | H2 | [TeX](items/190410_author_proof.tex) | [source](https://arxiv.org/abs/2512.05463v2) [provenance](sources/190410/provenance.json) |
+| 190447 | Interpretation of a Discrete de Rham method \\ as a Finite Element System | H2 | [TeX](items/190447_author_proof.tex) | [source](https://arxiv.org/abs/2512.05912v2) [provenance](sources/190447/provenance.json) |
 | 190449 | Uniqueness of the minimizer of the balanced optimal-transport assignment step from a balanced partition initialization | H2 | [TeX](items/190449_author_proof.tex) | [source](https://arxiv.org/abs/2512.05926v2) [provenance](sources/190449/provenance.json) |
 | 190463 | gp2Scale: A Class of Compactly Supported Non-Stationary Kernels and Distributed Computing for Exact Gaussian Processes on 10 Million Data Points | H2 | [TeX](items/190463_author_proof.tex) | [source](https://arxiv.org/abs/2512.06143v3) [provenance](sources/190463/provenance.json) |
 | 190474 | A linear upper bound on the zero-sum Ramsey number of forests in $\mathbb{Z}_p$ | H2 | [TeX](items/190474_author_proof.tex) | [source](https://arxiv.org/abs/2512.06229v2) [provenance](sources/190474/provenance.json) |
@@ -6872,12 +6963,14 @@
 | 190625 | Spectrally symmetric orientations of graphs | H2 | [TeX](items/190625_author_proof.tex) | [source](https://arxiv.org/abs/2512.08049v2) [provenance](sources/190625/provenance.json) |
 | 190648 | Triality and Adjoint lifting for $\GL_3$ | H2 | [TeX](items/190648_author_proof.tex) | [source](https://arxiv.org/abs/2512.08307v3) [provenance](sources/190648/provenance.json) |
 | 190652 | A Characterization of Functional Affine Surface Areas | H2 | [TeX](items/190652_author_proof.tex) | [source](https://arxiv.org/abs/2512.08375v2) [provenance](sources/190652/provenance.json) |
+| 190660 | A Lie-theoretic generalization of some Hilbert schemes | H2 | [TeX](items/190660_author_proof.tex) | [source](https://arxiv.org/abs/2512.08532v2) [provenance](sources/190660/provenance.json) |
 | 190672 | Higher walks and squares | H2 | [TeX](items/190672_author_proof.tex) | [source](https://arxiv.org/abs/2512.08633v2) [provenance](sources/190672/provenance.json) |
 | 190678 | A constant rank theorem\\ for linear elliptic equations on the sphere\\ with applications to the mixed Christoffel problem | H2 | [TeX](items/190678_author_proof.tex) | [source](https://arxiv.org/abs/2512.08670v2) [provenance](sources/190678/provenance.json) |
 | 190679 | Raimi's theorem for manifolds with circle symmetry | H2 | [TeX](items/190679_author_proof.tex) | [source](https://arxiv.org/abs/2512.08676v2) [provenance](sources/190679/provenance.json) |
 | 190691 | Graph Quantum Magic Squares and Free Spectrahedra | H3 | [TeX](items/190691_author_proof.tex) | [source](https://arxiv.org/abs/2512.08797v3) [provenance](sources/190691/provenance.json) |
 | 190697 | Monadic reconstruction of unitary Drinfeld centers and Factorization Homology | H2 | [TeX](items/190697_author_proof.tex) | [source](https://arxiv.org/abs/2512.08848v2) [provenance](sources/190697/provenance.json) |
 | 190715 | Planar $W^{1,\,1}$-extension domains | H2 | [TeX](items/190715_author_proof.tex) | [source](https://arxiv.org/abs/2512.09167v2) [provenance](sources/190715/provenance.json) |
+| 190718 | Embedding $\K$-algebras into Leavitt algebra $L_\K(1, 2)$ | H2 | [TeX](items/190718_author_proof.tex) | [source](https://arxiv.org/abs/2512.09241v2) [provenance](sources/190718/provenance.json) |
 | 190753 | Regularity and pointwise convergence for dispersive equations on Riemannian symmetric spaces of compact type | H3 | [TeX](items/190753_author_proof.tex) | [source](https://arxiv.org/abs/2512.09689v3) [provenance](sources/190753/provenance.json) |
 | 190754 | A simple geometric proof for\\ the characterisation of e-merging functions | H2 | [TeX](items/190754_author_proof.tex) | [source](https://arxiv.org/abs/2512.09708v3) [provenance](sources/190754/provenance.json) |
 | 190760 | The real analytic structure of the Teichm\"uller space of circle diffeomorphisms with Zygmund continuous derivatives | H2 | [TeX](items/190760_author_proof.tex) | [source](https://arxiv.org/abs/2512.09749v2) [provenance](sources/190760/provenance.json) |
@@ -6903,6 +6996,7 @@
 | 190909 | Bandit-Based Rate Adaptation for a Single-Server Queue | H2 | [TeX](items/190909_author_proof.tex) | [source](https://arxiv.org/abs/2512.12016v2) [provenance](sources/190909/provenance.json) |
 | 190926 | Taylor polynomials on left-quotients of Carnot groups | H2 | [TeX](items/190926_author_proof.tex) | [source](https://arxiv.org/abs/2512.12239v3) [provenance](sources/190926/provenance.json) |
 | 190927 | Mutual-visibility coloring of graphs | H2 | [TeX](items/190927_author_proof.tex) | [source](https://arxiv.org/abs/2512.12251v2) [provenance](sources/190927/provenance.json) |
+| 190937 | Three-coloring triangle-free graphs without long forbidden paths | H2 | [TeX](items/190937_author_proof.tex) | [source](https://arxiv.org/abs/2512.12349v2) [provenance](sources/190937/provenance.json) |
 | 190941 | Spectral Barron spaces of vector-valued functions on compact groups | H2 | [TeX](items/190941_author_proof.tex) | [source](https://arxiv.org/abs/2512.12382v4) [provenance](sources/190941/provenance.json) |
 | 190959 | Existence and nonexistence results for a nonlocal isoperimetric problem on $\mathbb{H}^n$ | H2 | [TeX](items/190959_author_proof.tex) | [source](https://arxiv.org/abs/2512.12621v2) [provenance](sources/190959/provenance.json) |
 | 190963 | Series decomposition of a class of special integrals | H3 | [TeX](items/190963_author_proof.tex) | [source](https://arxiv.org/abs/2512.12700v2) [provenance](sources/190963/provenance.json) |
@@ -6932,6 +7026,7 @@
 | 191152 | Points of slow growth for parabolic SPDEs | H2 | [TeX](items/191152_author_proof.tex) | [source](https://arxiv.org/abs/2512.15177v2) [provenance](sources/191152/provenance.json) |
 | 191167 | On quasimorphisms and distortion in homeomorphism groups | H2 | [TeX](items/191167_author_proof.tex) | [source](https://arxiv.org/abs/2512.15375v2) [provenance](sources/191167/provenance.json) |
 | 191171 | Cross representations of additive complements of $r$-th powers | H2 | [TeX](items/191171_author_proof.tex) | [source](https://arxiv.org/abs/2512.15407v6) [provenance](sources/191171/provenance.json) |
+| 191176 | Matchings avoiding ordered patterns | H2 | [TeX](items/191176_author_proof.tex) | [source](https://arxiv.org/abs/2512.15461v2) [provenance](sources/191176/provenance.json) |
 | 191177 | Capillary $L_p$-Christoffel-Minkowski problem | H3 | [TeX](items/191177_author_proof.tex) | [source](https://arxiv.org/abs/2512.15464v2) [provenance](sources/191177/provenance.json) |
 | 191189 | Quantum Mixing and Benjamini-Schramm Convergence of Hyperbolic Surfaces | H2 | [TeX](items/191189_author_proof.tex) | [source](https://arxiv.org/abs/2512.15504v3) [provenance](sources/191189/provenance.json) |
 | 191191 | A modified Bakry-\'Emery $\Gamma_2$ criterion inequality and the monotonicity of the Tsallis entropy | H3 | [TeX](items/191191_author_proof.tex) | [source](https://arxiv.org/abs/2512.15525v2) [provenance](sources/191191/provenance.json) |
@@ -6942,7 +7037,9 @@
 | 191234 | {Terminal} Absoluteness of Collapse Forcings | H2 | [TeX](items/191234_author_proof.tex) | [source](https://arxiv.org/abs/2512.16330v2) [provenance](sources/191234/provenance.json) |
 | 191237 | Higher-order Volterra-type integral operator on Hardy and Bergman spaces | H2 | [TeX](items/191237_author_proof.tex) | [source](https://arxiv.org/abs/2512.16412v4) [provenance](sources/191237/provenance.json) |
 | 191242 | Fiberwise criteria for Fourier--Mukai equivalences | H2 | [TeX](items/191242_author_proof.tex) | [source](https://arxiv.org/abs/2512.16503v4) [provenance](sources/191242/provenance.json) |
+| 191243 | On the distribution kernels of Toeplitz operators on CR manifolds | H2 | [TeX](items/191243_author_proof.tex) | [source](https://arxiv.org/abs/2512.16506v2) [provenance](sources/191243/provenance.json) |
 | 191254 | A note on freeness | H2 | [TeX](items/191254_author_proof.tex) | [source](https://arxiv.org/abs/2512.16573v3) [provenance](sources/191254/provenance.json) |
+| 191258 | Regularity for fully nonlinear elliptic equations in generalized Orlicz spaces | H2 | [TeX](items/191258_author_proof.tex) | [source](https://arxiv.org/abs/2512.16600v2) [provenance](sources/191258/provenance.json) |
 | 191274 | \bf On the Hidden Biases of Flow Matching Samplers | H3 | [TeX](items/191274_author_proof.tex) | [source](https://arxiv.org/abs/2512.16768v3) [provenance](sources/191274/provenance.json) |
 | 191275 | Thermodynamics a la Souriau on K\"ahler Non Compact Symmetric Spaces for Cartan Neural Networks | H2 | [TeX](items/191275_author_proof.tex) | [source](https://arxiv.org/abs/2512.16772v3) [provenance](sources/191275/provenance.json) |
 | 191310 | On the membership of two-variable rational inner functions in spaces of Dirichlet type | H2 | [TeX](items/191310_author_proof.tex) | [source](https://arxiv.org/abs/2512.17388v2) [provenance](sources/191310/provenance.json) |
@@ -6951,15 +7048,32 @@
 | 191344 | \bf Existence, uniqueness, and time-asymptotics of regular solutions in multidimensional thermoelasticity on domains with boundary | H2 | [TeX](items/191344_author_proof.tex) | [source](https://arxiv.org/abs/2512.17767v2) [provenance](sources/191344/provenance.json) |
 | 191345 | A new proof of the logarithmic Hardy-Littlewood-Sobolev inequality for subcritical and critical mass | H3 | [TeX](items/191345_author_proof.tex) | [source](https://arxiv.org/abs/2512.17772v2) [provenance](sources/191345/provenance.json) |
 | 191346 | A linear upper bound for zero-sum Ramsey numbers of bounded degree graphs | H2 | [TeX](items/191346_author_proof.tex) | [source](https://arxiv.org/abs/2512.17790v2) [provenance](sources/191346/provenance.json) |
+| 191356 | Assembly Addition Chains | H2 | [TeX](items/191356_author_proof.tex) | [source](https://arxiv.org/abs/2512.18030v1) [provenance](sources/191356/provenance.json) |
 | 191358 | Problems on the conductor of finite group characters | H2 | [TeX](items/191358_author_proof.tex) | [source](https://arxiv.org/abs/2512.18042v3) [provenance](sources/191358/provenance.json) |
 | 191359 | Real 3-qubit gate decompositions via triality | H2 | [TeX](items/191359_author_proof.tex) | [source](https://arxiv.org/abs/2512.18049v2) [provenance](sources/191359/provenance.json) |
+| 191361 | Packing Independent Cliques in $K_4$-minor-free Graphs | H2 | [TeX](items/191361_author_proof.tex) | [source](https://arxiv.org/abs/2512.18090v1) [provenance](sources/191361/provenance.json) |
 | 191362 | \bf Contour Integration and Cyclotomic Ap\'ery-Like Series Involving Generalized Binomial Coefficients | H2 | [TeX](items/191362_author_proof.tex) | [source](https://arxiv.org/abs/2512.18121v2) [provenance](sources/191362/provenance.json) |
+| 191366 | A Domain Decomposition Deep Neural Network Method with Multi-Activation Functions for Solving Elliptic and Parabolic Interface Problems | H2 | [TeX](items/191366_author_proof.tex) | [source](https://arxiv.org/abs/2512.18178v1) [provenance](sources/191366/provenance.json) |
 | 191372 | Cobordism of nested manifolds | H2 | [TeX](items/191372_author_proof.tex) | [source](https://arxiv.org/abs/2512.18277v2) [provenance](sources/191372/provenance.json) |
+| 191373 | Generalized Harmonic Numbers: Identities and Properties | H2 | [TeX](items/191373_author_proof.tex) | [source](https://arxiv.org/abs/2512.18282v1) [provenance](sources/191373/provenance.json) |
+| 191374 | Sharp large deviation estimates for Gaussian extrema | H2 | [TeX](items/191374_author_proof.tex) | [source](https://arxiv.org/abs/2512.18297v1) [provenance](sources/191374/provenance.json) |
+| 191375 | sampling elements of a finite group: efficiency of the product replacement algorithm with an accumulator. | H2 | [TeX](items/191375_author_proof.tex) | [source](https://arxiv.org/abs/2512.18302v1) [provenance](sources/191375/provenance.json) |
+| 191376 | The chiral gyrating H'-T surface family:\\ construction from the dual \texttt{qtz}--\texttt{qzd} nets and\\ existence proof using a toroidal Weierstrass method | H2 | [TeX](items/191376_author_proof.tex) | [source](https://arxiv.org/abs/2512.18308v1) [provenance](sources/191376/provenance.json) |
 | 191385 | Explicit harmonic and wave maps into variable-curvature surfaces | H2 | [TeX](items/191385_author_proof.tex) | [source](https://arxiv.org/abs/2512.18376v2) [provenance](sources/191385/provenance.json) |
+| 191386 | Strong Central 2-Trees with Tail Degrees \texorpdfstring{$\{2,3\}$}{\{2,3\}}:\\Structural Characterization and Uniqueness Criteria | H2 | [TeX](items/191386_author_proof.tex) | [source](https://arxiv.org/abs/2512.18378v1) [provenance](sources/191386/provenance.json) |
+| 191388 | Kuznetsov Categories for Gauged Linear Sigma Models | H2 | [TeX](items/191388_author_proof.tex) | [source](https://arxiv.org/abs/2512.18402v1) [provenance](sources/191388/provenance.json) |
+| 191396 | Derivation of stochastic Burgers on the line with a Dirichlet boundary condition at the origin | H2 | [TeX](items/191396_author_proof.tex) | [source](https://arxiv.org/abs/2512.18497v1) [provenance](sources/191396/provenance.json) |
+| 191397 | Electromagnetic Modes in Spherical Cavities: Complete Theory of Angular Spectra, Dispersion Relations, and Self-Adjoint Extensions | H2 | [TeX](items/191397_author_proof.tex) | [source](https://arxiv.org/abs/2512.18498v1) [provenance](sources/191397/provenance.json) |
 | 191398 | Detecting and Quantifying Isolated Singularities over Discrete Valuation Rings | H2 | [TeX](items/191398_author_proof.tex) | [source](https://arxiv.org/abs/2512.18506v2) [provenance](sources/191398/provenance.json) |
+| 191403 | Geometry-dependent Ekman layer approximations on curved domains: $L^\infty$ convergence | H3 | [TeX](items/191403_author_proof.tex) | [source](https://arxiv.org/abs/2512.18579v1) [provenance](sources/191403/provenance.json) |
 | 191404 | State--Space Modeling of Time-Varying Spillovers on Networks | H2 | [TeX](items/191404_author_proof.tex) | [source](https://arxiv.org/abs/2512.18584v2) [provenance](sources/191404/provenance.json) |
 | 191405 | \bf Graphon-Level Bayesian Predictive Synthesis for Random Network | H2 | [TeX](items/191405_author_proof.tex) | [source](https://arxiv.org/abs/2512.18587v2) [provenance](sources/191405/provenance.json) |
 | 191407 | Multiscale Localized Inference for Networks\\with a Measured Vertex Coordinate | H3 | [TeX](items/191407_author_proof.tex) | [source](https://arxiv.org/abs/2512.18592v2) [provenance](sources/191407/provenance.json) |
+| 191408 | A Hidden Quantum Markov model framework for Entanglement and Topological Order in the AKLT Chain | H2 | [TeX](items/191408_author_proof.tex) | [source](https://arxiv.org/abs/2512.18642v1) [provenance](sources/191408/provenance.json) |
+| 191411 | Rough Weighted Ideal Convergence and Korovkin-Type Approximation via weighted equi-ideal convergence | H2 | [TeX](items/191411_author_proof.tex) | [source](https://arxiv.org/abs/2512.18676v1) [provenance](sources/191411/provenance.json) |
+| 191412 | Multiscale homogenization of non-local energies \\ of convolution-type | H3 | [TeX](items/191412_author_proof.tex) | [source](https://arxiv.org/abs/2512.18697v1) [provenance](sources/191412/provenance.json) |
+| 191425 | Generalized Chebyshev Acceleration \\on the unit disc | H2 | [TeX](items/191425_author_proof.tex) | [source](https://arxiv.org/abs/2512.18848v1) [provenance](sources/191425/provenance.json) |
+| 191427 | The Grünbaum--Rigby configuration as a special Kárteszi configuration | H2 | [TeX](items/191427_author_proof.tex) | [source](https://arxiv.org/abs/2512.18872v1) [provenance](sources/191427/provenance.json) |
 | 191440 | Global well-posedness for intermediate NLS with nonvanishing conditions at infinity | H3 | [TeX](items/191440_author_proof.tex) | [source](https://arxiv.org/abs/2512.18998v3) [provenance](sources/191440/provenance.json) |
 | 191443 | Efficient Personalization of Generative Models via Optimal Experimental Design | H3 | [TeX](items/191443_author_proof.tex) | [source](https://arxiv.org/abs/2512.19057v2) [provenance](sources/191443/provenance.json) |
 | 191444 | Sharp Decoupling Inequalities for the Variances and Second Moments of Sums of Dependent Random Variables | H2 | [TeX](items/191444_author_proof.tex) | [source](https://arxiv.org/abs/2512.19063v2) [provenance](sources/191444/provenance.json) |
@@ -6971,15 +7085,42 @@
 | 191479 | {\large Spectral Shrinkage of Gaussian Entropic Optimal Transport} | H2 | [TeX](items/191479_author_proof.tex) | [source](https://arxiv.org/abs/2512.19457v2) [provenance](sources/191479/provenance.json) |
 | 191480 | Secondary cohomology operations and sectional category | H2 | [TeX](items/191480_author_proof.tex) | [source](https://arxiv.org/abs/2512.19461v2) [provenance](sources/191480/provenance.json) |
 | 191483 | Large deviations for stochastic evolution equations beyond the coercive case: the critical-nonlinearity estimates for $\hat{F}$ (Lemma 3.5) | H2 | [TeX](items/191483_author_proof.tex) | [source](https://arxiv.org/abs/2512.19501v2) [provenance](sources/191483/provenance.json) |
+| 191505 | Some Series related to Extended Riemann Hypothesis for Dedekind zeta functions | H2 | [TeX](items/191505_author_proof.tex) | [source](https://arxiv.org/abs/2512.19761v1) [provenance](sources/191505/provenance.json) |
+| 191507 | Generalized $q$-dimensions of measures on Non-autonomous conformal sets | H2 | [TeX](items/191507_author_proof.tex) | [source](https://arxiv.org/abs/2512.19771v1) [provenance](sources/191507/provenance.json) |
+| 191510 | On Convexity of Optimal Multi-Commodity Freeway Network Control | H2 | [TeX](items/191510_author_proof.tex) | [source](https://arxiv.org/abs/2512.19827v1) [provenance](sources/191510/provenance.json) |
+| 191516 | Spectra for finite unions of line segments | H2 | [TeX](items/191516_author_proof.tex) | [source](https://arxiv.org/abs/2512.19872v1) [provenance](sources/191516/provenance.json) |
 | 191519 | Equivariant Koszul Cohomology of Canonical Curves | H3 | [TeX](items/191519_author_proof.tex) | [source](https://arxiv.org/abs/2512.19894v2) [provenance](sources/191519/provenance.json) |
+| 191520 | Constructing Toeplitz arrays via cut and project schemes | H2 | [TeX](items/191520_author_proof.tex) | [source](https://arxiv.org/abs/2512.19921v1) [provenance](sources/191520/provenance.json) |
 | 191521 | An introduction to monitored quantum systems and quantum trajectories: spectrum, typicality, and phases | H2 | [TeX](items/191521_author_proof.tex) | [source](https://arxiv.org/abs/2512.19922v2) [provenance](sources/191521/provenance.json) |
+| 191527 | On the 3-rank of the class group of quadratic fields | H2 | [TeX](items/191527_author_proof.tex) | [source](https://arxiv.org/abs/2512.20023v1) [provenance](sources/191527/provenance.json) |
 | 191532 | Change Point Detection and Mean-Field Dynamics of Variable Productivity Hawkes Processes | H2 | [TeX](items/191532_author_proof.tex) | [source](https://arxiv.org/abs/2512.20068v2) [provenance](sources/191532/provenance.json) |
+| 191534 | Chebyshev's method applied to polynomials with two distinct roots | H2 | [TeX](items/191534_author_proof.tex) | [source](https://arxiv.org/abs/2512.20079v1) [provenance](sources/191534/provenance.json) |
+| 191535 | Information-directed sampling for bandits: a primer | H2 | [TeX](items/191535_author_proof.tex) | [source](https://arxiv.org/abs/2512.20096v1) [provenance](sources/191535/provenance.json) |
+| 191537 | From Walking to Tunneling: An Investigation of Generalized Pilot-Wave Dynamics | H2 | [TeX](items/191537_author_proof.tex) | [source](https://arxiv.org/abs/2512.20110v1) [provenance](sources/191537/provenance.json) |
+| 191538 | Group-Theoretical Origin of the Sectoral-Tesseral-Zonal Trichotomy in Spherical Harmonics | H2 | [TeX](items/191538_author_proof.tex) | [source](https://arxiv.org/abs/2512.20119v1) [provenance](sources/191538/provenance.json) |
+| 191541 | Triod twist cycles and circle rotations | H2 | [TeX](items/191541_author_proof.tex) | [source](https://arxiv.org/abs/2512.20147v1) [provenance](sources/191541/provenance.json) |
+| 191543 | A combinatorial approach to Kontsevich's Swiss cheese conjecture | H2 | [TeX](items/191543_author_proof.tex) | [source](https://arxiv.org/abs/2512.20167v1) [provenance](sources/191543/provenance.json) |
+| 191544 | one generator algebras over perfect fields | H2 | [TeX](items/191544_author_proof.tex) | [source](https://arxiv.org/abs/2512.20187v1) [provenance](sources/191544/provenance.json) |
+| 191545 | Homological framework of noncommutative complex analytic geometry and functional calculus | H2 | [TeX](items/191545_author_proof.tex) | [source](https://arxiv.org/abs/2512.20191v1) [provenance](sources/191545/provenance.json) |
+| 191548 | \bf On irreducible factors of polynomials over integers | H2 | [TeX](items/191548_author_proof.tex) | [source](https://arxiv.org/abs/2512.20262v1) [provenance](sources/191548/provenance.json) |
+| 191550 | Clique factors in random samplings of regular graphs | H2 | [TeX](items/191550_author_proof.tex) | [source](https://arxiv.org/abs/2512.20287v1) [provenance](sources/191550/provenance.json) |
 | 191551 | Weak Fano threefolds arising as the blowup of a hyperquadric in \texorpdfstring{$\Pfour$}{P4} along a curve | H2 | [TeX](items/191551_author_proof.tex) | [source](https://arxiv.org/abs/2512.20315v2) [provenance](sources/191551/provenance.json) |
+| 191552 | On $S$-Integral Domains and $S$-Version of Krull Intersection Theorem | H2 | [TeX](items/191552_author_proof.tex) | [source](https://arxiv.org/abs/2512.20316v1) [provenance](sources/191552/provenance.json) |
+| 191557 | Hyperbolicity and fundamental groups of complex quasi-projective varieties (III): applications | H3 | [TeX](items/191557_author_proof.tex) | [source](https://arxiv.org/abs/2512.20360v1) [provenance](sources/191557/provenance.json) |
 | 191558 | From the planar Ising model to quasiconformal mappings | H2 | [TeX](items/191558_author_proof.tex) | [source](https://arxiv.org/abs/2512.20361v3) [provenance](sources/191558/provenance.json) |
 | 191559 | \LARGE \textbf{Avoiding the Price of Adaptivity: \\ Inference in Linear Contextual Bandits via Stability} | H2 | [TeX](items/191559_author_proof.tex) | [source](https://arxiv.org/abs/2512.20368v2) [provenance](sources/191559/provenance.json) |
+| 191560 | Diophantine Equations for Polynomial Recursive Sequences | H2 | [TeX](items/191560_author_proof.tex) | [source](https://arxiv.org/abs/2512.20384v1) [provenance](sources/191560/provenance.json) |
+| 191563 | Disproof of the odd Hadwiger conjecture | H3 | [TeX](items/191563_author_proof.tex) | [source](https://arxiv.org/abs/2512.20392v1) [provenance](sources/191563/provenance.json) |
+| 191565 | Maximal functions, conjugations and multipliers between Toeplitz kernels | H2 | [TeX](items/191565_author_proof.tex) | [source](https://arxiv.org/abs/2512.20406v1) [provenance](sources/191565/provenance.json) |
 | 191570 | Supersonic sonic patch solution for the two-dimensional Euler equations with a van der Waals equation of state | H2 | [TeX](items/191570_author_proof.tex) | [source](https://arxiv.org/abs/2512.20484v2) [provenance](sources/191570/provenance.json) |
+| 191571 | Exponential Decay outside of the Light Cone for the Pseudo-Relativistic Non-Autonomous Schrödinger Equation | H2 | [TeX](items/191571_author_proof.tex) | [source](https://arxiv.org/abs/2512.20488v1) [provenance](sources/191571/provenance.json) |
+| 191573 | Optimal eigenvalues on a metric graph with densities | H2 | [TeX](items/191573_author_proof.tex) | [source](https://arxiv.org/abs/2512.20508v1) [provenance](sources/191573/provenance.json) |
+| 191579 | An Arithmetic Topology viewpoint on Descent theory and Equivariant Categories | H2 | [TeX](items/191579_author_proof.tex) | [source](https://arxiv.org/abs/2512.20551v1) [provenance](sources/191579/provenance.json) |
+| 191587 | Best approximation results for fuzzy-number-valued continuous functions | H3 | [TeX](items/191587_author_proof.tex) | [source](https://arxiv.org/abs/2512.20667v1) [provenance](sources/191587/provenance.json) |
 | 191590 | Sequential Apportionments from Stationary Divisor Methods | H2 | [TeX](items/191590_author_proof.tex) | [source](https://arxiv.org/abs/2512.20686v2) [provenance](sources/191590/provenance.json) |
+| 191591 | Propagation Estimates for the Boson Star Equation | H3 | [TeX](items/191591_author_proof.tex) | [source](https://arxiv.org/abs/2512.20718v1) [provenance](sources/191591/provenance.json) |
 | 191592 | A dichotomy of finite element spaces and its application to an energy-conservative scheme for the regularized long wave equation | H3 | [TeX](items/191592_author_proof.tex) | [source](https://arxiv.org/abs/2512.20737v2) [provenance](sources/191592/provenance.json) |
+| 191594 | Asymptotic behavior for a class of damped second-order gradient systems via Lyapunov method | H3 | [TeX](items/191594_author_proof.tex) | [source](https://arxiv.org/abs/2512.20751v1) [provenance](sources/191594/provenance.json) |
 | 191602 | Long-term behavior of casino games | H2 | [TeX](items/191602_author_proof.tex) | [source](https://arxiv.org/abs/2512.20818v2) [provenance](sources/191602/provenance.json) |
 | 191608 | On the Euclidean Distance Degree of Quadratic Two-Neuron Neural Networks | H3 | [TeX](items/191608_author_proof.tex) | [source](https://arxiv.org/abs/2512.21016v3) [provenance](sources/191608/provenance.json) |
 | 191619 | On Borel sets in ideal topologies | H2 | [TeX](items/191619_author_proof.tex) | [source](https://arxiv.org/abs/2512.21140v3) [provenance](sources/191619/provenance.json) |
@@ -7011,6 +7152,10 @@
 | 191698 | Benign Nonconvexity of Synchronization Landscape Induced by Graph Skeletons | H3 | [TeX](items/191698_author_proof.tex) | [source](https://arxiv.org/abs/2512.21935v3) [provenance](sources/191698/provenance.json) |
 | 191699 | Optimal Convergence Estimate of the Limit from Inverse Power Potential to Hard Sphere Boltzmann Equation | H2 | [TeX](items/191699_author_proof.tex) | [source](https://arxiv.org/abs/2512.21938v1) [provenance](sources/191699/provenance.json) |
 | 191704 | Generalized binomial edge ideals are Cartwright-Sturmfels | H2 | [TeX](items/191704_author_proof.tex) | [source](https://arxiv.org/abs/2512.22012v2) [provenance](sources/191704/provenance.json) |
+| 191705 | Combinatorial characterzations of $T$-designs in the nonbinary Johnson scheme | H3 | [TeX](items/191705_author_proof.tex) | [source](https://arxiv.org/abs/2512.22034v1) [provenance](sources/191705/provenance.json) |
+| 191707 | Low regularity well-posedness for two-dimensional hydroelastic waves | H3 | [TeX](items/191707_author_proof.tex) | [source](https://arxiv.org/abs/2512.22040v1) [provenance](sources/191707/provenance.json) |
+| 191712 | Existence of spectral submanifolds in time delay systems | H2 | [TeX](items/191712_author_proof.tex) | [source](https://arxiv.org/abs/2512.22062v1) [provenance](sources/191712/provenance.json) |
+| 191713 | On the Ergodic Capacity for SIM-Aided Holographic MIMO Communications | H2 | [TeX](items/191713_author_proof.tex) | [source](https://arxiv.org/abs/2512.22068v1) [provenance](sources/191713/provenance.json) |
 | 191720 | A New Class of Fuzzy Inner Products and Fuzzy Norms over Ordered Intervals | H2 | [TeX](items/191720_author_proof.tex) | [source](https://arxiv.org/abs/2512.22253v1) [provenance](sources/191720/provenance.json) |
 | 191726 | Higher Order Dualities between Prime Ideals | H2 | [TeX](items/191726_author_proof.tex) | [source](https://arxiv.org/abs/2512.22346v2) [provenance](sources/191726/provenance.json) |
 | 191728 | Generalized $K$-theoretic invariants and wall-crossing via non-abelian localization | H2 | [TeX](items/191728_author_proof.tex) | [source](https://arxiv.org/abs/2512.22360v2) [provenance](sources/191728/provenance.json) |
@@ -7059,15 +7204,37 @@
 | 191868 | Spanning Components and Surfaces Under Minimum Vertex Degree | H3 | [TeX](items/191868_author_proof.tex) | [source](https://arxiv.org/abs/2512.24242v1) [provenance](sources/191868/provenance.json) |
 | 191872 | On the word problem for just infinite groups | H2 | [TeX](items/191872_author_proof.tex) | [source](https://arxiv.org/abs/2512.24266v3) [provenance](sources/191872/provenance.json) |
 | 191881 | \textsc{ Backpropagation from KL Projections: Differential and Exact I-Projection Correspondences } | H2 | [TeX](items/191881_author_proof.tex) | [source](https://arxiv.org/abs/2512.24335v2) [provenance](sources/191881/provenance.json) |
+| 191882 | The $k$-Plancherel Measure and a Finite Markov Chain | H3 | [TeX](items/191882_author_proof.tex) | [source](https://arxiv.org/abs/2512.24346v1) [provenance](sources/191882/provenance.json) |
+| 191884 | An explicit construction of heat kernels and Green's functions in measure spaces | H2 | [TeX](items/191884_author_proof.tex) | [source](https://arxiv.org/abs/2512.24348v1) [provenance](sources/191884/provenance.json) |
 | 191885 | Sharp large deviation estimates for heavy-tailed extrema | H2 | [TeX](items/191885_author_proof.tex) | [source](https://arxiv.org/abs/2512.24352v2) [provenance](sources/191885/provenance.json) |
+| 191886 | On $R$-equivalence of Automorphism groups of Associative algebras | H2 | [TeX](items/191886_author_proof.tex) | [source](https://arxiv.org/abs/2512.24357v1) [provenance](sources/191886/provenance.json) |
+| 191889 | Limit theorems for the distance \\of random points in $l_p^n$-balls | H3 | [TeX](items/191889_author_proof.tex) | [source](https://arxiv.org/abs/2512.24367v1) [provenance](sources/191889/provenance.json) |
+| 191895 | Uniform Continuity in Distribution for Borel Transformations of Random Fields | H2 | [TeX](items/191895_author_proof.tex) | [source](https://arxiv.org/abs/2512.24441v1) [provenance](sources/191895/provenance.json) |
+| 191899 | Topology, Hyperbolicity, and the Shafarevich Conjecture for Complex Algebraic Varieties | H2 | [TeX](items/191899_author_proof.tex) | [source](https://arxiv.org/abs/2512.24458v1) [provenance](sources/191899/provenance.json) |
+| 191902 | Minimal Solutions to the Skorokhod Reflection Problem Driven by Jump Processes and an Application to Reinsurance | H2 | [TeX](items/191902_author_proof.tex) | [source](https://arxiv.org/abs/2512.24491v1) [provenance](sources/191902/provenance.json) |
+| 191905 | Correctness of Extended RSA Public Key Cryptosystem | H2 | [TeX](items/191905_author_proof.tex) | [source](https://arxiv.org/abs/2512.24531v1) [provenance](sources/191905/provenance.json) |
+| 191907 | Non-isomorphic metacyclic $p$-groups of split type with the same group zeta function | H2 | [TeX](items/191907_author_proof.tex) | [source](https://arxiv.org/abs/2512.24546v1) [provenance](sources/191907/provenance.json) |
 | 191908 | Poincar\'e duality for singular tropical hypersurfaces | H2 | [TeX](items/191908_author_proof.tex) | [source](https://arxiv.org/abs/2512.24548v2) [provenance](sources/191908/provenance.json) |
+| 191910 | \textbf{ISOMORPHISMS BETWEEN COVERING-INDUCED LATTICES \\ AND CLASSICAL GEOMETRIC LATTICES} | H3 | [TeX](items/191910_author_proof.tex) | [source](https://arxiv.org/abs/2512.24569v1) [provenance](sources/191910/provenance.json) |
+| 191913 | On the number of pairwise touching cylinders in $\mathbb{R}^d$ | H2 | [TeX](items/191913_author_proof.tex) | [source](https://arxiv.org/abs/2512.24595v1) [provenance](sources/191913/provenance.json) |
+| 191918 | Some inequalities related to Heinz mean constant with Birkhoff orthogonality | H3 | [TeX](items/191918_author_proof.tex) | [source](https://arxiv.org/abs/2512.24675v1) [provenance](sources/191918/provenance.json) |
+| 191921 | Strict germs on normal surface singularities | H2 | [TeX](items/191921_author_proof.tex) | [source](https://arxiv.org/abs/2512.24699v1) [provenance](sources/191921/provenance.json) |
 | 191922 | \textbf{On $\mathscr{M}$-arrangements of conics and lines with ordinary singularities} | H2 | [TeX](items/191922_author_proof.tex) | [source](https://arxiv.org/abs/2512.24707v2) [provenance](sources/191922/provenance.json) |
+| 191925 | Non-Commutative Maximal Inequalities for State Preserving Actions of amenable groups | H3 | [TeX](items/191925_author_proof.tex) | [source](https://arxiv.org/abs/2512.24751v1) [provenance](sources/191925/provenance.json) |
 | 191932 | Number of $K$-rational points with given $j$-invariant on modular curves | H3 | [TeX](items/191932_author_proof.tex) | [source](https://arxiv.org/abs/2512.24817v2) [provenance](sources/191932/provenance.json) |
 | 191935 | Boundedness of Fourier Integral Operators with complex phases on Fourier Lebesgue spaces | H2 | [TeX](items/191935_author_proof.tex) | [source](https://arxiv.org/abs/2512.24854v2) [provenance](sources/191935/provenance.json) |
+| 191936 | On a conjecture of Almgren II: area-minimizing submanifolds with fractal singular sets on almost any manifold | H2 | [TeX](items/191936_author_proof.tex) | [source](https://arxiv.org/abs/2512.24859v1) [provenance](sources/191936/provenance.json) |
 | 191938 | Totally compatible structures on the radical of an incidence algebra | H2 | [TeX](items/191938_author_proof.tex) | [source](https://arxiv.org/abs/2512.24881v4) [provenance](sources/191938/provenance.json) |
+| 191939 | \LARGE \bf Heterogeneous Multi-Agent Multi-Target Tracking using Cellular Sheaves | H2 | [TeX](items/191939_author_proof.tex) | [source](https://arxiv.org/abs/2512.24886v1) [provenance](sources/191939/provenance.json) |
+| 191942 | On Maps that Preserve the Lie Products Equal to Fixed Elements | H2 | [TeX](items/191942_author_proof.tex) | [source](https://arxiv.org/abs/2512.24912v1) [provenance](sources/191942/provenance.json) |
+| 191950 | A guide to the $2$-generated axial algebras of Monster type | H2 | [TeX](items/191950_author_proof.tex) | [source](https://arxiv.org/abs/2512.24987v1) [provenance](sources/191950/provenance.json) |
 | 191952 | A smooth Alpert testing characterization of convolution type for the Fourier extension conjecture on paraboloids | H2 | [TeX](items/191952_author_proof.tex) | [source](https://arxiv.org/abs/2512.24990v9) [provenance](sources/191952/provenance.json) |
 | 191954 | Uniqueness for stochastic differential equations in Hilbert spaces with irregular drift | H2 | [TeX](items/191954_author_proof.tex) | [source](https://arxiv.org/abs/2512.25003v3) [provenance](sources/191954/provenance.json) |
+| 191956 | Bounding regularity of $\VI^m$-modules | H2 | [TeX](items/191956_author_proof.tex) | [source](https://arxiv.org/abs/2512.25010v1) [provenance](sources/191956/provenance.json) |
 | 191958 | Convergence of the generalization error for Deep Gradient Flow Methods for PDE\MakeLowercase{s} | H2 | [TeX](items/191958_author_proof.tex) | [source](https://arxiv.org/abs/2512.25017v2) [provenance](sources/191958/provenance.json) |
+| 191960 | Real Riemann Surfaces: Smooth and Discrete | H2 | [TeX](items/191960_author_proof.tex) | [source](https://arxiv.org/abs/2512.25022v1) [provenance](sources/191960/provenance.json) |
+| 191962 | The Hochschild homology of a noncommutative symmetric quotient stack | H3 | [TeX](items/191962_author_proof.tex) | [source](https://arxiv.org/abs/2512.25039v1) [provenance](sources/191962/provenance.json) |
+| 191963 | Compound Estimation for Binomials | H3 | [TeX](items/191963_author_proof.tex) | [source](https://arxiv.org/abs/2512.25042v1) [provenance](sources/191963/provenance.json) |
 | 191966 | \bf Contour Integrations and Parity Results of Hurwitz-type Cyclotomic Euler Sums | H2 | [TeX](items/191966_author_proof.tex) | [source](https://arxiv.org/abs/2601.00035v1) [provenance](sources/191966/provenance.json) |
 | 191968 | Splitting of operations for Hom-diassociative Algebras and Hom-triassociative Algebras | H2 | [TeX](items/191968_author_proof.tex) | [source](https://arxiv.org/abs/2601.00040v2) [provenance](sources/191968/provenance.json) |
 | 191969 | Affine Invariant Langevin Dynamics for rare-event sampling | H2 | [TeX](items/191969_author_proof.tex) | [source](https://arxiv.org/abs/2601.00107v1) [provenance](sources/191969/provenance.json) |
