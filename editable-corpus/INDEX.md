@@ -5227,6 +5227,7 @@
 | 182965 | On a novel approach to nonexpansive mappings | H2 | [TeX](items/182965_author_proof.tex) | [source](https://arxiv.org/abs/2508.06821v1) [provenance](sources/182965/provenance.json) |
 | 182970 | A decomposition of graph $a$-numbers | H2 | [TeX](items/182970_author_proof.tex) | [source](https://arxiv.org/abs/2508.06855v2) [provenance](sources/182970/provenance.json) |
 | 182974 | Mal'cev clones over a three-element set up to minor-equivalence | H2 | [TeX](items/182974_author_proof.tex) | [source](https://arxiv.org/abs/2508.06918v2) [provenance](sources/182974/provenance.json) |
+| 182976 | Multiplicative bound for distributional category along a covering | H2 | [TeX](items/182976_author_proof.tex) | [source](https://arxiv.org/abs/2508.06973v2) [provenance](sources/182976/provenance.json) |
 | 182979 | On the spectrum and energy of digraphs with self-loops | H2 | [TeX](items/182979_author_proof.tex) | [source](https://arxiv.org/abs/2508.07004v2) [provenance](sources/182979/provenance.json) |
 | 182980 | From $n$-Leibniz algebras and linear $n$-racks to the solutions of the (higher analogue of) Yang-Baxter equation | H2 | [TeX](items/182980_author_proof.tex) | [source](https://arxiv.org/abs/2508.07005v2) [provenance](sources/182980/provenance.json) |
 | 182986 | On Targeted Complexity of Discrete Motion | H2 | [TeX](items/182986_author_proof.tex) | [source](https://arxiv.org/abs/2508.07052v2) [provenance](sources/182986/provenance.json) |
@@ -6402,6 +6403,7 @@
 | 187514 | Very important paper: On the dependence of the perturbative Chern-Simons partition function on the reference flat connection in the BV formalism | H2 | [TeX](items/187514_author_proof.tex) | [source](https://arxiv.org/abs/2510.18653v3) [provenance](sources/187514/provenance.json) |
 | 187517 | On the spectral radius of the ratio of Girko matrices | H2 | [TeX](items/187517_author_proof.tex) | [source](https://arxiv.org/abs/2510.18669v3) [provenance](sources/187517/provenance.json) |
 | 187523 | Ordinal and disjoint sums of partially ordered patterns | H2 | [TeX](items/187523_author_proof.tex) | [source](https://arxiv.org/abs/2510.18761v1) [provenance](sources/187523/provenance.json) |
+| 187527 | Dense sets excluding nested finite-sum windows | H2 | [TeX](items/187527_author_proof.tex) | [source](https://arxiv.org/abs/2510.18788v1) [provenance](sources/187527/provenance.json) |
 | 187529 | Hilbert space models and Blaschke frames | H2 | [TeX](items/187529_author_proof.tex) | [source](https://arxiv.org/abs/2510.18816v3) [provenance](sources/187529/provenance.json) |
 | 187532 | Flexible inner-product free Krylov methods for inverse problems | H2 | [TeX](items/187532_author_proof.tex) | [source](https://arxiv.org/abs/2510.18853v1) [provenance](sources/187532/provenance.json) |
 | 187533 | Evolution of recursive trees with limited memory | H2 | [TeX](items/187533_author_proof.tex) | [source](https://arxiv.org/abs/2510.18856v1) [provenance](sources/187533/provenance.json) |
@@ -6604,6 +6606,7 @@
 | 188396 | Non Asymptotic Mixing Time Analysis of Non-Reversible Markov Chains | H2 | [TeX](items/188396_author_proof.tex) | [source](https://arxiv.org/abs/2511.02265v1) [provenance](sources/188396/provenance.json) |
 | 188400 | Clebsch-Gordan and the theta filtration for modular representations of $\mathrm{GL}_2({\mathbb F}_q)$ | H2 | [TeX](items/188400_author_proof.tex) | [source](https://arxiv.org/abs/2511.02299v1) [provenance](sources/188400/provenance.json) |
 | 188401 | Restricted Liouville Operator for the study of Non-Analytic Dynamics within the Disk | H2 | [TeX](items/188401_author_proof.tex) | [source](https://arxiv.org/abs/2511.02305v2) [provenance](sources/188401/provenance.json) |
+| 188412 | Refining incidence systems while preserving the automorphism pair | H2 | [TeX](items/188412_author_proof.tex) | [source](https://arxiv.org/abs/2511.02410v2) [provenance](sources/188412/provenance.json) |
 | 188416 | Second-Order Optimality Conditions for Nonsmooth Constrained Optimization with Applications to Bilevel Programming | H2 | [TeX](items/188416_author_proof.tex) | [source](https://arxiv.org/abs/2511.02439v1) [provenance](sources/188416/provenance.json) |
 | 188418 | Harder-Narasimhan Filtration on Moment Map for Quiver Representations | H2 | [TeX](items/188418_author_proof.tex) | [source](https://arxiv.org/abs/2511.02449v2) [provenance](sources/188418/provenance.json) |
 | 188420 | Linear relations among radicals | H2 | [TeX](items/188420_author_proof.tex) | [source](https://arxiv.org/abs/2511.02498v1) [provenance](sources/188420/provenance.json) |
@@ -6993,6 +6996,7 @@
 | 190524 | Free energy dissipation and a decomposition of general jump diffusions on $\mathbb{R}^n$ without detailed balance | H2 | [TeX](items/190524_author_proof.tex) | [source](https://arxiv.org/abs/2512.06839v2) [provenance](sources/190524/provenance.json) |
 | 190530 | The Angular Momentum Penrose Inequality | H3 | [TeX](items/190530_author_proof.tex) | [source](https://arxiv.org/abs/2512.06918v4) [provenance](sources/190530/provenance.json) |
 | 190533 | Statistical analysis of Inverse Entropy-regularized Reinforcement Learning | H2 | [TeX](items/190533_author_proof.tex) | [source](https://arxiv.org/abs/2512.06956v2) [provenance](sources/190533/provenance.json) |
+| 190548 | The law E73 does not imply cube associativity E4380 | H2 | [TeX](items/190548_author_proof.tex) | [source](https://arxiv.org/abs/2512.07087v2) [provenance](sources/190548/provenance.json) |
 | 190555 | Function-Correcting Codes for Insertion-Deletion Channel | H2 | [TeX](items/190555_author_proof.tex) | [source](https://arxiv.org/abs/2512.07243v3) [provenance](sources/190555/provenance.json) |
 | 190569 | A new scale of function spaces characterizing homogeneous Besov spaces | H3 | [TeX](items/190569_author_proof.tex) | [source](https://arxiv.org/abs/2512.07399v2) [provenance](sources/190569/provenance.json) |
 | 190579 | An Infinite Transitivity Theorem | H2 | [TeX](items/190579_author_proof.tex) | [source](https://arxiv.org/abs/2512.07549v4) [provenance](sources/190579/provenance.json) |
@@ -7051,6 +7055,7 @@
 | 191059 | A M\"obius function on the centralizer lattice | H2 | [TeX](items/191059_author_proof.tex) | [source](https://arxiv.org/abs/2512.13839v2) [provenance](sources/191059/provenance.json) |
 | 191061 | A Note on the Sum-Product Problem and the Convex Sumset Problem | H2 | [TeX](items/191061_author_proof.tex) | [source](https://arxiv.org/abs/2512.13849v2) [provenance](sources/191061/provenance.json) |
 | 191064 | Stable cohomology of universal character varieties | H2 | [TeX](items/191064_author_proof.tex) | [source](https://arxiv.org/abs/2512.13879v3) [provenance](sources/191064/provenance.json) |
+| 191078 | Finite local metric models for residually finite isometric actions | H3 | [TeX](items/191078_author_proof.tex) | [source](https://arxiv.org/abs/2512.14147v1) [provenance](sources/191078/provenance.json) |
 | 191083 | Analysis of a finite element method for second order uniformly elliptic PDEs in non-divergence form | H3 | [TeX](items/191083_author_proof.tex) | [source](https://arxiv.org/abs/2512.14219v4) [provenance](sources/191083/provenance.json) |
 | 191087 | DT-PBO: an Interpretable Tree-based Surrogate Model for Preferential Bayesian Optimization | H2 | [TeX](items/191087_author_proof.tex) | [source](https://arxiv.org/abs/2512.14263v2) [provenance](sources/191087/provenance.json) |
 | 191094 | Towards Real Time Control of Water Engineering with Nonlinear Hyperbolic Partial Differential Equations | H2 | [TeX](items/191094_author_proof.tex) | [source](https://arxiv.org/abs/2512.14387v4) [provenance](sources/191094/provenance.json) |
@@ -7069,7 +7074,9 @@
 | 191176 | Matchings avoiding ordered patterns | H2 | [TeX](items/191176_author_proof.tex) | [source](https://arxiv.org/abs/2512.15461v2) [provenance](sources/191176/provenance.json) |
 | 191177 | Capillary $L_p$-Christoffel-Minkowski problem | H3 | [TeX](items/191177_author_proof.tex) | [source](https://arxiv.org/abs/2512.15464v2) [provenance](sources/191177/provenance.json) |
 | 191189 | Quantum Mixing and Benjamini-Schramm Convergence of Hyperbolic Surfaces | H2 | [TeX](items/191189_author_proof.tex) | [source](https://arxiv.org/abs/2512.15504v3) [provenance](sources/191189/provenance.json) |
+| 191190 | Finite regular polytopes with prescribed toroidal sections and a 2-group | H2 | [TeX](items/191190_author_proof.tex) | [source](https://arxiv.org/abs/2512.15511v1) [provenance](sources/191190/provenance.json) |
 | 191191 | A modified Bakry-\'Emery $\Gamma_2$ criterion inequality and the monotonicity of the Tsallis entropy | H3 | [TeX](items/191191_author_proof.tex) | [source](https://arxiv.org/abs/2512.15525v2) [provenance](sources/191191/provenance.json) |
+| 191192 | Supercritical Poisson stick percolation in a hyperbolic half-plane | H2 | [TeX](items/191192_author_proof.tex) | [source](https://arxiv.org/abs/2512.15529v1) [provenance](sources/191192/provenance.json) |
 | 191195 | Cancellation problem via \\ locally nilpotent derivations | H2 | [TeX](items/191195_author_proof.tex) | [source](https://arxiv.org/abs/2512.15590v2) [provenance](sources/191195/provenance.json) |
 | 191200 | Quantitative Equidistribution on Hyperbolic Surfaces and Arithmetic Applications | H2 | [TeX](items/191200_author_proof.tex) | [source](https://arxiv.org/abs/2512.15664v2) [provenance](sources/191200/provenance.json) |
 | 191211 | Borel 1 type mappings and the respective equi-families | H2 | [TeX](items/191211_author_proof.tex) | [source](https://arxiv.org/abs/2512.15912v3) [provenance](sources/191211/provenance.json) |
@@ -8347,6 +8354,7 @@
 | 194847 | Topology of the Vakil--Zinger moduli space | H2 | [TeX](items/194847_author_proof.tex) | [source](https://arxiv.org/abs/2602.16103v1) [provenance](sources/194847/provenance.json) |
 | 194849 | Martin boundary and invariant fields for multiplicative SHE | H2 | [TeX](items/194849_author_proof.tex) | [source](https://arxiv.org/abs/2602.16126v5) [provenance](sources/194849/provenance.json) |
 | 194850 | Godel Implication on Finite Chains: Truth Tables and Catalan-Bracketing Enumerations | H3 | [TeX](items/194850_author_proof.tex) | [source](https://arxiv.org/abs/2602.16135v1) [provenance](sources/194850/provenance.json) |
+| 194851 | Sharp deviation bounds for two-model Bayesian averaging | H2 | [TeX](items/194851_author_proof.tex) | [source](https://arxiv.org/abs/2602.16142v2) [provenance](sources/194851/provenance.json) |
 | 194854 | Traveling waves for SIR model on two-dimensional lattice | H2 | [TeX](items/194854_author_proof.tex) | [source](https://arxiv.org/abs/2602.16172v1) [provenance](sources/194854/provenance.json) |
 | 194855 | Projection-based approximations for eigenvalue problems of Fredholm integral operators with Green's kernels | H2 | [TeX](items/194855_author_proof.tex) | [source](https://arxiv.org/abs/2602.16191v1) [provenance](sources/194855/provenance.json) |
 | 194856 | On cyclic invariants of the free associative algebra | H2 | [TeX](items/194856_author_proof.tex) | [source](https://arxiv.org/abs/2602.16202v1) [provenance](sources/194856/provenance.json) |
@@ -14551,6 +14559,7 @@
 | 210558 | Classification of finite energy positive solutions to Yamabe-type equation on the fifteen dimensional octonionic Heisenberg group — theorem jl | H2 | [TeX](items/210558_author_proof.tex) | [source](https://arxiv.org/abs/2609.17072v1) [provenance](sources/210558/provenance.json) |
 | 210559 | Toland duality and particle approximations for signed Wasserstein barycenters | H2 | [TeX](items/210559_author_proof.tex) | [source](https://arxiv.org/abs/2609.17073v1) [provenance](sources/210559/provenance.json) |
 | 210561 | Conformal structures and rigidity of complete stable minimal hypersurfaces | H2 | [TeX](items/210561_author_proof.tex) | [source](https://arxiv.org/abs/2609.17078v1) [provenance](sources/210561/provenance.json) |
+| 210565 | On a classical zero-sum invariant II: Disproof of a long-standing conjecture — theorem thm:main2 | H2 | [TeX](items/210565_author_proof.tex) | [source](https://arxiv.org/abs/2609.17127v1) [provenance](sources/210565/provenance.json) |
 | 210569 | Intervention problems in the Linear Threshold Model: A general formulation and new results | H2 | [TeX](items/210569_author_proof.tex) | [source](https://arxiv.org/abs/2609.17146v1) [provenance](sources/210569/provenance.json) |
 | 210571 | Finite Borel asymptotic dimension of bounded-to-one commutative monoid actions — theorem thm:main | H2 | [TeX](items/210571_author_proof.tex) | [source](https://arxiv.org/abs/2609.17177v1) [provenance](sources/210571/provenance.json) |
 | 210573 | On atoms and their density in the monoid of monomial ideals — theorem thm: 4-generated | H3 | [TeX](items/210573_author_proof.tex) | [source](https://arxiv.org/abs/2609.17202v1) [provenance](sources/210573/provenance.json) |
