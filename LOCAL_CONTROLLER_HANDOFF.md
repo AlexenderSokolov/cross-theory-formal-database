@@ -1,29 +1,42 @@
-# 本地总控：日常执行一页说明
+# 建库与维护：唯一执行入口
 
-目标30,000道合格唯一题。先看[当前产物索引](handoff/yupeng/ARTIFACTS_CURRENT.md)、queue和实际任务状态；严格标准统一引用[项目skill](corpus-work/.agents/skills/human-proof-corpus/SKILL.md)，不重复展开规范。
+先看[首页](README.md)和[当前状态](curation/SUMMARY.json)。本页给命令和边界，具体题目问题见[返修说明](curation/REPAIRS.md)。
 
-## 五步闭环
+## 本地整理、返修和检查
 
-1. **处理来源**：优先缓存和已有断点。确认精确命题、必要证明/core、难度、版本和许可；具体问题逐题hold。无关插画、品牌图和章节不默认加工。
-2. **完成题证**：忠实转录，引用按原刊映射，复用已成功wrapper的纯格式部分。作者、DOI、许可和版本逐题绑定。
-3. **逐题验收**：对固定final真实编译，完成必要QA和全文SQL投影，执行最终一次item门禁。未改绿色材料复用；失败仅重做受影响部分。总控作明确材料/语义准入。
-4. **满25项合并**：按queue顺序冻结25个净新增，一次主库重建、一次aggregate；余项留下一批。已有待公开批次时，来源加工和准入可继续，合并等待。
-5. **公开恢复**：沿用现有固定发布入口和上一轮实际恢复描述；正常push后实际恢复，成功才增加远端交付数。继续下一批，不等待新的人工派工。
+```bash
+bash run_curation.sh
+```
 
-## 何时才再验证
+对应的PowerShell命令：
 
-只有题目输入改变、出现实际失败或相关程序改变，才重跑对应范围。控制器工程场景及已经通过的测试不列入日常清单，不逐题aggregate/CAS，不为每次状态汇报扫描或重验整库。
+```powershell
+python -m unittest discover -s corpus-work/scripts/tests -p test_refresh_catalog.py
+python -m unittest discover -s corpus-work/scripts/tests -p test_reconcile_research_line.py
+python corpus-work/scripts/reconcile_research_line.py
+python corpus-work/scripts/refresh_catalog.py
+python corpus-work/scripts/refresh_catalog.py --check
+```
 
-当前集成测试自然完成后进入生产；失败只处理关联部分，不再追加泛化测试或新一轮架构审查。来源加工不等待无关发布优化，发布问题只阻塞对应发布步骤。已有程序保留，不为“精简代码”重构一轮；已有合格题包也不为缩篇重新制作。
+首次或抽取逻辑改变后，另跑 `python corpus-work/scripts/refresh_catalog.py --scan-pairing`。它检查全库源码跨度间插入的另一命题和明确模型解答标记，只生成需核对的条目，不把启发式命中当作数学不合格。
 
-## 固定位置与协作
+修改题名或内容结论时，写入 `curation/reviews.jsonl` 并附原文位置。`review_scope=title`只修题名；`content`才影响内容状态。H3的一审建议不能自动核准。原交付的正文、清单与数据库分片保留，目录显示新判断。研究线重叠项映射回原题，不重复计数。
 
-`B=/disks/sata1/yupeng/human-proof-corpus`；SSH别名`Yupeng-orx`；`repo=$B/repo`；`PY=$B/runtime/python/bin/python`；`CTL=$repo/corpus-work/corpusctl`。SSH沿用BatchMode、ConnectTimeout=10、ProxyCommand=none、ProxyJump=none、ClearAllForwardings=yes；本地仅保留控制与GitHub relay。
+## 20个候选试做
 
-初始3个有效来源worker，每块连续10—20候选，继承短块按断点续接。worker只写自己的目录；总控独占准入、主库和Git。actor/generation读取已登记的总控身份并显式传入，不能冒用其它owner。具体参数及恢复细节只在需要时查已实现入口和[开发契约](corpus-work/docs/controller-v2/CONTROLLER_CONTRACT.md)。
+候选和逐题结果在 [research-line/pilot-20261010/](research-line/pilot-20261010/)。按其中README/run脚本复现。确认题证、难度与唯一性后，才能把真实成功编译和材料检查结果交给现有准入器。片段存在、编译成功、候选材料数均不等于正式公开交付。
 
-## 记录与汇报
+## 正式产线
 
-queue是准入和计数权威；runtime只记执行；公开恢复result证明交付。每2小时汇报沿用ID2，报告新增准入/公开交付、累计、等待、hold及下一步；无新增写0。进程启动、技术READY、文件数和工程测试不计题数。
+主机 `Yupeng-orx`，根目录 `/disks/sata1/yupeng/human-proof-corpus`，控制器入口 `repo/corpus-work/corpusctl`（shell脚本，以bash调用）。先只读检查现场状态、磁盘和当前写入者：
 
-来源/当前主库/未交付材料原路径保留；人工清理候选见产物索引。旧dot与旧会话资料只作历史；不恢复旧心跳、不新增平台、schema、散列专项或重复审计。
+```bash
+bash /disks/sata1/yupeng/human-proof-corpus/repo/corpus-work/corpusctl status --json
+df -h /disks/sata1
+```
+
+准入、冻结、合并、发布沿用已有控制器和发布器；owner/generation、批量大小和active batch取现场值，不使用旧交接中的硬编码值。`PRODUCTION_QUEUE.json`负责准入与计数；runtime只记执行。公开精确提交恢复成功才增加交付数。
+
+2026-10-10 15:16复核时公开与本地主库均14,866、队列58、batch_size250；共享盘只剩约68MB，仍不够运行需要GB级空间的正式恢复发布。本轮本地成果不自动覆盖远端。磁盘不足时保留待交付产物及完整命令，不批量删除，不修改别人的服务。
+
+详细运行对象见[产物索引](handoff/yupeng/ARTIFACTS_CURRENT.md)；控制器代码变更才查[控制器契约](corpus-work/docs/controller-v2/CONTROLLER_CONTRACT.md)。旧交接见[历史导航](docs/history/README.md)，不据旧文档恢复旧任务。

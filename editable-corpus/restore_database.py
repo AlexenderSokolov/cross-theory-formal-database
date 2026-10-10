@@ -4,6 +4,7 @@ No downloads or installations. A differing existing corpus.sqlite is never repla
 Version 1 uses one gzip file; version 2 verifies ordered fixed-size gzip parts.
 """
 import gzip,hashlib,json,os,sqlite3,tempfile
+from contextlib import closing
 from pathlib import Path
 
 def digest(data):
@@ -61,7 +62,9 @@ def read_compressed_database(root,delivery):
     return b''.join(contents)
 
 def validate_database(path,root,manifest,expected_count):
-    with sqlite3.connect(path.as_uri()+'?mode=ro',uri=True) as db:
+    # Connection.__exit__ ends a transaction but does not close the handle.
+    # Closing explicitly is required before unlinking the staging name on Windows.
+    with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as db:
         if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok':
             raise ValueError('SQLite integrity check failed')
         if db.execute('PRAGMA foreign_key_check').fetchall():

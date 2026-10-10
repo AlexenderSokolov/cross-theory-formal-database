@@ -62,10 +62,19 @@ class StacksSource:
             proof=s[q[0]:end]
             checked=proof
             if omitted_detail_review:
-                phrase=omitted_detail_review.get('exact_phrase','')
-                if len(phrase.split())<2 or checked.count(phrase)!=1 or not all(omitted_detail_review.get(k) for k in ('scope','why_noncore')):
-                    raise ValueError('invalid bounded omitted-detail review '+tag)
-                checked=checked.replace(phrase,'[reviewed optional noncore detail]',1)
+                multiple=isinstance(omitted_detail_review,list)
+                reviews=omitted_detail_review if multiple else [omitted_detail_review]
+                for review in reviews:
+                    if not isinstance(review,dict): raise ValueError('invalid bounded omitted-detail review '+tag)
+                    phrase=review.get('exact_phrase','')
+                    if len(phrase.split())<2 or proof.count(phrase)!=1 or checked.count(phrase)!=1 or not all(review.get(k) for k in ('scope','why_noncore')):
+                        raise ValueError('invalid bounded omitted-detail review '+tag)
+                    if multiple:
+                        start=s.count('\n',0,q[0]+proof.index(phrase))+1
+                        expected={'file':chapter+'.tex','lines':[start,start+phrase.count('\n')]}
+                        if review.get('source_locator')!=expected:
+                            raise ValueError('invalid omitted-detail source locator '+tag)
+                    checked=checked.replace(phrase,'[reviewed optional noncore detail]',1)
             if proof_flags(checked): raise ValueError('incomplete proof '+tag+': '+','.join(proof_flags(checked)))
         return dict(tag=tag,file=chapter+'.tex',chapter=chapter,label=label,kind=kind,start_line=s.count('\n',0,a)+1,end_line=s.count('\n',0,end-1)+1,statement=statement,proof=proof,excerpt=s[a:end],source_sha256=digest(s))
     def context(self,tag):
@@ -154,7 +163,7 @@ def render(source,record,spec):
     header=r'\begin{document}'+'\n'+r'\title[Stacks Project, Tag '+escape(record['tag'])+']{'+escape(spec.get('title','Stacks Tag '+record['tag']))+'}\n'+r'\maketitle'+'\n'
     header+=r'\noindent Copyright (C) 2005--2025 Johan de Jong. Stacks Project authors. Source: \href{https://stacks.math.columbia.edu/tag/'+record['tag']+'}{Tag '+record['tag']+'}.\n\n'
     header+='\\noindent Difficulty '+escape(spec['difficulty_level'])+': '+escape(spec['difficulty_reason'])+'.\n\n'
-    header+='\\noindent History: excerpt from revision '+escape(PIN)+', '+escape(record['file'])+', lines '+str(record['start_line'])+'--'+str(record['end_line'])+'. Only reference presentation was adapted. Licensed under GNU FDL 1.2 or later; no invariant sections or cover texts. See accompanying COPYING.\n\n'
+    header+='\\noindent History: excerpt from revision '+escape(spec.get('source_version', PIN))+', '+escape(record['file'])+', lines '+str(record['start_line'])+'--'+str(record['end_line'])+'. Only reference presentation was adapted. Licensed under GNU FDL 1.2 or later; no invariant sections or cover texts. See accompanying COPYING.\n\n'
     return pre+'\n'+header+'\n\n'.join(texts)+'\n\\end{document}\n'
 
 def main():
@@ -176,7 +185,7 @@ def main():
     (out/(a.tag+'.tex')).write_text(tex);(out/(a.tag+'.excerpt.tex')).write_text(r['excerpt'])
     for c in r['contexts']: (out/(a.tag+'.context-'+c['tag']+'.tex')).write_text(c['excerpt'])
     shutil.copyfile(src.root/'COPYING',out/'COPYING')
-    meta=dict(spec);meta.update(author='The Stacks Project Authors',source_url='https://stacks.math.columbia.edu/tag/'+a.tag,source_locator={'start_line':r['start_line'],'end_line':r['end_line']},source_path=str(src.root/r['file']),source_sha256=r['source_sha256'],license='GNU FDL 1.2 or later',license_path=str(out/'COPYING'),source_version=PIN,evidence_mode='native_tex',tex_path=str(out/(a.tag+'.tex')),excerpt_path=str(out/(a.tag+'.excerpt.tex')),excerpt_sha256=digest(r['excerpt']),proof_complete=True,dedup_key='stacks:'+a.tag)
+    meta=dict(spec);meta.update(author='The Stacks Project Authors',source_url='https://stacks.math.columbia.edu/tag/'+a.tag,source_locator={'start_line':r['start_line'],'end_line':r['end_line']},source_path=str(src.root/r['file']),source_sha256=r['source_sha256'],license='GNU FDL 1.2 or later',license_path=str(out/'COPYING'),source_version=spec.get('source_version', PIN),evidence_mode='native_tex',tex_path=str(out/(a.tag+'.tex')),excerpt_path=str(out/(a.tag+'.excerpt.tex')),excerpt_sha256=digest(r['excerpt']),proof_complete=True,dedup_key='stacks:'+a.tag)
     meta['extra_source_paths']=sorted({str(src.root/c['file']) for c in r['contexts']})
     meta['contexts']=[{k:c[k] for k in ('tag','file','label','kind','start_line','end_line','source_sha256')} | {'excerpt_sha256':digest(c['excerpt']), 'excerpt_path':str(out/(a.tag+'.context-'+c['tag']+'.tex'))} for c in r['contexts']]
     meta.setdefault('proof_review',{'reviewed':False,'context_checked':False,'method':'pending','note':'Requires substantive screening'})

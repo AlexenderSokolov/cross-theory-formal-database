@@ -1,14 +1,17 @@
-# 交付台账 / Delivery ledger
+# 公开交付与本轮维护
 
-每批均由本地发布管线执行并产出 `public_exact_commit_full<N>_restored_verified` 证明。
+## 当前公开基线
 
-| 累计条目 | 状态 | commit | 批次目录 |
-|---|---|---|---|
-| 6021 | `public_exact_commit_full6021_restored_verified` | `715ca7df590d449bc8d639d5a06dd9f232cfe468` | batch-5838-6021-r002 |
-| 6160 | `public_exact_commit_full6160_restored_verified` | `c6825dc30e79c8a6132c05c64b4587425b92e761` | batch-6021-6160-r002 |
-| 6264 | `public_exact_commit_full6264_restored_verified` | `d8fe787fce46054ece29278f9ac8da89b06b91e0` | batch-6160-6264-r002 |
-| 6352 | `public_exact_commit_full6352_restored_verified` | `5a174fd9109108971963de8a5c9166b5bffdbb9b` | batch-6264-6352-r002 |
-| 6437 | `public_exact_commit_full6437_restored_verified` | `e71bb54cfa05d45223182b232cac7ce4b872ff5d` | batch-6352-6437-r002 |
-| 6542 | `public_exact_commit_full6542_restored_verified` | `ea645dac152fc09191cc87ba925fd2c4deeab220` | batch-6437-6542-r002 |
-| 6642 | `public_exact_commit_full6642_restored_verified` | `d8a13db186e18204a72b4385e3080a0a72440138` | batch-6542-6642-r002 |
-| 6759 | `public_exact_commit_full6759_restored_verified` | `f55bd0c50a0930c1b9aec2d51586eedad911de9e` | batch-6642-6759-r002 |
+- 公开材料数：**14,866**。
+- 生产提交：[`7165605d4c3aa091f8f079ca329443806029be31`](https://github.com/AlexenderSokolov/cross-theory-formal-database/commit/7165605d4c3aa091f8f079ca329443806029be31)。
+- main对应提交：[`5c133eb3cb70ada8bd3ca187089fe69378e5bc52`](https://github.com/AlexenderSokolov/cross-theory-formal-database/commit/5c133eb3cb70ada8bd3ca187089fe69378e5bc52)。
+- 已有恢复回执状态：`public_exact_commit_full14866_restored_verified`，批次`batch-14785-14866-r003`。
+- 数据库实际恢复及结构检查：14,866条题目、14,505条来源，完整性通过、外键错误0；本轮没有重新编译14,866道旧题。
+
+具体数据库分片见[database-delivery.json](database-delivery.json)，原始材料名单见[manifest.json](manifest.json)。这组证据不单独认证每条难度、题证配对或数学正确性。
+
+## 2026-10-10维护
+
+本轮修目录、保留逐题返修记录、整理独立研究材料并试做20候选。尚未走正式生产准入和公开恢复的新题不会加进上述数字；实际试做结果见[候选目录](../research-line/pilot-20261010/)。
+
+原来只列到6,759条的表已保存在[历史交付表](../docs/history/2026-10-10/DELIVERIES-through-6759.md)，不能再当作当前规模。生产和维护提交历史均保留在Git中。
