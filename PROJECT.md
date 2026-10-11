@@ -57,6 +57,10 @@
 
 总结经验不增加新的审计流程。
 
+## 持续到30,000道
+
+用户启动DeepSeek后，按[启动说明](research-line/harness-ready-20261011/HARNESS_START_HERE.md)和[完整执行提示词](research-line/harness-ready-20261011/DEEPSEEK_HARNESS_PROMPT.md)持续生产。完成100或150道、会话中断均不是完成目标。库存低于25先补至至少50；每批最多25、最多两个材料工作上下文、单主控串行发布。只有达到目标、批准来源耗尽或实际环境/权限及新范围问题阻断，才交回。
+
 ## 当前材料入口
 
 - [工作表](research-line/harness-ready-20261011/PREPARATION_WORKLIST.jsonl)：唯一任务状态入口。

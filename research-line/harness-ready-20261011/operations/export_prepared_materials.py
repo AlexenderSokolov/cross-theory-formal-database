@@ -44,7 +44,7 @@ for row in rows:
         continue
     task = load(P/row["task_path"])
     slot = "formal" if len(records)<100 else "reserve"
-    row.update(state="prepared_unpublished", handoff_slot=slot, assembly_job=str(job), assembly_status="compiled", tex_path=relative(tex), pdf_path=relative(pdf))
+    row.update(state="prepared_unpublished", handoff_slot=slot, assembly_job=relative(job), assembly_status="compiled", tex_path=relative(tex), pdf_path=relative(pdf))
     records.append((row,task,tex,pdf))
 columns = ["task_id","title","route","difficulty_level","slot","source_id","source_version","source_url","claim_key","authors_json","license_json","statement_text","proof_text","context_text","tex_content","tex_path","pdf_path","task_json","public_problem_id","local_material_id","publication_status"]
 db = sqlite3.connect(OUT/"PREPARED_MATERIALS.sqlite3")

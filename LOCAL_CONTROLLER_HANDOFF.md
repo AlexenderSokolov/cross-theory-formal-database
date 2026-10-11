@@ -1,6 +1,21 @@
+# 当前持续建库入口
+
+统一规则：[PROJECT.md](PROJECT.md)，对Codex、DeepSeek及全部子智能体同等生效。
+
+启动说明：[HARNESS_START_HERE.md](research-line/harness-ready-20261011/HARNESS_START_HERE.md)。直接使用[完整执行提示词](research-line/harness-ready-20261011/DEEPSEEK_HARNESS_PROMPT.md)。唯一工作表在同目录PREPARATION_WORKLIST.jsonl。
+
+## 历史内容，不作为当前执行指令
+
+下文旧“只做机械装配”“等待Codex逐题审批”“完成后停止”“固定双审”等安排不再执行。
+
 # 建库与维护：唯一执行入口
 
+> **当前入口（2026-10-11）**：先读[本项目统一工作准则](D:/Study_Works2/Lean_grokking/PROJECT.md)。本阶段只做找题与建库，取消旧交接、固定数学复审及会话证据要求。下方旧执行安排和数量为历史参考；来源、材料和命令按当前任务需要复用，不据旧文字恢复DeepSeek工作或额外核验。
+
+
 先看[首页](README.md)和[当前状态](curation/SUMMARY.json)。本页给命令和边界，具体题目问题见[返修说明](curation/REPAIRS.md)。
+
+2026-10-10新增[文献前置准备](research-line/preparation-20261010/README.md)：六份已有文献的实质候选、题证定位、来源边界和续做位置；[Harness提示词](docs/corpus-preparation/DEEPSEEK_HARNESS_PROMPT.md)。先读各块当前验证状态，再复用已验证办法。此包不改变现场队列、生产编号或发布授权。
 
 ## 本地整理、返修和检查
 

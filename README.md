@@ -6,6 +6,8 @@
 
 本维护分支保存100正式加50后备，全部已编译；本轮新增70道本地材料，生产主库公开新增0。后续接续准备仍以30,000道为目标；所有执行者遵守同一准则。
 
+[DeepSeek接续说明](research-line/harness-ready-20261011/HARNESS_START_HERE.md) · [可直接使用的提示词](research-line/harness-ready-20261011/DEEPSEEK_HARNESS_PROMPT.md)
+
 ## 历史仓库说明
 
 > **当前入口（2026-10-11）**：先读[本项目统一工作准则](D:/Study_Works2/Lean_grokking/PROJECT.md)。本阶段只做找题与建库，取消旧交接、固定数学复审及会话证据要求。下方旧执行安排和数量为历史参考；来源、材料和命令按当前任务需要复用，不据旧文字恢复DeepSeek工作或额外核验。
