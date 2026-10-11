@@ -1,11 +1,22 @@
 # 人类数学证明题库
 
+## 当前准备成果（2026-10-11）
+
+[150道题证与PDF索引](materials/INDEX.md) · [SQLite材料库](materials/PREPARED_MATERIALS.sqlite3) · [统一项目准则](PROJECT.md)
+
+本维护分支保存100正式加50后备，全部已编译；本轮新增70道本地材料，生产主库公开新增0。后续接续准备仍以30,000道为目标；所有执行者遵守同一准则。
+
+## 历史仓库说明
+
+> **当前入口（2026-10-11）**：先读[本项目统一工作准则](D:/Study_Works2/Lean_grokking/PROJECT.md)。本阶段只做找题与建库，取消旧交接、固定数学复审及会话证据要求。下方旧执行安排和数量为历史参考；来源、材料和命令按当前任务需要复用，不据旧文字恢复DeepSeek工作或额外核验。
+
+
 这里保存数学文献中的原题与作者证明，以及可编辑 TeX、来源、许可和数据库。
 
 <!-- catalog-summary:start -->
 当前公开材料 **14,866 条**。这是已经交付的材料数，不代表每条都已按当前标准重新核准。
 
-当前目录覆盖全部题目，已修正 **19** 个题名；明确待返修 **3** 条。详见[返修说明](curation/REPAIRS.md)。
+当前目录覆盖全部题目，已修正 **19** 个题名；明确待返修 **4** 条。详见[返修说明](curation/REPAIRS.md)。
 <!-- catalog-summary:end -->
 
 ## 从这里开始
@@ -17,6 +28,7 @@
 | 阅读某题的作者证明 | 目录中的“题证”链接，正文在 [items/](editable-corpus/items/) |
 | 查看已发现的问题与返修 | [返修说明](curation/REPAIRS.md) · [逐题记录](curation/reviews.jsonl) |
 | 查看新增研究材料、重复和待处理项 | [研究线说明](research-line/README.md) |
+| 使用已准备的文献、跨方向样例与Harness提示词 | [文献前置包](research-line/preparation-20261010/README.md) · [交接提示词](docs/corpus-preparation/DEEPSEEK_HARNESS_PROMPT.md) |
 | 继续建库或维护目录 | [执行入口](LOCAL_CONTROLLER_HANDOFF.md) |
 | 查旧计划、旧交接和历史数据 | [历史资料导航](docs/history/README.md) |
 
