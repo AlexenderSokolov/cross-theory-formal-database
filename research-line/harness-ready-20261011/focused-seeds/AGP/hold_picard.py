@@ -1,0 +1,8 @@
+import pathlib,json
+P=pathlib.Path(r'C:/Users/20600/Documents/Codex/corpus-repair-20261010/research-line/harness-ready-20261011');O=P/'focused-seeds/AGP';load=lambda p:json.loads(pathlib.Path(p).read_text(encoding='utf8'))
+def save(p,x):pathlib.Path(p).write_text(json.dumps(x,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+p=O/'AGP-stacks-0F2B/task.json';t=load(p);t['status']='needs_codex';t['ready_blockers']=['Targeted independent check of the finite-length/image qualification in the local-duality diagram.'];save(p,t)
+rp=O/'AGP-stacks-0F2B/focused-review.json';r=load(rp);r['verdict']='needs_review';r['red_flags']=['The author bound names an Ext module whose support may have dimension one; the proposed correction to the image term needs independent confirmation.'];r['checks']['core_obligations']['status']='needs_review';r['issues']=[{'kind':'finite_length_image_qualification','resolved':False,'source_lines':[8600,8659],'proposed_resolution':'Depth(A)>=3 implies Ext^-2(A,omega)=0. In the displayed commutative diagram the upper map vanishes on image(t_0); therefore its image length is bounded by coker(t_0), whose linear growth is the next source argument. This is an initial targeted assessment, not an independently confirmed clearance.'}];save(rp,r)
+ready=load(O/'READY_TASKS.json');row=next(x for x in ready if x['task_id']==t['task_id']);row['status']='needs_codex';save(O/'PENDING_TASKS.json',[row]);save(O/'READY_TASKS.json',[x for x in ready if x['task_id']!=t['task_id']])
+h=load(O/'HOLDS_AND_PENDING.json');h.append({'task_id':t['task_id'],'status':'needs_codex','counted':False,'reason':r['red_flags'][0],'evidence_path':'focused-seeds/AGP/AGP-stacks-0F2B/focused-review.json'});save(O/'HOLDS_AND_PENDING.json',h)
+print('Ready',len(ready)-1)

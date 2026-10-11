@@ -1,0 +1,34 @@
+import json,pathlib,re,copy
+p=pathlib.Path(r'C:/Users/20600/Documents/Codex/corpus-repair-20261010/research-line/harness-ready-20261011')
+b='focused-seeds/AGP/sources/hott-book-578b85cc/extracted/book-578b85cc8d586b1677ec4335148adeb443057d24/'
+base=json.loads((p/'focused-seeds/ACL/ACL-logic-surreal-order-code-construction/task.json').read_text(encoding='utf-8-sig'))
+rows={x['primary_label']:x for x in map(json.loads,(p.parent/'index.jsonl').read_text(encoding='utf-8-sig').splitlines()) if x.get('source_id')=='S046'}
+def sp(f,a,z,label,role=None):
+ d=dict(path=b+f,start_line=a,end_line=z,label=label)
+ if role:d['role']=role
+ return d
+cases=[
+('univalence-no-global-double-negation','Univalence rules out uniform double-negation elimination for all types','logic.tex','thm:not-dneg',177,180,181,221,[(159,176)],'Univalence forces a uniform operation on types to respect the Boolean swap; dependent transport of the double-negation argument then creates a forbidden fixed point. The original path-transport calculation is retained.'),
+('identity-system-characterization','Four equivalent characterizations of an identity system','induction.tex','thm:identity-systems',1152,1160,1167,1193,[(1137,1150)],'Construct pointed-predicate contractions and compare their maps with representable identity predicates; recover the dependent elimination rule from contraction of the total space, including its basepoint computation.'),
+('inductive-pointwise-cover-comparison','Inductive real-interval covers agree with pointwise covers under excluded middle','reals.tex','inductive-cover-classical',2398,2405,2407,2447,[(2170,2237),(2281,2396)],'Translate between proof-generated covers and pointwise covers: induction on cover constructors in one direction and a Lebesgue-number subdivision with repeated transitivity in the other. Existing unpublished S046 H2 judgment is reused.'),
+('choice-implies-excluded-middle','Choice implies excluded middle by propositional suspension','setmath.tex','thm:1surj_to_surj_to_pem',614,619,621,646,[(535,612)],'Construct and identify the path family of the suspension of a mere proposition, proving it is a set by double induction; splitting its Boolean surjection then produces decidability. The suspension construction is included, not granted as the conclusion.'),
+('cumulative-hierarchy-constructive-set-theory','The higher inductive cumulative hierarchy satisfies constructive set-theoretic axioms','setmath.tex','thm:VisCST',1609,1649,1652,1699,[(1445,1607)],'Use bisimulation/identity and monic presentations to implement extensionality, replacement, set-indexed constructions and membership induction within the higher inductive cumulative hierarchy. Full author proof and native hierarchy constructors are retained.'),
+('choice-well-ordering-universe-correct','Choice and well-ordering are equivalent with explicit universe control','setmath.tex','thm:wop',1344,1354,1359,1399,[(887,1333),(1337,1342)],'Construct compatible well-founded choice enumerations across ordinals and prove that the image exhausts the set by a universe-correct ordinal bound and successor argument. All local ordinal simulation and union constructions are included.'),
+('effective-set-quotients','Equivalence relations are effective and their two set quotients agree','setmath.tex','effective-set-quotients',419,421,423,456,[(36,418)],'Build the image/coequalizer comparison and identify equivalence-relation classes through proposition univalence, then compare the higher inductive and image quotients. Full original image and kernel-pair support is retained; no supporting lemma is separately counted.')]
+for slug,title,file,label,sa,se,pa,pe,contexts,reason in cases:
+ t={k:copy.deepcopy(base[k]) for k in ['schema_version','source_id','source_version','authors','source_url','license']}
+ t.update(task_id='ACL-logic-hott-'+slug,problem_id=None,revision='r001',selected_by='ACL-material-production',route='logic',claim_key=base['source_id']+':'+label,title=title,status='ready_for_assembly',difficulty_level='H2',difficulty_reason=reason)
+ t['statement_spans']=[sp(file,sa,se,label)]; t['proof_spans']=[sp(file,pa,pe,'complete author proof')];t['context_spans']=[sp(file,a,z,'original definitions and local supporting proofs') for a,z in contexts]
+ t['standard_prerequisites']=[dict(name='Basic univalent type theory',statement='Identity elimination, function extensionality, univalence, dependent sums/products, propositional truncation, standard path transport and the explicitly supplied higher-inductive elimination rules. Standard elementary real/ordinal facts may be used; all target-specific local construction proofs are retained.')]
+ if label=='thm:1surj_to_surj_to_pem':t['context_spans'] += [sp('logic.tex',701,776,'choice and split surjections'),sp('hlevels.tex',265,313,'reflexive mere-relation sethood criterion')]
+ if label=='inductive-cover-classical':t['standard_prerequisites'][0]['statement']+=' Classical finite-cover Lebesgue-number lemma; this is the explicitly cited standard input, not an omitted target construction.'
+ t['core_obligations']=[reason]
+ old=rows.get(label)
+ t['dedup']=dict(conclusion='focused_semantic_uniqueness_supported',compared=[dict(research_id=old['problem_id'] if old else 'S046-fixed-book',difference='Migrates this unpublished exact target once.' if old else 'No matching target among source-specific public/prepared book claims; constructor support is not separately counted.'),dict(task_id='ACL-logic-surreal-order-code-construction',difference='Existing surreal code and Cauchy approximation tasks construct different relations; this target concerns '+title.lower()+'.')],scope='Fixed-source labels compared with current preparation cards and old research index/main overlap; no public HoTT-book primary target found.')
+ t['assembly']=copy.deepcopy(base['assembly']);t['assembly']['initial_counters']={'chapter':{'logic.tex':3,'induction.tex':5,'setmath.tex':10,'reals.tex':11}[file],'section':0,'thm':0}
+ t['assembly']['preamble_spans'] += [sp('opt-a4.tex',5,9,'original A4 narrow display macros')]
+ t['assembly']['body_spans']=[dict(s,role=role) for role,ss in [('context',t['context_spans']),('statement',t['statement_spans']),('proof',t['proof_spans'])] for s in ss]
+ t['assembly']['external_references']=[]
+ t['assembly']['editorial_notes']=['Complete fixed-author source spans retained; original CC BY-SA attribution and macros reused. Supporting statements do not create extra counted problems.',reason]
+ t['assembly'].pop('allowed_free_inputs',None)
+ d=p/'focused-seeds/ACL'/t['task_id'];d.mkdir(exist_ok=True);(d/'task.json').write_text(json.dumps(t,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');print(t['task_id'])

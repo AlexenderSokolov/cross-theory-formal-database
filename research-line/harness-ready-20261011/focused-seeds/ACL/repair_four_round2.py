@@ -1,0 +1,9 @@
+import pathlib,json,re,html
+p=pathlib.Path(r'C:/Users/20600/Documents/Codex/corpus-repair-20261010/research-line/harness-ready-20261011')
+for old,tid in [('820','ACL-analysis-hartree-low-regularity-asymptotic-stability'),('909','ACL-analysis-lattice-modified-wave-operator-completeness')]:
+ text=(p/f'focused-seeds/ACL/sources/analysis-cache-{old}/publisher.html').read_text(encoding='utf-8');out=[]
+ for key,body in re.findall(r'<p class="bibitemcls" id="([^"]+)">(.*?)</p>',text,re.S):
+  body=re.sub(r'<span class="mathjax-formula" data-tex="([^"]*)">.*?</span>',lambda x:html.unescape(x[1]),body,flags=re.S);txt=html.unescape(re.sub('<[^>]+>','',body)).split(' | ')[0];ma=re.match(r'\[([^]]+)\]\s*',txt);lab=ma[1] if ma else key;txt=txt[ma.end():] if ma else txt;txt=txt.replace('&',r'\&').replace('%',r'\%').replace('#',r'\#');out.append(r'\bibitem['+lab+']{'+key+'} '+txt)
+ (p/'focused-seeds/ACL'/tid/'bibliography.tex').write_text('\\begin{thebibliography}{99}\n'+'\n'.join(out)+'\n\\end{thebibliography}\n',encoding='utf-8');print(old,'full references',len(out))
+for slug,addition in [('hypoelliptic-chain-weak-harnack','\\providecommand{\\skpt}{\\smallskip}\n'),('lattice-modified-wave-operator-completeness','\\newtheorem{cor}[theo]{Corollary}\n'),('schrodinger-determinant-lq-optimal-potential','\\providecommand{\\dpl}{\\displaystyle}\n')]:
+ d=p/'focused-seeds/ACL'/('ACL-analysis-'+slug);f=d/'layout.tex';txt=f.read_text(encoding='utf-8')+addition;f.write_text(txt,encoding='utf-8');task=d/'task.json';t=json.loads(task.read_text(encoding='utf-8'));next(x for x in t['assembly']['preamble_spans'] if x['path']==str(f.relative_to(p)))['end_line']=len(txt.splitlines());task.write_text(json.dumps(t,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
