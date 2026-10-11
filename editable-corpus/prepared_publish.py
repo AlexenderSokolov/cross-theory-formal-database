@@ -615,9 +615,12 @@ def restore_release(repo, commit, output):
             for ident in delta["problem_ids"]:
                 db.execute("UPDATE problems SET publication_commit=? WHERE problem_id=? AND validation_policy=?",
                            (delta.get("published_commit") or commit, ident, d.POLICY))
+    final_sql = d.validate_database(restored["database"])
+    final_sql["metadata_projection_consistent"] = restored["sql"]["metadata_projection_consistent"]
+    final_sql["metadata_projection_checked_before_publication_annotation"] = True
     result = {"schema_version": 2, "policy": d.POLICY, "status": "exact_commit_restored", "verified_corpus_commit": commit,
               "material_count": restored["sql"]["problem_count"], "restored_prepared_jobs": len(reports),
-              "database": restored["database"], "sql": d.validate_database(restored["database"]), "jobs": reports}
+              "database": restored["database"], "sql": final_sql, "jobs": reports}
     d.save(output / "RESTORE_RESULT.json", result)
     d.save(output / "editable-corpus/manifest.json", restored["manifest"])
     return result
@@ -631,7 +634,7 @@ def remote_commit(repo, origin, branch):
     return records[0][0]
 
 
-def finish_reconciled_marker(state, spec):
+def finish_reconciled_marker(state, spec, folder):
     """Complete only this batch's final marker from existing verified receipts.
 
     Called with both protocol locks held. No Git command, re-count or asset
@@ -649,19 +652,134 @@ def finish_reconciled_marker(state, spec):
               queue["base"].get("verified_corpus_commit") == candidate and
               queue["base"]["local_count"] == queue["base"]["remote_main_count"] == state["material_count"],
               "reconciled queue/commit/count conflict")
+    # Update only the current recovery pointers, retaining any old aggregate
+    # paths explicitly as legacy evidence. Counts above have already matched.
+    stale = {key: queue["base"].pop(key) for key in ("build_root", "receipt_root", "accepted_report") if key in queue["base"]}
+    changed = bool(stale)
+    if stale:
+        legacy = queue["base"].setdefault("legacy_metadata", {})
+        d.require(not set(stale) & set(legacy), "legacy metadata fields already exist; preserve conflicting history")
+        legacy.update(stale, status="legacy_only_not_current_assets", captured_from_base_material_count=queue["base"]["local_count"])
+    pointers = {"restore_report": state["public_restore_result"],
+                "prepared_assets_root": str(Path(receipt["database"]).parent / "editable-corpus/prepared-jobs")}
+    for key, value in pointers.items():
+        if queue["base"].get(key) != value:
+            queue["base"][key] = value
+            changed = True
+    if changed:
+        d.save(spec["queue_path"], queue)
     marker = Path(spec["state_root"]) / "publication-external.json"
+    external_complete = False
     if marker.exists():
         previous = d.load(marker)
         d.require(previous.get("batch_id") == state["batch_id"], "external marker belongs to another batch")
         marked_commit = previous.get("verified_corpus_commit", previous.get("candidate_commit"))
         d.require(marked_commit == candidate, "external marker commit conflict")
-        if previous.get("state") == "completed":
+        external_complete = previous.get("state") == "completed"
+    if not external_complete:
+        d.save(marker, {"schema_version": 2, "policy": d.POLICY, "batch_id": state["batch_id"], "state": "completed",
+                        "verified_corpus_commit": candidate, "completed_at": state["completed_at"], "marker_recovered_at": d.utc_now()})
+    pending = Path(spec["state_root"]) / "pending-publication.json"
+    completed = {"schema_version": 2, "policy": d.POLICY, "batch_id": state["batch_id"], "stage": "reconciled",
+                 "status": "reconciled", "verified_corpus_commit": candidate, "count": state["material_count"],
+                 "public_restore_result": state["public_restore_result"], "completed_at": state["completed_at"]}
+    if pending.exists():
+        previous = d.load(pending)
+        if all(previous.get(key) == value for key, value in completed.items()):
             return
-    d.save(marker, {"schema_version": 2, "policy": d.POLICY, "batch_id": state["batch_id"], "state": "completed",
-                    "verified_corpus_commit": candidate, "completed_at": state["completed_at"], "marker_recovered_at": d.utc_now()})
+        d.require(not previous or previous.get("batch_id") == state["batch_id"] or previous.get("stage") == "reconciled" or
+                  previous.get("status", previous.get("state")) in ("delivered", "complete", "completed", "verified", "reconciled"),
+                  "pending publication belongs to another unfinished batch")
+        history = Path(folder) / "completion-marker-history" / ("pending-before-" + str(time.time_ns()) + ".json")
+        d.save(history, previous)
+    d.save(pending, completed)
 
 
-def publish(folder):
+def begin_relay(folder):
+    """Authorize one existing candidate for the trusted local Git relay."""
+    folder = Path(folder).resolve()
+    state = d.load(folder / "publication.json")
+    spec = state["spec"]
+    with control(spec, publication=True):
+        state = d.load(folder / "publication.json")
+        d.require(state.get("policy") == d.POLICY and state.get("actor") == spec["actor"] and
+                  folder == Path(spec["publication_root"]).resolve() / spec["batch_id"] and state["batch_id"] == spec["batch_id"],
+                  "relay batch/actor/location conflict")
+        candidate, base, repo = state["candidate_commit"], state["public_base_commit"], state["git_dir"]
+        envelope = {"schema_version": 2, "policy": d.POLICY, "batch_id": state["batch_id"], "actor": spec["actor"],
+                    "candidate_commit": candidate, "public_base_commit": base, "branch": spec["branch"],
+                    "origin_url": spec["origin_url"], "material_count": state["material_count"], "bundle_path": None}
+        if state["stage"] == "reconciled":
+            finish_reconciled_marker(state, spec, folder)
+            if "error" in state:
+                state["previous_external_error"] = state.pop("error")
+                d.save(folder / "publication.json", state)
+            return dict(envelope, status="reconciled", verified_corpus_commit=state["verified_corpus_commit"],
+                        public_restore_result=state["public_restore_result"])
+        d.require(state["stage"] in ("prepared_not_pushed", "external_write_unknown", "restoring", "needs_restore"),
+                  "relay requires a committed prepared candidate")
+        q = d.load(spec["queue_path"])
+        d.require(not q.get("active_batch") and not q.get("queued_new_root_admitted") and
+                  q["base"]["local_count"] == q["base"]["remote_main_count"] and
+                  q["base"]["remote_main_count"] in (state["material_count"] - state["increment"], state["material_count"]),
+                  "relay controller material boundary changed")
+        if q["base"].get("verified_corpus_commit"):
+            d.require(q["base"]["verified_corpus_commit"] in (base, candidate), "relay queue public commit conflict")
+        jobs = select_jobs(spec)
+        d.require(state["incoming"] == [d.binding(task) for _, task in jobs], "relay incoming whitelist/revision conflict")
+        d.require(COMMIT.fullmatch(candidate) and COMMIT.fullmatch(base) and
+                  git(["--git-dir", repo, "rev-parse", "HEAD"]) == candidate and
+                  git(["--git-dir", repo, "show", "-s", "--format=%P", candidate]) == base,
+                  "relay candidate HEAD/parent conflict")
+        descriptor = git_json(repo, candidate, "editable-corpus/prepared-database.json")
+        delta = descriptor["deltas"][-1]
+        d.require(delta["batch_id"] == state["batch_id"] and delta["problem_ids"] == [task["problem_id"] for _, task in jobs] and
+                  descriptor["material_count"] == state["material_count"], "relay committed delta identity/count conflict")
+        for original, task in jobs:
+            js = d.load(original / "job-state.json")
+            approved_task = d.load(original / js["package"] / js["task_snapshot"])
+            path = "editable-corpus/prepared-jobs/" + task["task_id"] + "/" + task["revision"] + "/" + js["package"] + "/" + js["task_snapshot"]
+            committed_task = git_json(repo, candidate, path)
+            d.require(d.binding(committed_task) == d.binding(approved_task) and d.task_config(committed_task) == d.task_config(approved_task),
+                      "relay committed task differs from current approved configuration")
+        observed = remote_commit(repo, spec["origin_url"], spec["branch"])
+        d.require(observed in (base, candidate), "relay public branch moved away from frozen base/candidate")
+        marker = Path(spec["state_root"]) / "publication-external.json"
+        if marker.exists():
+            previous = d.load(marker)
+            d.require(previous.get("batch_id") == state["batch_id"] or previous.get("state") in ("completed", "reconciled"),
+                      "another external publication requires recovery")
+        state.update(stage="external_write_unknown", relay_authorized_at=d.utc_now(), relay_observed_commit=observed)
+        d.save(folder / "publication.json", state)
+        d.save(marker, {"schema_version": 2, "policy": d.POLICY, "batch_id": state["batch_id"], "actor": spec["actor"],
+                        "state": "unknown", "operation": "local_git_relay", "candidate_commit": candidate, "public_base_commit": base,
+                        "branch": spec["branch"], "registered_at": d.utc_now()})
+        if observed == candidate:
+            return dict(envelope, status="awaiting_public_restore", observed_public_commit=observed)
+        relay = state.get("relay_bundle")
+        if relay:
+            bundle = d.relative_path(folder, relay["path"], existing=True)
+            d.require(relay.get("candidate_commit") == candidate and relay.get("public_base_commit") == base,
+                      "existing relay bundle metadata conflict")
+            heads = git(["--git-dir", repo, "bundle", "list-heads", bundle, "HEAD"]).split()
+            d.require(heads == [candidate, "HEAD"], "existing relay bundle HEAD conflict")
+            git(["--git-dir", repo, "bundle", "verify", bundle])
+        else:
+            attempt = int(state.get("relay_bundle_attempts", 0)) + 1
+            state["relay_bundle_attempts"] = attempt
+            d.save(folder / "publication.json", state)
+            bundle = folder / "relay" / ("candidate-" + str(attempt).zfill(3) + ".bundle")
+            bundle.parent.mkdir(exist_ok=True)
+            d.require(not bundle.exists(), "relay bundle attempt already exists; preserve it")
+            git(["--git-dir", repo, "bundle", "create", bundle, base + "..HEAD"])
+            heads = git(["--git-dir", repo, "bundle", "list-heads", bundle, "HEAD"]).split()
+            d.require(heads == [candidate, "HEAD"], "new relay bundle HEAD conflict")
+            state["relay_bundle"] = {"path": bundle.relative_to(folder).as_posix(), "candidate_commit": candidate, "public_base_commit": base}
+            d.save(folder / "publication.json", state)
+        return dict(envelope, status="relay_ready", observed_public_commit=observed, bundle_path=str(bundle))
+
+
+def publish(folder, *, restore_only=False):
     """Root-owned serial push/fetch/restore/reconcile; retry first observes Git.
 
     An interrupted external write is never treated as a fresh blind push. The
@@ -674,7 +792,10 @@ def publish(folder):
         state = d.load(folder / "publication.json")
         d.require(state.get("policy") == d.POLICY and state["actor"] == spec["actor"], "publication actor binding differs")
         if state["stage"] == "reconciled":
-            finish_reconciled_marker(state, spec)
+            finish_reconciled_marker(state, spec, folder)
+            if "error" in state:
+                state["previous_external_error"] = state.pop("error")
+                d.save(folder / "publication.json", state)
             return {k: v for k, v in state.items() if k != "spec"}
         d.require(state["stage"] in ("prepared_not_pushed", "external_write_unknown", "restoring", "needs_restore"),
                   "publication is not prepared or a resumable external stage")
@@ -696,6 +817,7 @@ def publish(folder):
         try:
             observed = remote_commit(repo, spec["origin_url"], spec["branch"])
             d.require(observed in (state["public_base_commit"], candidate), "public branch moved; preserve this batch for reconciliation")
+            d.require(not restore_only or observed == candidate, "restore-only requires the exact candidate already public; no server push attempted")
             if observed != candidate:
                 # Candidate is proven to be the one-parent child of the leased
                 # base. This compare-and-swap cannot replace another writer.
@@ -716,6 +838,10 @@ def publish(folder):
             if os.name == "nt":
                 git(["-C", consumer, "config", "core.longpaths", "true"])
             git(["-C", consumer, "remote", "add", "origin", spec["origin_url"]])
+            # Git 2.17 requires this repository extension before filtered fetch;
+            # remote.origin.promisor alone is the newer configuration spelling.
+            git(["-C", consumer, "config", "core.repositoryformatversion", "1"])
+            git(["-C", consumer, "config", "extensions.partialClone", "origin"])
             git(["-C", consumer, "config", "remote.origin.promisor", "true"])
             git(["-C", consumer, "config", "remote.origin.partialclonefilter", "blob:none"])
             git(["-C", consumer, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", candidate])
@@ -725,9 +851,16 @@ def publish(folder):
             require_owner(spec["state_root"], spec["actor"])
             q = d.load(spec["queue_path"])
             d.require(not q.get("active_batch") and not q.get("queued_new_root_admitted"), "controller queue changed during publication")
+            stale = {key: q["base"].pop(key) for key in ("build_root", "receipt_root", "accepted_report") if key in q["base"]}
+            if stale:
+                legacy = q["base"].setdefault("legacy_metadata", {})
+                d.require(not set(stale) & set(legacy), "legacy metadata fields already exist; preserve conflicting history")
+                legacy.update(stale, status="legacy_only_not_current_assets", captured_from_base_material_count=q["base"]["local_count"])
             q["base"].update(local_count=result["material_count"], remote_main_count=result["material_count"],
                              validation_policy=d.POLICY, package=str(Path(result["database"]).parent / "editable-corpus"),
-                             master_database=result["database"], verified_corpus_commit=candidate)
+                             master_database=result["database"], verified_corpus_commit=candidate,
+                             restore_report=str(Path(result["database"]).parent / "RESTORE_RESULT.json"),
+                             prepared_assets_root=str(Path(result["database"]).parent / "editable-corpus/prepared-jobs"))
             q["last_publication"] = {"batch_id": state["batch_id"], "policy": d.POLICY, "status": "verified_public",
                                      "verified_corpus_commit": candidate, "material_count": result["material_count"],
                                      "public_restore_result": str(Path(result["database"]).parent / "RESTORE_RESULT.json")}
@@ -735,9 +868,10 @@ def publish(folder):
             state.update(stage="reconciled", verified_corpus_commit=candidate, restored_database=result["database"],
                          public_restore_result=q["last_publication"]["public_restore_result"],
                          current_qualified_prepared=result["sql"]["qualified_current_published_count"], completed_at=d.utc_now())
+            if "error" in state:
+                state["previous_external_error"] = state.pop("error")
             d.save(folder / "publication.json", state)
-            d.save(marker, {"schema_version": 2, "policy": d.POLICY, "batch_id": state["batch_id"], "state": "completed",
-                            "verified_corpus_commit": candidate, "completed_at": d.utc_now()})
+            finish_reconciled_marker(state, spec, folder)
             return {k: v for k, v in state.items() if k != "spec"}
         except Exception as exc:
             # Once reconciliation is saved, a final-marker write error must
@@ -758,8 +892,11 @@ def main():
     p = sub.add_parser("resume-prepare")
     p.add_argument("--batch", type=Path, required=True)
     p.add_argument("--approve-existing-stage", action="store_true")
+    p = sub.add_parser("begin-relay")
+    p.add_argument("--batch", type=Path, required=True)
     p = sub.add_parser("publish")
     p.add_argument("--batch", type=Path, required=True)
+    p.add_argument("--restore-only", action="store_true")
     p = sub.add_parser("restore")
     p.add_argument("--git-dir", type=Path, required=True); p.add_argument("--commit", required=True); p.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -768,8 +905,10 @@ def main():
             result = (reserve if args.action == "reserve" else prepare)(d.load(args.spec))
         elif args.action == "resume-prepare":
             result = resume_prepare(args.batch, approve_existing_stage=args.approve_existing_stage)
+        elif args.action == "begin-relay":
+            result = begin_relay(args.batch)
         elif args.action == "publish":
-            result = publish(args.batch)
+            result = publish(args.batch, restore_only=args.restore_only)
         else:
             result = restore_release(args.git_dir, args.commit, args.output)
         print(json.dumps(result, ensure_ascii=False, indent=2)); return 0
