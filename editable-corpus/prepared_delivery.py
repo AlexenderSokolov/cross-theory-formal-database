@@ -18,8 +18,10 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import prepared_focused as focused
 
 POLICY = "reviewed-revision-v2"
+MATERIAL_BASIS = "author_material_collection"
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}\Z")
 REVISION = re.compile(r"r[0-9]{3,}\Z")
 TASK_FIELDS = (
@@ -71,6 +73,8 @@ def task_config(task):
     """
     result = {key: copy.deepcopy(task.get(key)) for key in CONFIG_FIELDS}
     result["selected_by"] = task.get("selected_by", task.get("selector_id"))
+    if task.get("review_protocol") == focused.PROTOCOL:
+        result.update({k: copy.deepcopy(task.get(k)) for k in focused.EXTRA_CONFIG})
     return result
 
 
@@ -87,7 +91,7 @@ def scientific_scope(config):
 
 def require_review_config(task, record):
     current, approved = task_config(task), record.get("approved_task_config")
-    require(isinstance(approved, dict) and set(approved) == set(CONFIG_FIELDS), "review needs approved_task_config metadata snapshot")
+    require(isinstance(approved, dict) and set(approved) == set(current), "review needs approved_task_config metadata snapshot")
     if approved == current:
         return
     require(scientific_scope(approved) == scientific_scope(current), "review approved scientific scope differs from current task configuration")
@@ -137,10 +141,15 @@ def unresolved_issues(record):
 def review_records(task, records):
     selector = task.get("selected_by", task.get("selector_id"))
     require(nonempty(selector), "selected_by is required to establish reviewer independence")
+    is_focused = task.get("review_protocol") == focused.PROTOCOL
     valid = []
     for record in records:
         require(record.get("schema_version") == 2, "review schema_version must be 2")
         require_review_config(task, record)
+        if is_focused:
+            focused.validate_review(task, record)
+        else:
+            require(record.get("review_protocol") is None, "legacy task cannot reuse focused review")
         for key in REVIEW_BINDING:
             expected, actual = task[key], record.get(key)
             if key.endswith("_spans"):
@@ -162,19 +171,21 @@ def review_records(task, records):
             require(isinstance(approved, list) and all(x["label"] in approved for x in external),
                     "review must explicitly approve each non-load-bearing source reference")
         who = record["reviewer_id"].strip().casefold()
-        require(who != selector.strip().casefold(), "reviewer is the initial selector")
+        if not is_focused:
+            require(who != selector.strip().casefold(), "reviewer is the initial selector")
         valid.append(who)
-    needed = 2 if task["difficulty_level"] == "H3" else 1
+    needed = 2 if task["difficulty_level"] == "H3" and not is_focused else 1
     require(len(set(valid)) >= needed, f"{task['difficulty_level']} needs {needed} independent reviewer(s)")
     return records
 
 
-def validate_record(task, records):
+def validate_record(task, records, *, material_only=False):
     require(isinstance(task, dict) and task.get("schema_version") == 2, "task schema_version must be 2")
+    require(material_only or task.get("review_protocol") in (None, focused.PROTOCOL), "unknown review protocol")
     require(all(k in task for k in TASK_FIELDS), "task fields missing: " + ", ".join(k for k in TASK_FIELDS if k not in task))
     require(ID.fullmatch(str(task["task_id"])), "invalid readable task_id")
     require(REVISION.fullmatch(str(task["revision"])), "revision must have form r001")
-    require(isinstance(task["problem_id"], str) and task["problem_id"].isdigit(), "parent-assigned problem_id required")
+    require(material_only or (isinstance(task["problem_id"], str) and task["problem_id"].isdigit()), "parent-assigned problem_id required")
     require(task["status"] == "ready_for_assembly", "only ready_for_assembly tasks can enter this path")
     require(task["difficulty_level"] in ("H2", "H3"), "difficulty must be H2 or H3")
     for key in ("source_id", "source_version", "claim_key", "title", "route", "source_url", "difficulty_reason"):
@@ -185,7 +196,7 @@ def validate_record(task, records):
     for key in ("statement_spans", "proof_spans", "context_spans", "standard_prerequisites", "core_obligations", "proof_roadmap", "review_paths"):
         require(isinstance(task[key], list), key + " must be a list")
     require(task["statement_spans"] and task["proof_spans"], "counted statement and complete proof spans required")
-    require(task["core_obligations"] and task["proof_roadmap"], "specific core obligations and proof roadmap required")
+    require(task["core_obligations"] and (material_only or task["proof_roadmap"]), "specific core obligations and proof roadmap required")
     require(not unresolved_issues(task), "task has unresolved issues")
     d = task["dedup"]
     require(isinstance(d, dict), "dedup must be an object")
@@ -217,8 +228,10 @@ def validate_record(task, records):
     for reference in external:
         require(isinstance(reference, dict) and reference.get("non_load_bearing") is True and nonempty(reference.get("reason")),
                 "external reference requires a reviewed non-load-bearing reason")
-        require(re.fullmatch(r"[A-Za-z0-9:_.-]+", str(reference.get("label", ""))), "invalid external label")
-        require(reference.get("kind") in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section"),
+        # Native TeX labels can contain ordinary spaces (e.g. the JEP317
+        # label "thm:fact into k parts"); retain those author identifiers.
+        require(re.fullmatch(r"[A-Za-z0-9:_.-][A-Za-z0-9:_. -]*", str(reference.get("label", ""))), "invalid external label")
+        require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
         require(re.fullmatch(r"[A-Za-z0-9.()-]+", str(reference.get("number", ""))), "original reference number required")
         normalized_span(reference.get("source_span"))
@@ -234,7 +247,8 @@ def validate_record(task, records):
     for role, spans in body_by_role.items():
         # This compares declared locator metadata, never author/assembled text.
         require(spans == [normalized_span(s) for s in task[role + "_spans"]], "assembly differs from reviewed " + role + " locators")
-    review_records(task, records)
+    if not material_only:
+        review_records(task, records)
 
 
 def copied_asset(spec, kind):
@@ -245,14 +259,19 @@ def copied_asset(spec, kind):
     return {"path": spec["path"], "target": spec["target"], "kind": kind}
 
 
-def validate_task(task_path, task_root):
+def validate_task(task_path, task_root, *, material_only=False):
     task_root = Path(task_root).resolve()
     task_path = Path(task_path).resolve()
     require(task_path.is_relative_to(task_root), "task JSON must be inside task-root")
     task = load(task_path)
+    if material_only:
+        task.setdefault("review_paths", [])
+        task.setdefault("proof_roadmap", [])
     require(isinstance(task.get("review_paths"), list), "review_paths must be a list")
-    records = [load(relative_path(task_root, p, existing=True)) for p in task["review_paths"]]
-    validate_record(task, records)
+    records = [] if material_only else [load(relative_path(task_root, p, existing=True)) for p in task["review_paths"]]
+    if material_only and task.get("problem_id") is None:
+        task["problem_id"] = task.get("local_material_id", task["task_id"])  # Local material name, never a reserved public ID.
+    validate_record(task, records, material_only=material_only)
     sources = {}
     all_spans = task["assembly"]["preamble_spans"] + task["assembly"]["body_spans"]
     all_spans += [x["source_span"] for x in task["assembly"].get("external_references", [])]
@@ -274,19 +293,22 @@ def validate_task(task_path, task_root):
             targets.add(spec["target"])
             assets.append(spec)
     evidence_path = relative_path(task_root, task["license"]["evidence_path"], existing=True)
-    require(evidence_path.suffix.lower() == ".json", "public license evidence must be structured JSON")
-    evidence = load(evidence_path)
-    require(evidence.get("status") == "supported", "source license evidence is not supported")
-    for key in ("source_id", "source_version"):
-        if key in evidence:
-            require(evidence[key] == task[key], "license evidence belongs to another " + key)
+    if material_only:
+        evidence = load(evidence_path) if evidence_path.suffix.lower() == ".json" else {"source_notice": evidence_path.read_text(encoding="utf-8-sig")}
+    else:
+        require(evidence_path.suffix.lower() == ".json", "public license evidence must be structured JSON")
+        evidence = load(evidence_path)
+        require(evidence.get("status") == "supported", "source license evidence is not supported")
+        for key in ("source_id", "source_version"):
+            if key in evidence:
+                require(evidence[key] == task[key], "license evidence belongs to another " + key)
     return {"task": task, "reviews": records, "sources": sources, "assets": assets,
             "license_evidence": evidence, "license_path": evidence_path, "task_path": task_path,
             "task_root": task_root}
 
 
 def binding(task):
-    return {k: task[k] for k in ("task_id", "problem_id", "revision", "source_id", "source_version", "claim_key")}
+    return {k: task[k] for k in ("task_id", "problem_id", "revision", "source_id", "source_version", "claim_key") + (("review_protocol",) if task.get("review_protocol") else ())}
 
 
 def tex_escape(value):
@@ -299,8 +321,8 @@ def active_tex(text):
     return re.sub(r"(?<!\\)%[^\n]*", "", text)
 
 
-def assemble(task_path, task_root, output_root, *, compile_now=True):
-    checked = validate_task(task_path, task_root)
+def assemble(task_path, task_root, output_root, *, compile_now=True, material_only=False, refresh=False):
+    checked = validate_task(task_path, task_root, material_only=material_only)
     task = checked["task"]
     root = Path(output_root).resolve()
     require(root != checked["task_root"], "output-root must be separate from the input root")
@@ -310,17 +332,19 @@ def assemble(task_path, task_root, output_root, *, compile_now=True):
     protected += [relative_path(checked["task_root"], p, existing=True) for p in task["review_paths"]]
     protected += [asset["source"] for asset in checked["assets"]]
     require(not any(job.is_relative_to(p.parent) for p in protected), "job output would write inside an input directory")
-    require(not job.exists(), "job revision already exists; preserve it and use a new revision")
-    job.mkdir(parents=True, exist_ok=False)
+    require(not job.exists() or (refresh and load(job / "job-state.json")["status"] == "needs_codex"), "existing successful job is preserved; only failed jobs can be refreshed")
+    job.mkdir(parents=True, exist_ok=refresh)
     revision, ident = task["revision"], task["problem_id"]
     package = job / ("package-root-" + revision)
-    package.mkdir()
+    package.mkdir(exist_ok=refresh)
     for folder in ("items", "licenses", "receipts", "sources/" + ident):
         (package / folder).mkdir(parents=True, exist_ok=True)
     state = {"schema_version": 2, "policy": POLICY, **binding(task), "status": "assembling",
              "created_at": utc_now(), "package": package.name,
              "build_root": "build-root-" + revision, "receipt_root": "receipts-root-" + revision,
              "qa_root": "qa-root-" + revision, "task_snapshot": "sources/" + ident + "/prepared-task.json"}
+    if material_only:
+        state["material_only"] = True
     save(job / "job-state.json", state)
     try:
         save(package / state["task_snapshot"], task)
@@ -440,7 +464,7 @@ def assemble(task_path, task_root, output_root, *, compile_now=True):
         assets = []
         for spec in checked["assets"]:
             target = relative_path(package, spec["target"])
-            require(not target.exists(), "asset would overwrite another package file")
+            require(refresh or not target.exists(), "asset would overwrite another package file")
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(spec["source"], target)
             assets.append({"path": spec["target"], "kind": spec["kind"]})
@@ -461,6 +485,8 @@ def assemble(task_path, task_root, output_root, *, compile_now=True):
                "source_files": source_map, "status": "pending", "tex_sha256": None,
                "origin_class": "human_authored_native_tex", "review_state": "current",
                "dedup_state": "unique_within_reviewed_scope", "publication_commit": None}
+        if task.get("review_protocol"):
+            row["review_protocol"] = task["review_protocol"]
         save(package / "manifest.json", {"schema_version": 2, "policy": POLICY, "verified_count": 0, "items": [row]})
         save(package / "source-map.json", {"schema_version": 2, "policy": POLICY, "sources": source_map, "bodies": bodies})
         save(package / "delivery-evidence.json", {"schema_version": 2, "policy": POLICY, **binding(task),
@@ -491,19 +517,19 @@ def run_tool(argv, log, *, cwd=None, env=None, timeout=300):
     return result.stdout
 
 
-def compile_job(job):
+def compile_job(job, *, resume=False):
     job = Path(job).resolve()
     state = load(job / "job-state.json")
-    require(state["policy"] == POLICY and state["status"] == "assembled", "job is not a fresh assembled revision")
+    require(state["policy"] == POLICY and (state["status"] == "assembled" or (resume and state["status"] == "needs_codex")), "job is not an assembled revision or failed build")
     package = job / state["package"]
     row = load(package / "manifest.json")["items"][0]
     tex = relative_path(package, row["item_path"], existing=True)
     build = job / state["build_root"] / row["problem_id"]
     receipt_root = job / state["receipt_root"]
     qa_root = job / state["qa_root"]
-    build.mkdir(parents=True, exist_ok=False)
-    receipt_root.mkdir(exist_ok=False)
-    qa_root.mkdir(exist_ok=False)
+    build.mkdir(parents=True, exist_ok=resume)
+    receipt_root.mkdir(exist_ok=resume)
+    qa_root.mkdir(exist_ok=resume)
     task = load(package / state["task_snapshot"])
     has_bib = any(a["kind"] == "bibliography" and Path(a["path"]).suffix.lower() == ".bib" for a in row["asset_dependencies"])
     backend = task["assembly"].get("bibliography_backend", "bibtex" if has_bib else "none")
@@ -526,13 +552,20 @@ def compile_job(job):
                     "-file-line-error", "-recorder", "-output-directory=" + str(build), tex.name]
             run_tool(argv, build / f"xelatex-{attempt}.stdout", cwd=tex.parent, env=env)
             receipt["engine_runs"] += 1
-            if attempt == 1 and backend != "none":
+            if attempt == 1 and backend != "none" and (backend != "bibtex" or "\\citation" in (build / (tex.stem + ".aux")).read_text(encoding="utf-8", errors="replace")):
                 env["BIBINPUTS"] = str(tex.parent) + os.pathsep + env.get("BIBINPUTS", "")
                 argv = [tool(backend), tex.stem] if backend == "bibtex" else [tool("biber"), "--input-directory", str(build), "--output-directory", str(build), tex.stem]
                 run_tool(argv, build / (backend + ".stdout"), cwd=build, env=env)
                 receipt["bibliography_runs"] += 1
         final_log = build / (tex.stem + ".log")
         text = final_log.read_text(encoding="utf-8", errors="replace")
+        # Hyperref outlines can require an additional pass after references settle.
+        if re.search(r"Label\(s\) may have changed|Rerun to get", text, re.I):
+            run_tool([xelatex, "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error",
+                      "-file-line-error", "-recorder", "-output-directory=" + str(build), tex.name],
+                     build / f"xelatex-{passes + 1}.stdout", cwd=tex.parent, env=env)
+            receipt["engine_runs"] += 1
+            text = final_log.read_text(encoding="utf-8", errors="replace")
         errors = [line for line in text.splitlines() if re.search(
             r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\(s\) may have changed|Rerun to get|^!", line, re.I)]
         require(not errors, "final engine log has unresolved errors: " + "; ".join(errors[:4]))
@@ -579,7 +612,7 @@ LEGACY_COLUMNS = ("problem_id", "title", "difficulty_level", "difficulty_reason"
                   "status", "compile_receipt_path")
 ADDED_COLUMNS = {"task_id": "TEXT", "revision": "TEXT", "validation_policy": "TEXT DEFAULT 'legacy'",
                  "claim_key": "TEXT", "review_state": "TEXT", "dedup_state": "TEXT", "publication_commit": "TEXT",
-                 "qualification_set_id": "TEXT"}
+                 "qualification_set_id": "TEXT", "review_protocol": "TEXT"}
 SOURCE_COLUMNS = ("source_id", "author", "work", "source_url", "source_version", "retrieved_at", "license", "license_path")
 SOURCE_SQL = """CREATE TABLE sources (
 source_id TEXT PRIMARY KEY, author TEXT NOT NULL, work TEXT NOT NULL,
@@ -597,7 +630,7 @@ source_locator_json TEXT NOT NULL, tex_path TEXT NOT NULL UNIQUE, tex_content TE
 tex_sha256 TEXT, origin_class TEXT NOT NULL CHECK(origin_class IN ('human_authored_native_tex','human_authored_proof_assistant_transcription','human_authored_checked_published_transcription')),
 status TEXT NOT NULL CHECK(status='verified_editable_tex'), compile_receipt_path TEXT NOT NULL,
 task_id TEXT, revision TEXT, validation_policy TEXT DEFAULT 'legacy', claim_key TEXT,
-review_state TEXT, dedup_state TEXT, publication_commit TEXT, qualification_set_id TEXT)"""
+review_state TEXT, dedup_state TEXT, publication_commit TEXT, qualification_set_id TEXT, review_protocol TEXT)"""
 
 
 def locator(row):
@@ -642,7 +675,7 @@ def create_database(package, rows, destination):
                 values = (row["problem_id"], row["title"], row["difficulty_level"], row["difficulty_reason"], row["source_id"],
                           json.dumps(locator(row), ensure_ascii=False), row["item_path"], text, None, row["origin_class"],
                           row["status"], row["compile_receipt"], row["task_id"], row["revision"], POLICY, row["claim_key"],
-                          row["review_state"], row["dedup_state"], row.get("publication_commit"), None)
+                          row["review_state"], row["dedup_state"], row.get("publication_commit"), None, row.get("review_protocol"))
                 db.execute("INSERT INTO problems VALUES (" + ",".join("?" for _ in values) + ")", values)
             db.execute("PRAGMA user_version=2")
     finally:
@@ -700,12 +733,12 @@ def validate_database(path, expected_rows=None):
         require(db.execute("PRAGMA integrity_check").fetchone()[0] == "ok", "SQLite integrity check failed")
         require(not db.execute("PRAGMA foreign_key_check").fetchall(), "SQLite foreign-key errors")
         info = {r[1]: r for r in db.execute("PRAGMA table_info(problems)")}
-        require((set(LEGACY_COLUMNS) | set(ADDED_COLUMNS)) - {"qualification_set_id"} <= set(info), "revision-v2 database columns missing")
+        require((set(LEGACY_COLUMNS) | set(ADDED_COLUMNS)) - {"qualification_set_id", "review_protocol"} <= set(info), "revision-v2 database columns missing")
         require(info["tex_sha256"][3] == 0, "historical tex_sha256 must be nullable")
         require(db.execute("SELECT count(*) FROM problems WHERE validation_policy=? AND tex_sha256 IS NOT NULL", (POLICY,)).fetchone()[0] == 0,
                 "new revision-v2 rows must not invent a digest")
         require(db.execute("SELECT count(*) FROM problems WHERE length(tex_content)=0").fetchone()[0] == 0, "empty stored TeX")
-        require(not db.execute("SELECT claim_key FROM problems WHERE review_state='current' AND claim_key IS NOT NULL GROUP BY claim_key HAVING count(*)>1").fetchall(),
+        require(not db.execute("SELECT claim_key FROM problems WHERE review_state IN ('current','author_material_collection') AND claim_key IS NOT NULL GROUP BY claim_key HAVING count(*)>1").fetchall(),
                 "duplicate claim identity in current qualified rows")
         actual_count = db.execute("SELECT count(*) FROM problems").fetchone()[0]
         if expected_rows is not None:
@@ -737,13 +770,16 @@ def validate_database(path, expected_rows=None):
                         require(sources[row["source_id"]][field] == row.get(field, ""), "SQL source metadata differs: " + field)
         q = db.execute("""SELECT count(DISTINCT claim_key) FROM problems
             WHERE difficulty_level IN ('H2','H3') AND status='verified_editable_tex'
-            AND review_state='current' AND dedup_state='unique_within_reviewed_scope'
+            AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope'
             AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0""").fetchone()[0]
         prepared_q = db.execute("""SELECT count(DISTINCT claim_key) FROM problems
             WHERE validation_policy=? AND difficulty_level IN ('H2','H3') AND status='verified_editable_tex'
-            AND review_state='current' AND dedup_state='unique_within_reviewed_scope'
+            AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope'
             AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0""", (POLICY,)).fetchone()[0]
-        return {"problem_count": actual_count, "source_count": db.execute("SELECT count(*) FROM sources").fetchone()[0],
+        group_expr = "COALESCE(review_protocol, validation_policy, 'legacy')" if "review_protocol" in info else "COALESCE(validation_policy, 'legacy')"
+        group_expr = "CASE WHEN review_state='author_material_collection' THEN 'author_material_collection' ELSE " + group_expr + " END"
+        groups = dict(db.execute("SELECT " + group_expr + ", count(DISTINCT claim_key) FROM problems WHERE difficulty_level IN ('H2','H3') AND status='verified_editable_tex' AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope' AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0 GROUP BY " + group_expr).fetchall())
+        return {"qualified_published_by_basis": groups, "qualified_published_by_review_protocol": groups, "problem_count": actual_count, "source_count": db.execute("SELECT count(*) FROM sources").fetchone()[0],
                 "integrity": "ok", "foreign_key_errors": [], "metadata_projection_consistent": expected_rows is not None,
                 "qualified_current_published_count": q, "qualified_prepared_published_count": prepared_q, "policy": POLICY}
     finally:
@@ -760,10 +796,17 @@ def verify_job(job, *, require_ready=True):
             "one revision-v2 package item required")
     row = manifest["items"][0]
     task = load(relative_path(package, state["task_snapshot"], existing=True))
-    reviewed = load(relative_path(package, f"sources/{row['problem_id']}/content-review.json", existing=True))
-    validate_record(task, reviewed["reviews"])
-    require(binding(task) == binding(state) == binding(row) == binding(reviewed), "job/task/manifest/review metadata mismatch")
-    require(reviewed["dedup"] == task["dedup"], "recorded semantic decision differs from task")
+    material = state.get("preparation_basis") == MATERIAL_BASIS
+    if material:
+        require(task.get("preparation_basis") == row.get("preparation_basis") == MATERIAL_BASIS and
+                row.get("review_state") == MATERIAL_BASIS, "material basis metadata mismatch")
+        validate_record(task, [], material_only=True)
+        require(binding(task) == binding(state) == binding(row), "job/task/manifest metadata mismatch")
+    else:
+        reviewed = load(relative_path(package, f"sources/{row['problem_id']}/content-review.json", existing=True))
+        validate_record(task, reviewed["reviews"])
+        require(binding(task) == binding(state) == binding(row) == binding(reviewed), "job/task/manifest/review metadata mismatch")
+        require(reviewed["dedup"] == task["dedup"], "recorded semantic decision differs from task")
     require(row["status"] == "verified_editable_tex" and manifest["verified_count"] == 1 and row.get("tex_sha256") is None,
             "package is not locally completed under v2")
     require(row["difficulty_level"] == task["difficulty_level"] and row["difficulty_reason"] == task["difficulty_reason"],
@@ -771,14 +814,23 @@ def verify_job(job, *, require_ready=True):
     require(row["authors"] == task["authors"] and row["author"] == "; ".join(task["authors"]), "author list mismatch")
     require(row["primary"] == task["statement_spans"] and row["proof_spans"] == task["proof_spans"] and row["contexts"] == task["context_spans"],
             "manifest source locators differ from reviewed task")
-    relative_path(package, row["item_path"], existing=True)
+    require(relative_path(package, row["item_path"], existing=True).stat().st_size > 0, "empty editable TeX")
+    require(row["source_files"], "copied author source missing")
     for source in row["source_files"]:
         relative_path(package, source["path"], existing=True)
         require(source["source_id"] == task["source_id"] and source["source_version"] == task["source_version"], "wrong copied source version")
     for asset in row["asset_dependencies"]:
         relative_path(package, asset["path"], existing=True)
     evidence = load(relative_path(package, row["license_evidence_path"], existing=True))
-    require(evidence.get("status") == "supported", "supported licence observation missing")
+    retained_license = (nonempty(evidence.get("source_notice")) or
+                        all(nonempty(evidence.get(k)) for k in ("name", "version_url", "prior_license_path", "basis")) or
+                        all(nonempty(evidence.get(k)) for k in ("license", "license_url", "source_url", "publisher_rights_fact")))
+    require(evidence.get("status") == "supported" or
+            (material and evidence.get("status") is None and retained_license),
+            "supported licence observation or retained source notice missing")
+    for key in ("source_id", "source_version"):
+        require(key not in evidence or evidence[key] == task[key], "licence belongs to another " + key)
+    relative_path(package, row["license_path"], existing=True)
     receipt = load(relative_path(package, row["compile_receipt"], existing=True))
     external = load(relative_path(job, state["receipt_root"] + "/" + row["problem_id"] + ".json", existing=True))
     for record in (receipt, external):
@@ -786,20 +838,24 @@ def verify_job(job, *, require_ready=True):
                 "compile receipt does not belong to this successful revision")
         wanted_runs = 2 if record.get("bibliography_backend") == "none" else 3
         require(record.get("shell_escape") is False and record.get("driver") == "explicit_xelatex" and
-                record.get("latexmk_used") is False and record.get("engine_runs") == wanted_runs,
+                record.get("latexmk_used") is False and
+                (record.get("engine_runs", 0) >= wanted_runs if material else record.get("engine_runs") == wanted_runs),
                 "real isolated compilation evidence missing")
         require(not record.get("final_log_errors"), "final engine errors recorded")
-    receipt_fields = ("compile_run_id", "pdf_path", "compiler_log_path", "pages", "engine_runs", "rendered_pages")
+    receipt_fields = (("compile_run_id", "pdf_path", "pages", "engine_runs") if material else
+                      ("compile_run_id", "pdf_path", "compiler_log_path", "pages", "engine_runs", "rendered_pages"))
     require(all(receipt[k] == external[k] for k in receipt_fields), "compile receipt metadata mismatch")
     relative_path(job, receipt["pdf_path"], existing=True)
-    relative_path(job, receipt["compiler_log_path"], existing=True)
-    require(type(receipt["pages"]) is int and receipt["pages"] > 0 and len(receipt["rendered_pages"]) == receipt["pages"], "rendered page count differs")
-    for p in receipt["rendered_pages"]:
-        relative_path(job, p, existing=True)
-    qa = load(relative_path(job, "PAGE_QA-root-" + task["revision"] + ".json", existing=True))
-    validate_qa(task, receipt, qa)
-    sql = validate_database(package / "corpus.sqlite", manifest["items"])
-    if require_ready:
+    require(type(receipt["pages"]) is int and receipt["pages"] > 0, "positive PDF page count required")
+    if not material:
+        relative_path(job, receipt["compiler_log_path"], existing=True)
+        require(len(receipt["rendered_pages"]) == receipt["pages"], "rendered page count differs")
+        for p in receipt["rendered_pages"]:
+            relative_path(job, p, existing=True)
+        qa = load(relative_path(job, "PAGE_QA-root-" + task["revision"] + ".json", existing=True))
+        validate_qa(task, receipt, qa)
+    sql = validate_database(package / state.get("material_database", "corpus.sqlite"), manifest["items"])
+    if require_ready and not material:
         ready = load(relative_path(job, "READY-root-" + task["revision"] + ".json", existing=True))
         require(ready.get("policy") == POLICY and binding(ready) == binding(task), "READY metadata mismatch")
         expected_paths = {"package": package, "build_root": job / state["build_root"],
@@ -821,7 +877,85 @@ def verify_job(job, *, require_ready=True):
                 report.get("editable_qualified_count") == 1 and not report.get("errors"), "final local report failed")
     return {"schema_version": 2, "policy": POLICY, **binding(task), "status": "verified_local_prepared_job",
             "editable_qualified_count": 1, "package_item_count": 1, "errors": [], "sql": sql,
-            "qualification_basis": "recorded substantive reviews, fixed source version, claim locators, actual compilation and page QA"}
+            "preparation_basis": MATERIAL_BASIS if material else None,
+            "qualification_basis": MATERIAL_BASIS if material else "recorded substantive reviews, fixed source version, claim locators, actual compilation and page QA"}
+
+
+
+def adopt_material(job, output_root, reservations_path):
+    """Assign a reserved public ID to a copy of an existing compiled material.
+
+    Editable TeX, PDF and source files keep their original names and contents.
+    Compilation receipts retain their original binding as origin metadata; only
+    the delivery identity changes. No reviews or page-QA records are invented.
+    """
+    job, output_root = Path(job).resolve(), Path(output_root).resolve()
+    original = load(job / "job-state.json")
+    require(original.get("policy") == POLICY and original.get("status") in
+            ("compiled_pending_qa", "built", "material_ready"), "existing successful compiled job required")
+    package = relative_path(job, original["package"])
+    task = load(relative_path(package, original["task_snapshot"], existing=True))
+    validate_record(task, [], material_only=True)
+    reservations = load(reservations_path)["entries"]
+    fields = ("task_id", "revision", "source_id", "source_version", "claim_key")
+    matches = [entry for entry in reservations if all(entry.get(k) == task[k] for k in fields)
+               and entry.get("review_protocol") == task.get("review_protocol")]
+    require(len(matches) == 1, "one matching formal ID reservation required")
+    ident = matches[0]["problem_id"]
+    require(isinstance(ident, str) and ident.isdecimal(), "reserved formal ID required")
+    target = output_root / task["task_id"] / task["revision"]
+    require(not target.is_relative_to(job) and not job.is_relative_to(target), "adoption must preserve the source job")
+    if target.exists():
+        state = load(target / "job-state.json")
+        require(state.get("adopted_from") == str(job) and state.get("problem_id") == ident and
+                state.get("preparation_basis") == MATERIAL_BASIS, "existing adoption conflicts with source or reservation")
+        return dict(verify_job(target), job=str(target), resumed=True)
+    # Copy the existing package and declared compile outputs; no rebuilding.
+    manifest = load(package / "manifest.json")
+    require(len(manifest["items"]) == 1, "one material per job required")
+    row = manifest["items"][0]
+    receipt = load(relative_path(package, row["compile_receipt"], existing=True))
+    require(receipt.get("ok") is True and binding(receipt) == binding(task), "successful matching compilation required")
+    paths = {"job-state.json", receipt["pdf_path"]}
+    paths.update(path.relative_to(job).as_posix() for path in package.rglob("*") if path.is_file())
+    for name in paths:
+        relative_path(job, name, existing=True)
+    for source in row["source_files"]:
+        relative_path(package, source["path"], existing=True)
+    for asset in row["asset_dependencies"]:
+        relative_path(package, asset["path"], existing=True)
+    for name in sorted(paths):
+        src = relative_path(job, name, existing=True)
+        require(not src.is_symlink(), "symlink in material job")
+        dst = relative_path(target, name)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+    state = dict(original)
+    old_binding = binding(task)
+    for record in (state, task, row):
+        record.update(problem_id=ident, preparation_basis=MATERIAL_BASIS)
+    state.update(status="material_ready", adopted_from=str(job), original_material_binding=old_binding)
+    state.pop("error", None)
+    row.update(status="verified_editable_tex", review_state=MATERIAL_BASIS, publication_commit=None)
+    manifest["verified_count"] = 1
+    receipt.update(problem_id=ident, original_material_binding=old_binding)
+    package = target / state["package"]
+    save(target / "job-state.json", state)
+    save(package / state["task_snapshot"], task)
+    save(package / "manifest.json", manifest)
+    save(package / row["compile_receipt"], receipt)
+    save(target / state["receipt_root"] / (ident + ".json"), receipt)
+    # A compiled input normally has no database. If it has one, preserve it and
+    # place this formal-ID projection at a fresh path.
+    database = package / "corpus.sqlite"
+    if database.exists():
+        state["material_database"] = "author-material.sqlite"
+        database = package / state["material_database"]
+        save(target / "job-state.json", state)
+    create_database(package, [row], database)
+    report = verify_job(target)
+    save(target / ("final-item-root-" + task["revision"] + ".json"), report)
+    return dict(report, job=str(target), resumed=False)
 
 
 def validate_qa(task, receipt, qa):
@@ -882,8 +1016,15 @@ def main():
         if name == "assemble":
             p.add_argument("--output-root", type=Path, required=True)
             p.add_argument("--assemble-only", action="store_true")
+            p.add_argument("--refresh", action="store_true", help="Reassemble a failed local build after correcting its material layout")
+            p.add_argument("--material-only", action="store_true", help="Assemble local materials without review approval or a reserved public ID")
+    p = sub.add_parser("adopt-material")
+    p.add_argument("--job", type=Path, required=True)
+    p.add_argument("--output-root", type=Path, required=True)
+    p.add_argument("--reservations", type=Path, required=True)
     p = sub.add_parser("compile-job")
     p.add_argument("--job", type=Path, required=True)
+    p.add_argument("--resume", action="store_true")
     p = sub.add_parser("qa")
     p.add_argument("--job", type=Path, required=True)
     p.add_argument("--review", type=Path, required=True)
@@ -902,9 +1043,11 @@ def main():
             result = {"status": "ready_for_assembly", "policy": POLICY, **binding(checked["task"]),
                       "reviewers": [r["reviewer_id"] for r in checked["reviews"]]}
         elif args.command == "assemble":
-            result = assemble(args.task, args.task_root, args.output_root, compile_now=not args.assemble_only)
+            result = assemble(args.task, args.task_root, args.output_root, compile_now=not args.assemble_only, material_only=args.material_only, refresh=args.refresh)
+        elif args.command == "adopt-material":
+            result = adopt_material(args.job, args.output_root, args.reservations)
         elif args.command == "compile-job":
-            result = compile_job(args.job)
+            result = compile_job(args.job, resume=args.resume)
         elif args.command == "qa":
             result = record_qa(args.job, args.review)
         elif args.command == "verify-job":

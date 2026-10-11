@@ -18,12 +18,13 @@ import subprocess
 import sys
 import time
 
+import prepared_focused as focused
 import prepared_delivery as d
 import prepared_qualification as qualification
 
 FIRST_ID, LAST_ID = 900000000, 900999999
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
-CONSUMER_HELPERS = ("prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py")
+CONSUMER_HELPERS = ("prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py")
 
 
 def git(argv, *, cwd=None, env=None, output=None):
@@ -145,7 +146,7 @@ def reserve(spec):
     with control(spec):
         master = Path(spec["master_db"]).resolve()
         d.require(master.is_file(), "current master database missing")
-        with sqlite3.connect(master.as_uri() + "?mode=ro", uri=True) as db:
+        with contextlib.closing(sqlite3.connect(master.as_uri() + "?mode=ro", uri=True)) as db:
             used = {str(r[0]) for r in db.execute("SELECT problem_id FROM problems")}
         used |= problem_ids(d.load(spec["queue_path"])) | problem_ids(d.load(spec["flow_path"]))
         path = Path(spec["reservations_path"])
@@ -154,11 +155,13 @@ def reserve(spec):
         used |= problem_ids(record)
         output = []
         for request in spec["requests"]:
-            fields = ("task_id", "revision", "source_id", "source_version", "claim_key")
+            protocols = (None, focused.PROTOCOL, "material-preparation-v1") if spec.get("preparation_basis") == d.MATERIAL_BASIS else (None, focused.PROTOCOL)
+            d.require(request.get("review_protocol") in protocols, "unknown reservation review protocol")
+            fields = ("task_id", "revision", "source_id", "source_version", "claim_key") + (("review_protocol",) if request.get("review_protocol") else ())
             d.require(all(d.nonempty(request.get(k)) for k in fields), "reservation needs exact task/revision/source/claim")
             old = [r for r in record["entries"] if r["task_id"] == request["task_id"]]
             if old:
-                d.require(len(old) == 1 and all(old[0][k] == request[k] for k in fields), "task already reserved with different revision/claim")
+                d.require(len(old) == 1 and all(old[0].get(k) == request[k] for k in fields) and old[0].get("review_protocol") == request.get("review_protocol"), "task already reserved with different revision/claim")
                 output.append(old[0])
                 continue
             ident = next((str(i) for i in range(FIRST_ID, LAST_ID + 1) if str(i) not in used), None)
@@ -187,15 +190,31 @@ def select_jobs(spec, qualification_records=None):
         d.require(bool(records), "empty jobs require a nonempty approved existing-qualification set")
         return []
     d.require(not records, "publish new jobs and existing-qualification updates in separate bounded batches")
+    if spec.get("preparation_basis") == d.MATERIAL_BASIS:
+        d.require(isinstance(paths, list) and 1 <= len(paths) <= 25, "a publication batch must contain 1..25 explicit jobs")
+        reservations = d.load(spec["reservations_path"])["entries"]
+        jobs, seen, claims = [], set(), set()
+        for path in paths:
+            job = Path(path).resolve()
+            verified = d.verify_job(job)
+            ident = verified["problem_id"]
+            d.require(verified.get("preparation_basis") == d.MATERIAL_BASIS, "material publication requires explicitly adopted material")
+            d.require(ident not in seen and verified["claim_key"] not in claims and ident.isdecimal() and
+                      FIRST_ID <= int(ident) <= LAST_ID, "duplicate or unreserved-namespace problem ID/claim")
+            d.require(any(d.binding(r) == d.binding(verified) for r in reservations), "job has no matching ID reservation")
+            seen.add(ident); claims.add(verified["claim_key"])
+            jobs.append((job, verified))
+        return jobs
     white = d.load(spec["whitelist_path"])
-    d.require(white.get("schema_version") == 2 and white.get("policy") == d.POLICY and d.nonempty(white.get("approved_by")),
+    focused_mode = white.get("review_protocol") == focused.PROTOCOL
+    d.require(white.get("schema_version") == 2 and white.get("policy") == d.POLICY and d.nonempty(white.get("created_by") if focused_mode else white.get("approved_by")),
               "explicit approved revision-v2 whitelist required")
     allowed = white.get("entries", [])
     d.require(allowed and len({r["task_id"] for r in allowed}) == len(allowed), "whitelist must be finite with unique tasks")
     paths = spec["job_paths"]
     d.require(isinstance(paths, list) and 1 <= len(paths) <= 25, "a publication batch must contain 1..25 explicit jobs")
     reservations = d.load(spec["reservations_path"])["entries"]
-    jobs, seen = [], set()
+    jobs, seen, tasks = [], set(), []
     for path in paths:
         job = Path(path).resolve()
         verified = d.verify_job(job)
@@ -206,9 +225,19 @@ def select_jobs(spec, qualification_records=None):
         d.require(len(matching) == 1 and matching[0].get("status") == "approved_for_automatic_publication", "job not approved in finite whitelist")
         state = d.load(job / "job-state.json")
         task = d.load(job / state["package"] / state["task_snapshot"])
+        if focused_mode:
+            d.require(task.get("review_protocol") == focused.PROTOCOL, "focused whitelist requires focused task")
+            auth_path = d.relative_path(Path(spec["whitelist_path"]).resolve().parent, white.get("source_authorization_path"), existing=True)
+            focused.validate_authorization(task, d.load(auth_path))
+        else:
+            d.require(task.get("review_protocol") is None, "focused task requires source-authorized whitelist")
         check_approved_task(matching[0], spec["whitelist_path"], job, task)
+        tasks.append(task)
         d.require(any(d.binding(r) == d.binding(verified) for r in reservations), "job has no matching root ID reservation")
         jobs.append((job, verified))
+    if focused_mode:
+        sample_path = d.relative_path(Path(spec["whitelist_path"]).resolve().parent, white.get("sample_record_path"), existing=True)
+        focused.validate_sample(d.load(sample_path), tasks, sample_path.parent)
     return jobs
 
 
@@ -256,6 +285,8 @@ def public_job(job, corpus, task):
     target = corpus / relative
     paths = {"job-state.json", "PAGE_QA-root-" + task["revision"] + ".json",
              "final-item-root-" + task["revision"] + ".json"}
+    if state.get("preparation_basis") == d.MATERIAL_BASIS:
+        paths.discard("PAGE_QA-root-" + task["revision"] + ".json")
     # Package consists only of declared source/asset/evidence/SQL outputs created
     # by prepared_delivery; no runtime cache or unrelated parent tree is copied.
     for path in package.rglob("*"):
@@ -264,11 +295,13 @@ def public_job(job, corpus, task):
             paths.add(path.relative_to(job).as_posix())
     receipt = d.load(package / row["compile_receipt"])
     paths.add(state["receipt_root"] + "/" + task["problem_id"] + ".json")
-    paths.update(receipt["rendered_pages"])
-    paths.update((receipt["pdf_path"], receipt["compiler_log_path"]))
-    for path in (job / receipt["pdf_path"]).parent.iterdir():
-        if path.is_file() and path.suffix in (".aux", ".fls", ".out", ".bbl", ".blg"):
-            paths.add(path.relative_to(job).as_posix())
+    paths.add(receipt["pdf_path"])
+    if state.get("preparation_basis") != d.MATERIAL_BASIS:
+        paths.update(receipt["rendered_pages"])
+        paths.add(receipt["compiler_log_path"])
+        for path in (job / receipt["pdf_path"]).parent.iterdir():
+            if path.is_file() and path.suffix in (".aux", ".fls", ".out", ".bbl", ".blg"):
+                paths.add(path.relative_to(job).as_posix())
     for name in sorted(paths):
         src = d.relative_path(job, name, existing=True)
         dst = d.relative_path(target, name)
@@ -300,9 +333,12 @@ def normalize_source_rows(rows, baseline, reconciliations=()):
             fields = ("author", "work", "source_url", "source_version", "license")
             if any(row[key] != old[key] for key in fields):
                 matches = [entry for entry in reconciliations if entry.get("source_id") == row["source_id"]]
-                d.require(len(matches) == 1, "same-source metadata conflict needs explicit root reconciliation")
+                material = row.get("preparation_basis") == d.MATERIAL_BASIS
+                d.require(len(matches) == 1, "same-source metadata conflict needs an explicit reconciliation")
                 entry = matches[0]
-                d.require(d.nonempty(entry.get("approved_by")) and d.nonempty(entry.get("reason")),
+                recorder = entry.get("recorded_by", entry.get("approved_by")) if material else entry.get("approved_by")
+                d.require(d.nonempty(recorder) and d.nonempty(entry.get("reason")),
+                          "source reconciliation needs the recorder and a reason" if material else
                           "source reconciliation needs an explicit root decision")
                 d.require(entry.get("task_metadata") == {key: row[key] for key in fields} and
                           entry.get("public_metadata") == {key: old[key] for key in fields},
@@ -331,7 +367,7 @@ def apply_delta(master, delta):
                 db.execute("INSERT INTO sources VALUES (?,?,?,?,?,?,?,?)", source)
         columns = (*d.LEGACY_COLUMNS, *d.ADDED_COLUMNS)
         available = {row[1] for row in db.execute("PRAGMA incoming.table_info(problems)")}
-        d.require(set(columns) - available <= {"qualification_set_id"}, "incoming delta schema is missing required columns")
+        d.require(set(columns) - available <= {"qualification_set_id", "review_protocol"}, "incoming delta schema is missing required columns")
         source_columns = [name if name in available else "NULL" for name in columns]
         db.execute("INSERT INTO problems (" + ",".join(columns) + ") SELECT " + ",".join(source_columns) + " FROM incoming.problems")
 
@@ -446,7 +482,8 @@ def commit_staged(folder, state):
     paths = stage_explicit(work, folder / state["stage_paths"])
     staged = git(["-C", work, "diff", "--cached", "--name-only", "-z", spec["public_base_commit"]]).split("\0")
     d.require({p for p in staged if p} <= set(paths), "private index contains an undeclared staged path")
-    git(["-C", work, "commit", "-m", "Publish reviewed mathematical tasks " + state["batch_id"]])
+    title = "Publish author proof materials " if state["spec"].get("preparation_basis") == d.MATERIAL_BASIS else "Publish reviewed mathematical tasks "
+    git(["-C", work, "commit", "-m", title + state["batch_id"]])
     commit = git(["-C", work, "rev-parse", "HEAD"])
     parents = git(["-C", work, "show", "-s", "--format=%P", commit]).split()
     d.require(parents == [spec["public_base_commit"]], "candidate parent is not the exact public base")
@@ -485,7 +522,7 @@ def prepare(spec):
                 row, names = public_job(job, corpus, task)
                 rows.append(row); assets.extend(names)
                 ids.add(task["problem_id"]); claims.add(task["claim_key"])
-            normalize_source_rows(rows, manifest["items"], spec.get("approved_source_reconciliations", []))
+            normalize_source_rows(rows, manifest["items"], spec.get("source_reconciliations", spec.get("approved_source_reconciliations", [])))
             new_paths = []
             if rows:
                 delta_path = "prepared-deltas/" + batch + ".sqlite"
@@ -623,7 +660,7 @@ def resume_prepare(folder, *, approve_existing_stage=False):
             d.require(d.task_config(task_copy) == d.task_config(task_original), "prepared copied task configuration conflict")
             row = d.load(public / js["package"] / "manifest.json")["items"][0]
             rows.append(exported_row(row, Path(relative), js))
-        normalize_source_rows(rows, base_rows, spec.get("approved_source_reconciliations", []))
+        normalize_source_rows(rows, base_rows, spec.get("source_reconciliations", spec.get("approved_source_reconciliations", [])))
         # These objects contain metadata and locators, not the author TeX body.
         d.require(rows == [by_id[ident] for ident in incoming_ids], "prepared incoming row metadata conflict")
         if jobs:
@@ -749,7 +786,8 @@ def finish_reconciled_marker(state, spec, folder):
         d.require(not set(stale) & set(legacy), "legacy metadata fields already exist; preserve conflicting history")
         legacy.update(stale, status="legacy_only_not_current_assets", captured_from_base_material_count=queue["base"]["local_count"])
     pointers = {"restore_report": state["public_restore_result"],
-                "prepared_assets_root": str(Path(receipt["database"]).parent / "editable-corpus/prepared-jobs")}
+                "prepared_assets_root": (str(Path(receipt["database"]).parent / "editable-corpus/prepared-jobs")
+                                         if receipt.get("restored_prepared_jobs") != 0 else None)}
     for key, value in pointers.items():
         if queue["base"].get(key) != value:
             queue["base"][key] = value
@@ -958,7 +996,8 @@ def publish(folder, *, restore_only=False):
                              validation_policy=d.POLICY, package=str(Path(result["database"]).parent / "editable-corpus"),
                              master_database=result["database"], verified_corpus_commit=candidate,
                              restore_report=str(Path(result["database"]).parent / "RESTORE_RESULT.json"),
-                             prepared_assets_root=str(Path(result["database"]).parent / "editable-corpus/prepared-jobs"))
+                             prepared_assets_root=(str(Path(result["database"]).parent / "editable-corpus/prepared-jobs")
+                                                   if result["restored_prepared_jobs"] else None))
             q["last_publication"] = {"batch_id": state["batch_id"], "policy": d.POLICY, "status": "verified_public",
                                      "verified_corpus_commit": candidate, "material_count": result["material_count"],
                                      "public_restore_result": str(Path(result["database"]).parent / "RESTORE_RESULT.json")}

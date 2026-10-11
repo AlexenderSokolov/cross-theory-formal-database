@@ -17,6 +17,7 @@ CHECKS = ("complete_counted_statement_and_original_proof", "necessary_local_core
 
 
 def validate_record(record):
+    d.require(record.get("review_protocol") is None, "historical qualification cannot adopt focused protocol")
     d.require(record.get("schema_version") == 2 and record.get("record_type") == RECORD_TYPE and
               record.get("status") == "approved_metadata_projection_pending_public_delivery" and record.get("material_increment") == 0,
               "explicit approved existing-qualification metadata record required")
@@ -27,6 +28,7 @@ def validate_record(record):
     for field in ("problem_id", "task_id", "claim_key"):
         d.require(len({row[field] for row in rows}) == len(rows), "duplicate qualification " + field)
     for row in rows:
+        d.require(row.get("review_protocol") is None, "historical qualification row cannot adopt focused protocol")
         for key in ("problem_id", "task_id", "source_id", "source_version", "claim_key", "applicability_basis"):
             d.require(d.nonempty(row.get(key)), "qualification metadata missing: " + key)
         d.require(d.REVISION.fullmatch(str(row.get("revision", ""))) and row.get("difficulty_level") in ("H2", "H3") and
@@ -54,6 +56,7 @@ def claim_label(value):
 
 
 def validate_review(row, manifest_row, review):
+    d.require(review.get("review_protocol") is None and manifest_row.get("review_protocol") is None, "historical qualification cannot reuse focused review")
     for key in ("problem_id", "source_id", "revision"):
         d.require(str(review.get(key)) == row[key], "published qualification review mismatch: " + key)
     d.require(review.get("confirmed_H") == row["difficulty_level"] == manifest_row["difficulty_level"], "qualification H mismatch")
