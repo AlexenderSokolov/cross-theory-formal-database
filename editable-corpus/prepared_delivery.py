@@ -230,7 +230,7 @@ def validate_record(task, records, *, material_only=False):
                 "external reference requires a reviewed non-load-bearing reason")
         # Native TeX labels can contain ordinary spaces (e.g. the JEP317
         # label "thm:fact into k parts"); retain those author identifiers.
-        require(re.fullmatch(r"[A-Za-z0-9:_.-][A-Za-z0-9:_. -]*", str(reference.get("label", ""))), "invalid external label")
+        require(re.fullmatch(r"[A-Za-z0-9:_.\-/][A-Za-z0-9:_. \-/]*", str(reference.get("label", ""))), "invalid external label")
         require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
         require(re.fullmatch(r"[A-Za-z0-9.()-]+", str(reference.get("number", ""))), "original reference number required")
