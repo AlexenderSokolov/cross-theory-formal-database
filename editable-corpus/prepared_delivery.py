@@ -578,7 +578,8 @@ LEGACY_COLUMNS = ("problem_id", "title", "difficulty_level", "difficulty_reason"
                   "source_locator_json", "tex_path", "tex_content", "tex_sha256", "origin_class",
                   "status", "compile_receipt_path")
 ADDED_COLUMNS = {"task_id": "TEXT", "revision": "TEXT", "validation_policy": "TEXT DEFAULT 'legacy'",
-                 "claim_key": "TEXT", "review_state": "TEXT", "dedup_state": "TEXT", "publication_commit": "TEXT"}
+                 "claim_key": "TEXT", "review_state": "TEXT", "dedup_state": "TEXT", "publication_commit": "TEXT",
+                 "qualification_set_id": "TEXT"}
 SOURCE_COLUMNS = ("source_id", "author", "work", "source_url", "source_version", "retrieved_at", "license", "license_path")
 SOURCE_SQL = """CREATE TABLE sources (
 source_id TEXT PRIMARY KEY, author TEXT NOT NULL, work TEXT NOT NULL,
@@ -596,7 +597,7 @@ source_locator_json TEXT NOT NULL, tex_path TEXT NOT NULL UNIQUE, tex_content TE
 tex_sha256 TEXT, origin_class TEXT NOT NULL CHECK(origin_class IN ('human_authored_native_tex','human_authored_proof_assistant_transcription','human_authored_checked_published_transcription')),
 status TEXT NOT NULL CHECK(status='verified_editable_tex'), compile_receipt_path TEXT NOT NULL,
 task_id TEXT, revision TEXT, validation_policy TEXT DEFAULT 'legacy', claim_key TEXT,
-review_state TEXT, dedup_state TEXT, publication_commit TEXT)"""
+review_state TEXT, dedup_state TEXT, publication_commit TEXT, qualification_set_id TEXT)"""
 
 
 def locator(row):
@@ -641,7 +642,7 @@ def create_database(package, rows, destination):
                 values = (row["problem_id"], row["title"], row["difficulty_level"], row["difficulty_reason"], row["source_id"],
                           json.dumps(locator(row), ensure_ascii=False), row["item_path"], text, None, row["origin_class"],
                           row["status"], row["compile_receipt"], row["task_id"], row["revision"], POLICY, row["claim_key"],
-                          row["review_state"], row["dedup_state"], row.get("publication_commit"))
+                          row["review_state"], row["dedup_state"], row.get("publication_commit"), None)
                 db.execute("INSERT INTO problems VALUES (" + ",".join("?" for _ in values) + ")", values)
             db.execute("PRAGMA user_version=2")
     finally:
@@ -699,19 +700,20 @@ def validate_database(path, expected_rows=None):
         require(db.execute("PRAGMA integrity_check").fetchone()[0] == "ok", "SQLite integrity check failed")
         require(not db.execute("PRAGMA foreign_key_check").fetchall(), "SQLite foreign-key errors")
         info = {r[1]: r for r in db.execute("PRAGMA table_info(problems)")}
-        require(set(LEGACY_COLUMNS) | set(ADDED_COLUMNS) <= set(info), "revision-v2 database columns missing")
+        require((set(LEGACY_COLUMNS) | set(ADDED_COLUMNS)) - {"qualification_set_id"} <= set(info), "revision-v2 database columns missing")
         require(info["tex_sha256"][3] == 0, "historical tex_sha256 must be nullable")
         require(db.execute("SELECT count(*) FROM problems WHERE validation_policy=? AND tex_sha256 IS NOT NULL", (POLICY,)).fetchone()[0] == 0,
                 "new revision-v2 rows must not invent a digest")
         require(db.execute("SELECT count(*) FROM problems WHERE length(tex_content)=0").fetchone()[0] == 0, "empty stored TeX")
-        require(not db.execute("SELECT claim_key FROM problems WHERE validation_policy=? GROUP BY claim_key HAVING count(*)>1", (POLICY,)).fetchall(),
-                "duplicate claim identity in current v2 rows")
+        require(not db.execute("SELECT claim_key FROM problems WHERE review_state='current' AND claim_key IS NOT NULL GROUP BY claim_key HAVING count(*)>1").fetchall(),
+                "duplicate claim identity in current qualified rows")
         actual_count = db.execute("SELECT count(*) FROM problems").fetchone()[0]
         if expected_rows is not None:
             ids = {r["problem_id"] for r in expected_rows}
             require(len(ids) == len(expected_rows), "duplicate expected problem IDs")
             columns = [c for c in LEGACY_COLUMNS if c not in ("tex_content", "tex_sha256")] + list(ADDED_COLUMNS)
-            actual = {r["problem_id"]: dict(r) for r in db.execute("SELECT " + ",".join(columns) + " FROM problems")}
+            projection = [c if c in info else "NULL AS " + c for c in columns]
+            actual = {r["problem_id"]: dict(r) for r in db.execute("SELECT " + ",".join(projection) + " FROM problems")}
             require(set(actual) == ids, "database IDs differ from manifest")
             sources = {r["source_id"]: dict(r) for r in db.execute("SELECT " + ",".join(SOURCE_COLUMNS) + " FROM sources")}
             require(set(sources) == {r["source_id"] for r in expected_rows}, "database source set differs from manifest")
@@ -723,10 +725,13 @@ def validate_database(path, expected_rows=None):
                 for column, key in fields.items():
                     require(a[column] == row[key], "SQL metadata differs: " + column)
                 require(locator_metadata(json.loads(a["source_locator_json"])) == locator_metadata(locator(row)), "SQL source locators differ")
-                if row.get("policy") == POLICY:
+                if row.get("policy") == POLICY or row.get("qualification_set_id"):
                     for field in ADDED_COLUMNS:
-                        expected = row.get("policy") if field == "validation_policy" else row.get(field)
+                        expected = row.get("policy", "legacy") if field == "validation_policy" else row.get(field)
                         require(a[field] == expected, "SQL revision metadata differs: " + field)
+                    if row.get("qualification_set_id"):
+                        require(a["validation_policy"] == "legacy" and sources[row["source_id"]]["source_version"] == row["source_version"],
+                                "legacy qualification source/version/policy differs")
                 if row.get("policy") == POLICY:
                     for field in SOURCE_COLUMNS:
                         require(sources[row["source_id"]][field] == row.get(field, ""), "SQL source metadata differs: " + field)
@@ -734,9 +739,13 @@ def validate_database(path, expected_rows=None):
             WHERE difficulty_level IN ('H2','H3') AND status='verified_editable_tex'
             AND review_state='current' AND dedup_state='unique_within_reviewed_scope'
             AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0""").fetchone()[0]
+        prepared_q = db.execute("""SELECT count(DISTINCT claim_key) FROM problems
+            WHERE validation_policy=? AND difficulty_level IN ('H2','H3') AND status='verified_editable_tex'
+            AND review_state='current' AND dedup_state='unique_within_reviewed_scope'
+            AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0""", (POLICY,)).fetchone()[0]
         return {"problem_count": actual_count, "source_count": db.execute("SELECT count(*) FROM sources").fetchone()[0],
                 "integrity": "ok", "foreign_key_errors": [], "metadata_projection_consistent": expected_rows is not None,
-                "qualified_current_published_count": q, "policy": POLICY}
+                "qualified_current_published_count": q, "qualified_prepared_published_count": prepared_q, "policy": POLICY}
     finally:
         db.close()
 
