@@ -191,7 +191,7 @@ def select_jobs(spec, qualification_records=None):
         return []
     d.require(not records, "publish new jobs and existing-qualification updates in separate bounded batches")
     if spec.get("preparation_basis") == d.MATERIAL_BASIS:
-        d.require(isinstance(paths, list) and 1 <= len(paths) <= 25, "a publication batch must contain 1..25 explicit jobs")
+        d.require(isinstance(paths, list) and 1 <= len(paths) <= 100, "a publication batch must contain 1..100 explicit jobs")
         reservations = d.load(spec["reservations_path"])["entries"]
         jobs, seen, claims = [], set(), set()
         for path in paths:
@@ -212,7 +212,7 @@ def select_jobs(spec, qualification_records=None):
     allowed = white.get("entries", [])
     d.require(allowed and len({r["task_id"] for r in allowed}) == len(allowed), "whitelist must be finite with unique tasks")
     paths = spec["job_paths"]
-    d.require(isinstance(paths, list) and 1 <= len(paths) <= 25, "a publication batch must contain 1..25 explicit jobs")
+    d.require(isinstance(paths, list) and 1 <= len(paths) <= 100, "a publication batch must contain 1..100 explicit jobs")
     reservations = d.load(spec["reservations_path"])["entries"]
     jobs, seen, tasks = [], set(), []
     for path in paths:
