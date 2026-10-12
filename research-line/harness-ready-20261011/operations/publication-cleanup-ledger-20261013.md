@@ -44,3 +44,15 @@
 - **每 5 批自动清一次**，规则同上（保留最近 5 批 + 全部回执）；
 - 可用空间 **< 250G** ⇒ 收紧到保留 **3** 批；**< 200G** ⇒ **停批并报 Lead**；
 - 每批在 `status/publisher.json` 的 `disk_per_batch` 记 `df` 与保留批数，便于判断清理是否掉队。
+
+## 五、第 2 轮（每 5 批自动触发）
+
+- **触发**：批 142..146 共 5 批已发布（上一轮清理在 05:56，覆盖到批 141）。
+- **删前**：`df` 可用 **484G**、`publication/` **25G**、批目录 142 个（+1 个非批目录 `failed-attempts/`）。
+- **执行**：`bash cleanup_publication.sh --apply`（保留最近 5 批 = 142..146；df 远高于 250G，故 `--keep 5`）。
+- **删后**：`df` 可用 **493G**、`publication/` **16G**；涉及 137 个旧批，**释放约 12.9G**。
+- **校验**：①最近 5 批（142..146）的 `base-restore/`、`public-consumer-*`、`worktree/`、`public-restore-*/` 全在；
+  ②最旧批 `author-material-new-01` 只剩回执（`publication.json`、`RESTORE_RESULT.json`、`stage-paths.txt`、
+  `completion-marker-history/`、`relay/`、`manifest.json`、`prepared-database.json`）；
+  ③`failed-attempts/` **2.5G / 3 个目录未触碰**。
+- **注意**：清理会刷新被清目录的 mtime，按目录时间排"最近 N 批"会漂移 ⇒ 始终按 `publication.json` 的 mtime 排序（脚本已如此）。
