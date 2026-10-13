@@ -1,3 +1,7 @@
+# 当前并行生产授权（2026-10-13）
+
+Codex与DeepSeek同时找题建库。Codex在Yupeng主机本独立工作树和codex/corpus-parallel-20261013分支生产，根代理加三个astra/low材料子智能体；只写自有材料和批次，不接管DeepSeek，不修改其活动目录或工作表。每批完成即上传并继续，直到用户要求停止。此前不替作者证明、不审稿和不做无关工程等准则全部适用。当前入口research-line/codex-parallel-20261013/README.md。
+
 # 人类数学证明题库：统一工作准则
 
 现有150道未公开成品已完成，100正式加50后备。见[题证索引](materials/INDEX.md)和[本地材料库](materials/PREPARED_MATERIALS.sqlite3)。长期目标30,000道实际公开题目；仓库上传准备材料不增加生产主库题数。
