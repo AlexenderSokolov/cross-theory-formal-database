@@ -84,3 +84,5 @@ python operations/prepare_upload.py batch-001
 均已由根对完整旧库、准备表及三条在途产线做定向来源查询；实际固定版本别名由材料组补查，上传前刷新。
 
 用户已明确要求持久执行，当前Codex持久目标为active；沿用项目30000总目标，约25道上传节点后继续，不另设后台服务/调度器。当前后续独占：MD SoCG2025.65/.67；PM FSCD2024.7/.8；LL FSCD2024.5/.6。
+
+第三批25道净新增已上传：[batch-003成品索引](delivery/batch-003/INDEX.md)，内容提交`1e4fec0a820e84b28ccd11a337f6fffed7de8c65`，累计75。远端分支及HTTP200入口已核对，生产主库公开增量仍为0；持久目标active，继续第四批。
