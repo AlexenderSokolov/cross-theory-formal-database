@@ -41,3 +41,7 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 - batch-002：25道，提交`81983ed67def8ad9efa04801e5e39bcca990efe1`，5逻辑、10几何、10代数；[第二批索引](delivery/batch-002/INDEX.md)。两批50道不重叠，生产主库公开增量仍为0，继续第三批。
 
 第三批已上传25道（逻辑13、几何6、代数6），提交628f99b20a8de6ca64a4e4b8f830857a26852a8b，[第三批索引](delivery/batch-003/INDEX.md)。上传结果以该批UPLOADED.json为准，生产主库公开增量仍为0。
+
+本线装配工具仅修正TeX日志错误识别：长公式hbox诊断中独立一行的感叹号不再当错误；带具体错误文本的TeX错误、非零编译返回、缺字与未解析引用仍阻断。只改本工作树corpus-work/scripts/prepared_delivery.py，其他产线和共享工具不变。已用实际误判日志复现并验证，未定义命令的真实XeLaTeX负例仍被拒绝。
+
+第四批25道已编译入库（logic12、geometry4、algebra9），[第四批索引](delivery/batch-004/INDEX.md)。上传结果以本批UPLOADED.json为准；其余已编译任务进入下一批。若失败作业移除了旧依赖asset，使用新revision以保留历史并避免旧包目录残留输入，不删除旧文件。

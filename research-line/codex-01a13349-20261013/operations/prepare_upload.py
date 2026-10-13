@@ -37,7 +37,7 @@ for x in items:
  for v in m['source_files']+m['asset_dependencies']:add(pkg/v['path'])
  for v in m['source_files']:
   if (P/v['original_path']).is_file():add(P/v['original_path'])
-for f in [R/'PROJECT.md',P/'README.md',P/'STATUS.json',P/'reference/SOURCE_ALLOCATION.json',P/'operations/export_materials.py',P/'operations/source_neighbors.py',P/'operations/run_export.sh',P/'operations/run_assemble.sh',P/'operations/run_compile.sh',P/'operations/run_pending.sh',Path(__file__),D/'INDEX.md',D/'ITEMS.jsonl',D/'SELECTION.json',D/'corpus.sqlite3']:add(f)
+for f in [R/'corpus-work/scripts/prepared_delivery.py',R/'PROJECT.md',P/'README.md',P/'STATUS.json',P/'reference/SOURCE_ALLOCATION.json',P/'operations/export_materials.py',P/'operations/source_neighbors.py',P/'operations/run_export.sh',P/'operations/run_assemble.sh',P/'operations/run_compile.sh',P/'operations/run_pending.sh',Path(__file__),D/'INDEX.md',D/'ITEMS.jsonl',D/'SELECTION.json',D/'corpus.sqlite3']:add(f)
 for f in (P/'delivery').glob('*/UPLOADED.json'):add(f)
 if (P/'delivery/EXCLUDED.json').exists():add(P/'delivery/EXCLUDED.json')
 pattern=re.compile(r'(?:sk-[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9]{25,}|-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----)')
