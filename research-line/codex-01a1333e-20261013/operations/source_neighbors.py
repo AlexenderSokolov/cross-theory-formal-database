@@ -25,6 +25,19 @@ ALIASES.extend([
 ['10.4230/lipics.socg.2025.54','2407.03101'],
 ['10.4230/lipics.socg.2025.55','2504.03942']])
 
+ALIASES.extend([
+['10.4230/lipics.socg.2025.58','2412.15419'],
+['10.4230/lipics.socg.2025.59','2504.07366'],
+['10.4230/lipics.socg.2025.60','2503.19365'],
+['10.4230/lipics.socg.2025.61','2311.15646'],
+['10.4230/lipics.socg.2025.62','2412.03332'],
+['10.4230/lipics.socg.2025.63','2404.03751'],
+['10.4230/lipics.fscd.2025.27','2502.15500'],
+['10.4230/lipics.fscd.2025.31','2503.07881'],
+['10.4230/lipics.fscd.2024.5','2402.15174']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2024.6','2405.03264','delooping generated groups','delooping presented groups']])
+
 LANES=[('codex-parallel-work-20261013','codex-parallel-20261013'),('codex-work-01a13326','codex-01a13326-20261013'),('codex-work-01a1332f','codex-01a1332f-20261013')]
 @cache
 def read(p):return p.read_text(encoding='utf-8-sig')

@@ -58,3 +58,29 @@ python operations/prepare_upload.py batch-001
 - MD：SoCG2025.54、.55（Fréchet近似、knot factorisation）。
 - PM：FSCD2025.26（Functorial Models of Differential Linear Logic）。
 - LL：FSCD2025.27（Conversion Checker作者材料，只收作者证明，不执行认证）。
+
+## 当前第三批接续
+
+- MD：SoCG2025.58（arxiv2412.15419v2，CCBY4）、.59；.57无独立H2主结果，已保留来源不计。
+- PM：FSCD2025.29、.31；.29 HAL长版hal-05067259v1已取CCBY4原PDF，待5页证明可编辑TeX转录，candidate不计数。
+- LL：FSCD2025.30；.27（arxiv2502.15500，paper CCBY4，固定作者项目源码MIT）。
+
+首两批各25已上传：batch001内容98bed985b6c86de05892cbbaf224681876e2fae8；batch002内容d468e1a0ea4a4480eb30a5d0a067f28370a1491b。各批UPLOADED.json保存对应材料集合，后续批次不重复计数。
+
+## 当前明确独占队列更新
+
+- MD：SoCG2025.60、.61（3D knapsack、fat convex transversals）；SoCG58 alias arxiv2412.15419v2、SoCG59 alias arxiv2504.07366v1。
+- PM：FSCD2025.32、.33（interpolation/cut-introduction、ordinal presheaf guarded equations）。
+- LL：FSCD2025.30（coherent Tietze transformations）。
+
+工作树/分支/任务前缀及单根写jobs/SQLite/索引/上传的范围保持不变。所有已编译成品复用，不重编；缺口仅影响该题，其他继续。
+
+## 后续小组分工
+
+- MD：SoCG2025.62（arxiv2412.03332v2）、.63、.64。
+- PM：FSCD2025.34。
+- LL：FSCD2024.5（arxiv2402.15174）、FSCD2024.6。2024会议HTML实际404，须取得合法完整可编辑路线后计数。
+
+均已由根对完整旧库、准备表及三条在途产线做定向来源查询；实际固定版本别名由材料组补查，上传前刷新。
+
+用户已明确要求持久执行，当前Codex持久目标为active；沿用项目30000总目标，约25道上传节点后继续，不另设后台服务/调度器。当前后续独占：MD SoCG2025.65/.67；PM FSCD2024.7/.8；LL FSCD2024.5/.6。
