@@ -19,6 +19,10 @@ for root in [P/'jobs',P/'combinatorics-logic/jobs',P/'analysis-probability/jobs'
   state=load(f)
   if state['status']!='compiled_pending_qa' or not state['task_id'].startswith('CP13-'):continue
   job=f.parent;pkg=job/state['package'];task=load(pkg/state['task_snapshot']);row=load(pkg/'manifest.json')['items'][0];receipt=load(pkg/row['compile_receipt'])
+  lane={'AP':'analysis-probability','CL':'combinatorics-logic','AG':'algebra-geometry'}.get(task['task_id'].split('-')[1])
+  raw_candidates=[P/lane/task['task_id']/'task.json',P/lane/'drafts'/task['task_id']/'task.json'] if lane else []
+  raw=next((load(f) for f in raw_candidates if f.exists()),task)
+  if str(raw.get('status','')).startswith('duplicate') or raw.get('status')=='hold' or 'no_new_count' in str(raw.get('count_disposition','')) or str(raw.get('dedup',{}).get('status','')).startswith('duplicate'):continue
   if receipt.get('ok') is not True:continue
   tex=pkg/row['item_path'];pdf=job/receipt['pdf_path']
   if not tex.is_file() or not pdf.is_file():raise ValueError('missing product '+state['task_id'])

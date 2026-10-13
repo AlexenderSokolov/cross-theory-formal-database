@@ -23,3 +23,9 @@ Brenier trace-log与旧公开925同题，原材料保留，扣除1道新增；�
 ## 最新净新增更正
 
 前四批上传100份材料，其中3份与旧公开925/210058/175701同题，保留原件并从默认接入清单排除；当前净新增97道。另finite-Hindman同旧197326，尚未上传，已排除候选。后续用完整旧公开身份索引及最新工作表的同源近邻。
+
+[batch-005：25道净新增](delivery/batch-005/INDEX.md)，提交5ed1ceb85；累计125份材料、扣除3份重复后净新增122道。继续第六批。
+
+## 去重参考范围
+
+reference/existing-claims.jsonl仅覆盖开工新增/在途元数据，不能代替完整旧库。新来源同时只读对照../harness-ready-20261011/reference/public-items.jsonl及生产侧最新PREPARATION_WORKLIST.jsonl；只比较命中的同源/同主题近邻，不复审证明。所有已确认重复保留原件并由delivery/EXCLUDED.json排除新增。
