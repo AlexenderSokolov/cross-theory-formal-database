@@ -39,6 +39,7 @@ if selection.exists():
 else:
  selected=sorted(k for k in found if k not in uploaded)[:args.limit]
  selection.write_text(json.dumps({'task_ids':selected},indent=2)+'\n')
+selection.write_text(json.dumps({'task_ids':selected},indent=2)+'\n')
 found={k:found[k] for k in selected}
 db=sqlite3.connect(OUT/'corpus.sqlite3')
 columns=['task_id','title','route','difficulty_level','source_id','claim_key','source_url','source_version','authors_json','license_json','statement_text','proof_text','context_text','tex_content','tex_path','pdf_path','task_json','state']

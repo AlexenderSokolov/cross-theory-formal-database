@@ -14,20 +14,31 @@ for x in [json.loads(l) for l in (B/'PREPARATION_WORKLIST.jsonl').read_text(enco
  key=(norm(t.get('source_id','')),norm(t.get('claim_key','')))
  if key in targets:duplicates.append((targets[key],x.get('task_id'),x['state']))
  elif key[0] in source_targets:neighbors.append({'source_id':t.get('source_id'),'prior_task_id':x.get('task_id'),'claim_key':t.get('claim_key'),'title':t.get('title'),'task_path':str(f) if f else None,'state':x.get('state')})
-# Compare only this batch with the other Codex lane, including in-flight tasks.
-OTHER=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-parallel-work-20261013/research-line/codex-parallel-20261013')
-other_records=[]
-for lane in ['analysis-probability','combinatorics-logic','algebra-geometry']:
- for tf in (OTHER/lane).rglob('task.json'):
-  if 'jobs' in tf.relative_to(OTHER/lane).parts:continue
-  try:other_records.append(load(tf))
-  except (OSError,json.JSONDecodeError):continue
-for mf in (OTHER/'delivery').glob('*/ITEMS.jsonl'):
- other_records.extend(json.loads(line) for line in mf.read_text().splitlines() if line.strip())
-for t in other_records:
- key=(norm(t.get('source_id','')),norm(t.get('claim_key','')))
- if key in targets:duplicates.append((targets[key],t.get('task_id'),'other_codex'))
- elif key[0] in source_targets:neighbors.append({'source_id':t.get('source_id'),'prior_task_id':t.get('task_id'),'claim_key':t.get('claim_key'),'title':t.get('title'),'state':'other_codex'})
+# Compare this batch with both peer production lines, including active tasks and deliveries.
+PEERS=[(Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-parallel-work-20261013/research-line/codex-parallel-20261013'),['analysis-probability','combinatorics-logic','algebra-geometry']), (Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-work-01a1332f/research-line/codex-01a1332f-20261013'),['geometry-algorithms','number-theory','communication-complexity'])]
+for OTHER,peer_lanes in PEERS:
+ peer_excluded_file=OTHER/'delivery/EXCLUDED.json'
+ peer_excluded=set(load(peer_excluded_file).get('task_ids',[])) if peer_excluded_file.exists() else set()
+ other_records=[]
+ for lane in peer_lanes:
+  for tf in (OTHER/lane).rglob('task.json'):
+   if 'jobs' in tf.relative_to(OTHER/lane).parts:continue
+   try:t=load(tf)
+   except (OSError,json.JSONDecodeError):continue
+   if t.get('task_id') not in peer_excluded:other_records.append(t)
+ for mf in (OTHER/'delivery').glob('*/ITEMS.jsonl'):
+  marker=mf.parent/'UPLOADED.json';delivered_ids=set(load(marker).get('task_ids',[])) if marker.exists() else None
+  for line in mf.read_text().splitlines():
+   if not line.strip():continue
+   t=json.loads(line)
+   if t.get('task_id') in peer_excluded:continue
+   if delivered_ids is not None and t.get('task_id') not in delivered_ids:continue
+   other_records.append(t)
+ for t in other_records:
+  key=(norm(t.get('source_id','')),norm(t.get('claim_key','')))
+  if key in targets:duplicates.append((targets[key],t.get('task_id'),'peer_codex'))
+  elif key[0] in source_targets:neighbors.append({'source_id':t.get('source_id'),'prior_task_id':t.get('task_id'),'claim_key':t.get('claim_key'),'title':t.get('title'),'state':'peer_codex','peer_root':str(OTHER)})
+neighbors=list({(x['source_id'],x['prior_task_id'],x['claim_key']):x for x in neighbors}.values())
 if duplicates:raise ValueError('already claimed: '+repr(duplicates))
 selected=set()
 def add(f):
@@ -40,8 +51,11 @@ committed_originals=json.loads(committed_originals_result.stdout).get('sources',
 committed_originals_by_source={(x['source_id'],x['lane']):x for x in committed_originals}
 selected_source_ids=set()
 for selected_manifest in (P/'delivery').glob('*/ITEMS.jsonl'):
+ if selected_manifest.parent!=D and not (selected_manifest.parent/'UPLOADED.json').exists():continue
  for line in selected_manifest.read_text().splitlines():
   if line.strip():selected_source_ids.add(norm(json.loads(line)['source_id']))
+retained_exclusions=load(P/'delivery/EXCLUDED.json').get('records',[])
+selected_source_ids.update(norm(x['source_id']) for x in retained_exclusions if x.get('previously_uploaded') and x.get('source_id'))
 originals=[]
 for original_lane in ['algebra-geometry','analysis-probability','combinatorics-logic']:
  original_manifest=P/original_lane/'ORIGINAL_SOURCES.json'
@@ -63,7 +77,7 @@ for original_lane in ['algebra-geometry','analysis-probability','combinatorics-l
 covered_original_sources={norm(x['source_id']) for x in originals}
 missing_original_sources=sorted(selected_source_ids-covered_original_sources)
 if missing_original_sources:raise ValueError('Selected author-original source records missing: '+repr(missing_original_sources))
-originals_file.write_text(json.dumps({'purpose':'Unmodified author originals actually used by the selected delivered materials; no unused candidates.','sources':originals},ensure_ascii=False,indent=2)+'\n')
+originals_file.write_text(json.dumps({'purpose':'Unmodified author originals for selected deliveries and retained previously delivered duplicates; no unuploaded candidates.','sources':originals},ensure_ascii=False,indent=2)+'\n')
 add(originals_file)
 for x in items:
  tid=x['task_id'];lane={'AP':'analysis-probability','CL':'combinatorics-logic','AG':'algebra-geometry'}[tid.split('-')[1]]
