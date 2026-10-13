@@ -1,6 +1,6 @@
-# 交付台账 / Delivery ledger
+# 历史交付台账 / Historical delivery ledger
 
-每批均由本地发布管线执行并产出 `public_exact_commit_full<N>_restored_verified` 证明。
+本表保留累计 6021–6759 的八个历史检查点及当时的 `public_exact_commit_full<N>_restored_verified` 记录，不是后续每批的完整台账，也不证明当前标准资格。后续交付与 prepared 恢复范围见 [README](README.md#数据库恢复范围)；当前实质审核口径见[根 README](../README.md)。
 
 | 累计条目 | 状态 | commit | 批次目录 |
 |---|---|---|---|

@@ -2,6 +2,8 @@
 
 这是可编辑数学题证与来源证据的材料库。当前公开材料总数为 **14,875**：原有 **14,866** 条历史公开材料，加上本轮实际审核、修复并公开恢复的 **9** 条。历史标签保留，**14,866 条不因此自动成为符合当前 H2/H3 标准的题**；全库新标准资格总数尚未完成重核。
 
+上述数字是本轮交付/审核口径。后续 revision-v2 材料已扩展 manifest；prepared 材料、已有 INDEX 和旧数据库分段描述的覆盖范围不同，不因字段名 `verified_count` 或技术检查通过而晋级。阅读及恢复入口见[题库指南](editable-corpus/README.md#数据库恢复范围)。
+
 本轮已公开的精确题证版本如下，审阅依据、固定版本源码和许可随题一起保存：
 
 | 题号 | 核准级别 | 题证修订 | 审阅依据与保留说明 |
@@ -24,14 +26,14 @@
 
 | 你要的东西 | 位置 | 说明 |
 |---|---|---|
-| **全量题目清单** | **[`INDEX.md`](editable-corpus/INDEX.md)** | 每题一行：题号 · 题名 · 难度(H2/H3) · 可编辑 TeX 链接 · 作者原文链接 · 原文定位 |
-| **数据库** | **[数据库恢复入口](editable-corpus/RECOVERY_CURRENT.md)** | 从公开分片恢复`corpus.sqlite`；SQLite；`problems`（题目/证明元数据）、`sources`（来源与定位） |
+| **交付清单** | **[`INDEX.md`](editable-corpus/INDEX.md)** | 已有交付范围的题号、题名、历史难度标签、TeX 与来源定位；不覆盖全部后续 prepared 材料，不作资格计数 |
+| **数据库** | **[数据库恢复范围](editable-corpus/README.md#数据库恢复范围)** | 按匹配快照的恢复描述生成 `corpus.sqlite`；`problems` 保存题证全文及元数据，`sources` 保存来源与定位 |
 | **题目 + 证明的 TeX** | **[`items/`](editable-corpus/items/)** | 每题一个 `.tex`：可直接 xelatex 编译；文件名为 `<题号>_<来源简写>.tex` |
 | **来源原文与定位** | **[`sources/<题号>/`](editable-corpus/sources/)** | `primary.excerpt.tex`（保留跨度的原文片段）、`provenance.json`（URL、版本、定位信息） |
 | **许可证证据** | **[`licenses/`](editable-corpus/licenses/)** | 每题的许可证 notice（许可类型、作者、再分发范围、未包含的发行商类文件） |
 | **编译回执** | **[`receipts/`](editable-corpus/receipts/)** | 每题 `ok / passes / shell_escape / 输入输出哈希`，可用于复现编译 |
-| **交付证据** | **[`delivery-evidence.json`](editable-corpus/delivery-evidence.json)** | 每题交付字节的哈希、独立题元、保真回执（哪些行被省略、为什么） |
-| **包清单与哈希** | **[`manifest.json`](editable-corpus/manifest.json)** | 本包所有文件与每题交付物的 sha256；用于逐字节校验 |
+| **旧交付证据** | **[`delivery-evidence.json`](editable-corpus/delivery-evidence.json)** | 对应交付范围的字节哈希、独立题元、保真回执（哪些行被省略、为什么）；不覆盖全部后续 prepared 材料 |
+| **材料清单** | **[`manifest.json`](editable-corpus/manifest.json)** | 材料范围与元数据；旧交付含字节哈希，revision-v2 使用任务/版本/审阅身份，不能强补内容指纹 |
 
 ### 📑 文档导航（全部为本包内的相对链接，点开即达）
 
@@ -41,15 +43,14 @@
 | [`CORPUS_INDEX.md`](editable-corpus/CORPUS_INDEX.md) | 增强版清单：附 arXiv id/版本、计数命题、难度、许可证、交付哈希 | 需要核验来源的人 |
 | [`catalog.csv`](editable-corpus/catalog.csv) · [`catalog.json`](editable-corpus/catalog.json) | 同上，机器可读（表格/程序直接消费） | 做数据分析的人 |
 | [`SOURCES.md`](editable-corpus/SOURCES.md) | 来源与许可说明：候选池、过滤表达式、许可政策、撤回处理 | 关心合规的人 |
-| [`DELIVERIES.md`](editable-corpus/DELIVERIES.md) | 交付台账：每批条目数与 `public_exact_commit_full<N>_restored_verified` 提交 | 审计交付历史的人 |
-| [`manifest.json`](editable-corpus/manifest.json) · [`delivery-evidence.json`](editable-corpus/delivery-evidence.json) | 逐文件哈希 / 逐题交付证据与保真回执 | 校验字节一致性的人 |
+| [`DELIVERIES.md`](editable-corpus/DELIVERIES.md) | 历史交付台账：6021–6759 的八个检查点；后续恢复范围见题库指南 | 审计交付历史的人 |
+| [`manifest.json`](editable-corpus/manifest.json) · [`delivery-evidence.json`](editable-corpus/delivery-evidence.json) | 材料清单 / 对应旧交付范围的哈希与保真回执；先确认覆盖范围 | 核验材料的人 |
 
 ### 30 秒上手
 
 ```bash
-# 1) 从仓库根进入材料目录，按当前描述恢复数据库
+# 1) 从仓库根进入材料目录；恢复前按题库指南选择匹配的交付/prepared快照
 cd editable-corpus
-python3 restore_database.py
 
 # 2) 看清单（人读）
 less INDEX.md

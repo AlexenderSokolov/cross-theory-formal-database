@@ -1,6 +1,6 @@
 # 本地总控：日常执行一页说明
 
-目标30,000道合格唯一题。先看[当前产物索引](handoff/yupeng/ARTIFACTS_CURRENT.md)、queue和实际任务状态；严格标准统一引用[项目skill](corpus-work/.agents/skills/human-proof-corpus/SKILL.md)，不重复展开规范。
+目标30,000道合格唯一题。位置与保留规则先看[产物索引（2026-10-05 快照）](handoff/yupeng/ARTIFACTS_CURRENT.md)，现行位置、计数及任务阶段读取queue和实际恢复/任务状态；严格标准统一引用[项目skill](corpus-work/.agents/skills/human-proof-corpus/SKILL.md)，不重复展开规范。
 
 ## 五步闭环
 
