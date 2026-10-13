@@ -1,3 +1,7 @@
+## 2026-10-13 本对话独立生产入口
+
+本工作树为operations/codex-work-01a13326，分支codex/corpus-01a13326-20261013，task_root为research-line/codex-01a13326-20261013，任务前缀CP01A13326-。根代理加三个GPT-6.1 Sol / medium材料子智能体，在Yupeng收题、装配、编译、SQLite建库及分批上传；每批约25道后继续。统一准则同下，不替作者证明、不增加数学审查或无关工程。不修改另一Codex或DeepSeek的活动目录、queue、owner和配置，不占正式题号，不合并生产main。旧其他生产路径仅为只读对照。
+
 # 当前并行生产授权（2026-10-13）
 
 Codex与DeepSeek同时找题建库。Codex在Yupeng主机本独立工作树和codex/corpus-parallel-20261013分支生产，根代理加三个GPT-6.1 Sol / medium材料子智能体；只写自有材料和批次，不接管DeepSeek，不修改其活动目录或工作表。每批完成即上传并继续，直到用户要求停止。此前不替作者证明、不审稿和不做无关工程等准则全部适用。当前入口research-line/codex-parallel-20261013/README.md。
