@@ -15,7 +15,7 @@ class Parser(HTMLParser):
    if self.stack[i].t==t:self.stack=self.stack[:i];break
  def handle_data(self,d):self.stack[-1].c.append(d)
 def esc(s):
- return ''.join({'\\':r'\textbackslash{}','&':r'\&','%':r'\%','$':r'\$','#':r'\#','_':r'\_','{':r'\{','}':r'\}','~':r'\textasciitilde{}','^':r'\textasciicircum{}'}.get(c,c) for c in s).replace('\u2062','').replace('\u200b','').replace('\u2009',r'\thinspace{}')
+ return ''.join({'\\':r'\textbackslash{}','&':r'\&','%':r'\%','$':r'\$','#':r'\#','_':r'\_','{':r'\{','}':r'\}','~':r'\textasciitilde{}','^':r'\textasciicircum{}'}.get(c,c) for c in s).replace('\u2062','').replace('\u200b','').replace('\u2009',r'\thinspace{}').replace('\u220e',r'\ensuremath{\blacksquare}').replace('\u2023',r'\ensuremath{\blacktriangleright}')
 def nodes(n,t=None):
  if isinstance(n,str):return
  if t is None or n.t==t:yield n
@@ -39,7 +39,18 @@ def render(n,eq=False):
   a=n.a.get('alttext','');a=re.sub(r'%\\?\n', '', a); refs=[''.join(x for x in plain(c)).strip() for c in nodes(n,'a')]; ri=iter(refs)
   a=re.sub(r'\\hyperref@@ii\[[^]]*\]\{[^}]*\}|\\lx@cref\{[^}]*\}\{[^}]*\}',lambda m:next(ri,'source reference'),a)
   a=re.sub(r'\\eqref\{[^}]*\}',lambda m:'('+next(ri,'source reference')+')',a)
-  a=a.replace(r'\leavevmode', '').replace(r'\hfill','')
+  a=a.replace(r'\leavevmode', '').replace(r'\hfill','').replace(r'\mathrm{\Delta}',r'\Delta')
+  embedded=list(nodes(n,'img'))
+  if embedded and r'\includegraphics' in a:
+   if len(embedded)!=1:raise ValueError('Ambiguous embedded math images: '+n.a.get('id',''))
+   original=embedded[0];target=GRAPHICS.get(original.a.get('src'))
+   if target is None:raise ValueError('Embedded math image has no asset: '+original.a.get('src',''))
+   height=float(original.a.get('height','9'))*0.75
+   image_tex=r'\hbox{\includegraphics[height='+str(height)+'bp]{'+target+'}}'
+   a,count=re.subn(r'(?:\\immediate\s*)*\\hbox\{\{\\includegraphics\{\}\{\}\{[^}]+\}\}\}',lambda m:image_tex+'\n'*m.group(0).count('\n'),a)
+   if count!=1:raise ValueError('Embedded math graphic encoding not recognized: '+n.a.get('id',''))
+  # LaTeXML encodes this dotted union with an unusable zero accent code.
+  a=re.sub(r'\\mathaccent\s+0\{\\cdot\}\\cup',lambda m:r'\dot{\cup}'+'\n'*m.group(0).count('\n'),a)
   return a if eq else ('$'+a+'$' if n.a.get('display')!='block' else '\n\\['+a+'\\]\n')
  if 'ltx_note_mark' in cl or 'ltx_tag_note' in cl:return ''
  if 'ltx_note_outer' in cl:return ''.join(render(c) for c in n.c)
@@ -71,6 +82,8 @@ def render(n,eq=False):
 if __name__=='__main__':
  p=Path(sys.argv[1]);ledger=p/'svg-asset-ledger.json'
  if ledger.exists():GRAPHICS.update({x['html_data']:Path(x['target']).name for x in json.loads(ledger.read_text())['objects']})
+ images=p/'html-image-ledger.json'
+ if images.exists():GRAPHICS.update({x['html_src']:Path(x['target']).name for x in json.loads(images.read_text())['images']})
  parser=Parser();parser.feed((p/'published.html').read_text());article=next(nodes(parser.root,'article'))
  parts=[render(n) for n in article.c if isinstance(n,N) and n.t=='section'];out='\n'.join(parts);(p/'official-source.tex').write_text(out)
  lines=out.splitlines();m={}

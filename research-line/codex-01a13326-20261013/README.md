@@ -47,3 +47,5 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 - batch-011：24道净新增（原25条材料，1条跨线重复保留不计）；提交`7b685d4296dbe363ad323b681b35a56e32ea9955`。[索引](delivery/batch-011/INDEX.md)、[SQLite](delivery/batch-011/corpus.sqlite3)。累计净上传272道，生产主库公开增量0。
 
 跨线去重修正：第三线已交付的CCC2025.6两条采样器结论和CCC2025.12 weighted adversary结论与本线原条目相同。本线保留原始题证、成品和历史提交，仅撤销3条净新增计数；累计净交付由275修正为272。后续同时只读比较第三线真实三个lane、交付和排除记录。
+
+包装说明修正：15条已整理题目及1条新候选移除了模板误加的sampler/extractor先修段，作者正文、原文位置与图形不变；旧修订保留，新修订已编译。已上传批次中14条成品链接/SQLite同步指向新修订，其余正常进入新批次，不增加旧题净新增数。

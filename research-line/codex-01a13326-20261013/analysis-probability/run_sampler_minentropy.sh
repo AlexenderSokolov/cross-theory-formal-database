@@ -18,3 +18,7 @@ PY=/disks/sata1/yupeng/human-proof-corpus/runtime/python/bin/python
 "$PY" prepare_noncollapsing_adversary.py
 "$PY" prepare_drops_assets.py ccc2025-3
 "$PY" prepare_quantum_threshold.py
+"$PY" prepare_drops_assets.py ccc2025-23
+"$PY" prepare_holant_hdx_codes.py odd-arity-holant-dichotomy
+"$PY" prepare_drops_assets.py ccc2025-27
+"$PY" prepare_holant_hdx_codes.py hdx-code-family-parameters
