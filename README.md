@@ -1,10 +1,10 @@
 # 人类数学证明题库 · Human-Proof Mathematics Corpus
 
-这是可编辑数学题证与来源证据的材料库。当前公开材料总数为 **14,875**：原有 **14,866** 条历史公开材料，加上本轮实际审核、修复并公开恢复的 **9** 条。历史标签保留，**14,866 条不因此自动成为符合当前 H2/H3 标准的题**；全库新标准资格总数尚未完成重核。
+这是可编辑数学题证与来源证据的材料库。提交 `f7b11197f5748006075b3a23beba02cf7eca3007` 已完成精确公开恢复的历史交付基线为 **14,875**：原有 **14,866** 条历史公开材料，加上该轮实际审核、修复并公开恢复的 **9** 条。历史标签保留，**14,866 条不因此自动成为符合当前 H2/H3 标准的题**；全库新标准资格总数尚未完成重核。
 
-上述数字是本轮交付/审核口径。后续 revision-v2 材料已扩展 manifest；prepared 材料、已有 INDEX 和旧数据库分段描述的覆盖范围不同，不因字段名 `verified_count` 或技术检查通过而晋级。阅读及恢复入口见[题库指南](editable-corpus/README.md#数据库恢复范围)。
+上述数字是该轮交付/审核口径，不是本次文档维护成果。后续 revision-v2 材料已扩展 manifest；prepared 材料、已有 INDEX 和旧数据库分段描述的覆盖范围不同，不因字段名 `verified_count` 或技术检查通过而晋级。阅读及恢复入口见[题库指南](editable-corpus/README.md#数据库恢复范围)。
 
-本轮已公开的精确题证版本如下，审阅依据、固定版本源码和许可随题一起保存：
+该轮已公开的精确题证版本如下，审阅依据、固定版本源码和许可随题一起保存：
 
 | 题号 | 核准级别 | 题证修订 | 审阅依据与保留说明 |
 |---|---|---|---|
@@ -18,7 +18,7 @@
 | 194851 | H2 | r002 | [两模型后验KL匹配偏差界审阅](editable-corpus/sources/194851/content-review.json)；4页；原文附属散度证明疑点明确披露，采用注明的标准先修，不把该疑点证明作为依赖 |
 | 210565 | H2 | r003 | [缺失子序列和及陪集构造审阅](editable-corpus/sources/210565/content-review.json)；3页；修正作者归属并补齐标准恢复脚本，复用未变题证的真实编译证据 |
 
-本批精确公开提交：`f7b11197f5748006075b3a23beba02cf7eca3007`。该提交已实际恢复完整材料数据库与编译资产，并核对两批9条的题证、许可与审阅证据；恢复口径的14,875与本轮科学审核通过的9（8条H2、1条H3）分别计数。旧队列58条和候选区另351个完整冻结包共409条已处置；其中400条退出生产、停止自动重试，保留原始来源和具体处置原因。
+该批精确公开提交：`f7b11197f5748006075b3a23beba02cf7eca3007`。该提交已实际恢复完整材料数据库与编译资产，并核对两批9条的题证、许可与审阅证据；恢复口径的14,875与该轮科学审核通过的9（8条H2、1条H3）分别计数。旧队列58条和候选区另351个完整冻结包共409条已处置；其中400条退出生产、停止自动重试，保留原始来源和具体处置原因。
 
 ---
 
@@ -39,7 +39,7 @@
 
 | 文档 | 内容 | 适合谁 |
 |---|---|---|
-| [`INDEX.md`](editable-corpus/INDEX.md) | **逐题清单**（题号·题名·难度·TeX 链接·作者原文·原文定位）——题库主入口 | 所有人 |
+| [`INDEX.md`](editable-corpus/INDEX.md) | **已有交付清单**（题号·题名·历史难度标签·TeX 链接·作者原文·原文定位）；后续 prepared 材料另见 manifest | 所有人 |
 | [`CORPUS_INDEX.md`](editable-corpus/CORPUS_INDEX.md) | 增强版清单：附 arXiv id/版本、计数命题、难度、许可证、交付哈希 | 需要核验来源的人 |
 | [`catalog.csv`](editable-corpus/catalog.csv) · [`catalog.json`](editable-corpus/catalog.json) | 同上，机器可读（表格/程序直接消费） | 做数据分析的人 |
 | [`SOURCES.md`](editable-corpus/SOURCES.md) | 来源与许可说明：候选池、过滤表达式、许可政策、撤回处理 | 关心合规的人 |
@@ -55,7 +55,7 @@ cd editable-corpus
 # 2) 看清单（人读）
 less INDEX.md
 
-# 3) 查数据库
+# 3) 按题库指南实际恢复匹配快照后，再查询
 sqlite3 corpus.sqlite "select problem_id, title, difficulty_level from problems limit 10;"
 sqlite3 corpus.sqlite "select * from problems where problem_id='127363';"
 
@@ -72,7 +72,7 @@ cd items && xelatex 127363_arXiv2206.12041.tex     # 文件名见 INDEX.md 链�
 2. **当前新准入标准**：完整作者题证、必要承重原证、明确来源与许可、语义唯一性和具体H2/H3难度理由；H2至少一份独立实质审阅，H3两份。旧材料按原记录保留，不能据历史标签宣称全部已经重新合格。
 3. **保真**：交付的 TeX 是原文的**逐行保留**（跨度精确到定理/证明环境）；若有省略（图形包含命令等），逐条记入
    `delivery-evidence.json` 的保真回执，并保证"声明数量 = 实际差异行数"。
-4. **作者原文与披露**：本轮未由助手补写数学证明或默改原公式。作者披露AI辅助起草且最终负责的材料按用户认可口径显式标注，不声称AI-free；论文中明确归属于模型生成的例子仍不当作作者人类证明。原文疑点单独说明，不能用编译通过替代内容核验。
+4. **作者原文与披露**：该轮未由助手补写数学证明或默改原公式。作者披露AI辅助起草且最终负责的材料按用户认可口径显式标注，不声称AI-free；论文中明确归属于模型生成的例子仍不当作作者人类证明。原文疑点单独说明，不能用编译通过替代内容核验。
 
 ---
 
@@ -81,7 +81,7 @@ cd items && xelatex 127363_arXiv2206.12041.tex     # 文件名见 INDEX.md 链�
 | 位置 | 用途 |
 |---|---|
 | `validation-artifact-parts/` · `validation-artifact-deltas/` · `validation-artifact-delivery.json` · `validation-chain.json` | 交付校验链（逐级哈希），供审计复现 |
-| `rebuild_database.py` · `restore_database.py` · `test_database.py` · `schema.sql` | 由 `manifest.json`/`delivery-evidence.json` 重建并校验 `corpus.sqlite` |
+| `rebuild_database.py` · `restore_database.py` · `test_database.py` · `schema.sql` | 旧交付范围的全文 SQLite 重建、分段恢复与校验；输入必须匹配该范围 |
 | `restore_validation_artifacts.py` · `restore_validation_chain.py` · `test_restore_database.py` | 校验链恢复与自测 |
 | `SOURCE_PATHS.json` · `provenance.json` | 来源路径索引与包级来源说明 |
 | `assets/` | 来源家族层面的辅助材料（如书目文件） |
@@ -100,5 +100,5 @@ cd items && xelatex 127363_arXiv2206.12041.tex     # 文件名见 INDEX.md 链�
 
 ---
 
-*本 README 由语料控制流程维护；每次合并发布时刷新，与 `manifest.json` 的规模保持一致。*
+*本页说明阅读入口与覆盖范围；生成型 INDEX、manifest、delivery evidence 和恢复描述以各自发布流程为准，不由本页更新材料或资格计数。*
 

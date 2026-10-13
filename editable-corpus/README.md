@@ -1,7 +1,7 @@
 # 人类数学证明题库 · Human-Proof Mathematics Corpus
 
 > **这是可编辑数学题证与来源证据的材料库。** 历史标签和 prepared 材料不自动成为符合当前 H2/H3 标准的题。
-> 14,866 条历史公开材料与本轮实质审核、修复并公开恢复的 9 条分别计数；全库新标准资格总数尚未完成重核，详见[根 README](../README.md)。
+> 已完成精确恢复的历史交付基线中，14,866 条历史公开材料与该轮实质审核、修复并公开恢复的 9 条分别计数；全库新标准资格总数尚未完成重核，详见[根 README](../README.md)。
 >
 > `manifest.json` 的 `items` 是材料范围；`INDEX.md`、旧交付 evidence 和数据库分段描述有各自的快照覆盖范围，不保证与后续 prepared 材料等量。`verified_count` 字段或技术检查通过不能单独证明科学资格。
 
@@ -51,6 +51,7 @@ cd items && xelatex 127363_arXiv2206.12041.tex     # 文件名见 INDEX.md 链�
 
 - [RECOVERY_CURRENT.md](RECOVERY_CURRENT.md) 与 [database-delivery.json](database-delivery.json) 保留 14,875 条交付的分段恢复说明。旧 `restore_database.py` 要求 manifest 与描述中的身份一致；不能把旧分段与后续扩展的 manifest 混用。
 - revision-v2 材料使用 [prepared-database.json](prepared-database.json) 的基础分段、delta 和资格审阅记录，以及 [prepared_publish.py](prepared_publish.py) 的精确提交恢复入口。先查看 `python3 prepared_publish.py restore --help`，选择同一提交的材料及独立输出目录；旧 `schema.sql`/`rebuild_database.py` 不适用于整个 revision-v2 库。
+  `--batch-id` 只选择恢复指定批次的 prepared 资产；恢复全库数据库不等于全部历史编译资产也已恢复。
 - 已有同一提交的数据库快照时，可用 `prepared_delivery.py verify-db --database PATH --manifest MANIFEST` 检查结构和元数据。该检查不比较全文与交付 TeX 的逐字节一致性；其按 basis 分组的统计也不能直接当作全库新标准合格数。
 
 ---
