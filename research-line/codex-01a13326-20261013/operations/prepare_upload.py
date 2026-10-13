@@ -5,13 +5,15 @@ P=Path(__file__).resolve().parent.parent;R=P.parent.parent;D=P/'delivery'/args.b
 B=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-takeover-01a12558/corpus-repair-20261010/research-line/harness-ready-20261011')
 def load(f):return json.loads(f.read_text(encoding='utf-8-sig'))
 def norm(value):return re.sub(r'(arxiv:\d{4}\.\d{4,5})v\d+',r'\1',str(value).strip().lower())
-items=[json.loads(x) for x in (D/'ITEMS.jsonl').read_text().splitlines()];targets={(norm(x['source_id']),norm(x['claim_key'])):x['task_id'] for x in items};duplicates=[]
+items=[json.loads(x) for x in (D/'ITEMS.jsonl').read_text().splitlines()];targets={(norm(x['source_id']),norm(x['claim_key'])):x['task_id'] for x in items};duplicates=[];neighbors=[]
+source_targets={key[0] for key in targets}
 for x in [json.loads(l) for l in (B/'PREPARATION_WORKLIST.jsonl').read_text(encoding='utf-8-sig').splitlines() if l.strip()]:
  rel=x.get('task_path');f=B/rel if rel else None
  try:t=load(f) if f and f.is_file() else x
  except (OSError,json.JSONDecodeError):t=x
  key=(norm(t.get('source_id','')),norm(t.get('claim_key','')))
  if key in targets:duplicates.append((targets[key],x.get('task_id'),x['state']))
+ elif key[0] in source_targets:neighbors.append({'source_id':t.get('source_id'),'prior_task_id':x.get('task_id'),'claim_key':t.get('claim_key'),'title':t.get('title'),'task_path':str(f) if f else None,'state':x.get('state')})
 # Compare only this batch with the other Codex lane, including in-flight tasks.
 OTHER=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-parallel-work-20261013/research-line/codex-parallel-20261013')
 other_records=[]
@@ -25,6 +27,7 @@ for mf in (OTHER/'delivery').glob('*/ITEMS.jsonl'):
 for t in other_records:
  key=(norm(t.get('source_id','')),norm(t.get('claim_key','')))
  if key in targets:duplicates.append((targets[key],t.get('task_id'),'other_codex'))
+ elif key[0] in source_targets:neighbors.append({'source_id':t.get('source_id'),'prior_task_id':t.get('task_id'),'claim_key':t.get('claim_key'),'title':t.get('title'),'state':'other_codex'})
 if duplicates:raise ValueError('already claimed: '+repr(duplicates))
 selected=set()
 def add(f):
@@ -52,4 +55,4 @@ pattern=re.compile(r'(?:sk-[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9]{25,}|-----BE
 hits=[s for s in selected if (R/s).suffix in ['.json','.jsonl','.md','.py','.sh','.tex','.txt'] and pattern.search((R/s).read_text(errors='replace'))];assert not hits,hits
 files=sorted(selected)
 for i in range(0,len(files),60):subprocess.run(['git','add','--',*files[i:i+60]],cwd=R,check=True)
-print(json.dumps({'batch':args.batch,'ready':len(items),'files':len(files),'MiB':round(sum((R/x).stat().st_size for x in selected)/1048576,1),'same_identity_found':duplicates}))
+print(json.dumps({'batch':args.batch,'ready':len(items),'files':len(files),'MiB':round(sum((R/x).stat().st_size for x in selected)/1048576,1),'same_identity_found':duplicates,'related_source_neighbors':neighbors}))
