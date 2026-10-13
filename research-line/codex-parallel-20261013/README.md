@@ -29,3 +29,5 @@ Brenier trace-log与旧公开925同题，原材料保留，扣除1道新增；�
 ## 去重参考范围
 
 reference/existing-claims.jsonl仅覆盖开工新增/在途元数据，不能代替完整旧库。新来源同时只读对照../harness-ready-20261011/reference/public-items.jsonl及生产侧最新PREPARATION_WORKLIST.jsonl；只比较命中的同源/同主题近邻，不复审证明。所有已确认重复保留原件并由delivery/EXCLUDED.json排除新增。
+
+第六批已上传：25份材料、25道净新增；累计150份材料、147道净新增。提交 `5e4271608eef97359f7a9b352d7e96fb62fdb90d`。生产主库增量仍为0。
