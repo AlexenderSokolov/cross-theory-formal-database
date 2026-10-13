@@ -1,11 +1,13 @@
 """Read-only navigation must never renumber or admit corpus materials."""
 import json
+import importlib.util
 import re
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 TOOL = Path(__file__).resolve().parents[1] / 'tools/render_material_index.py'
 
@@ -204,6 +206,44 @@ class MaterialIndexTests(unittest.TestCase):
             # Literal Markdown escaping must preserve the original math spelling.
             import html
             self.assertEqual(html.unescape(re.sub(r'\\([\\*_`\[\]])',r'\1',cell_text)),title)
+
+    def test_directory_at_later_page_preserves_the_complete_old_view(self):
+        self.assertEqual(self.run_tool([row('001')]).returncode,0)
+        entry = self.root/'MATERIAL_INDEX.md'
+        first = self.root/'material-index/page-001.md'
+        before = {entry:entry.read_bytes(), first:first.read_bytes()}
+        conflict = self.root/'material-index/page-002.md'
+        conflict.mkdir()
+        result = self.run_tool([row(str(i)) for i in range(1,202)])
+        self.assertNotEqual(result.returncode,0)
+        self.assertEqual({p:p.read_bytes() for p in before},before)
+        self.assertTrue(conflict.is_dir())
+
+    def test_middle_publish_io_failure_restores_all_old_bytes(self):
+        self.assertEqual(self.run_tool([row('001')]).returncode,0)
+        entry = self.root/'MATERIAL_INDEX.md'
+        first = self.root/'material-index/page-001.md'
+        before = {entry:entry.read_bytes(),first:first.read_bytes()}
+        spec = importlib.util.spec_from_file_location('material_index_publish_test',TOOL)
+        module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        (self.root/'manifest.json').write_text(json.dumps({'items':[row(str(i)) for i in range(1,202)]}),encoding='utf8')
+        snapshot = self.commit_input()
+        import os
+        replace = os.replace
+        failed = []
+        def fail_navigation(source,destination):
+            if Path(destination)==entry and not failed:
+                failed.append(True)
+                raise OSError('injected navigation publication failure')
+            return replace(source,destination)
+        args = ['render_material_index.py','--package',str(self.root),'--snapshot',snapshot]
+        with patch.object(os,'replace',side_effect=fail_navigation),patch.object(sys,'argv',args):
+            with self.assertRaises(SystemExit) as stopped:
+                module.main()
+        self.assertNotEqual(stopped.exception.code,0)
+        self.assertTrue(failed)
+        self.assertEqual({p:p.read_bytes() for p in before},before)
+        self.assertFalse((self.root/'material-index/page-002.md').exists())
 
 
 if __name__ == '__main__':

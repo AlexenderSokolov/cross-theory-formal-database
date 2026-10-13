@@ -2,8 +2,11 @@
 import argparse
 import html
 import json
+import os
 import re
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, urlsplit
 
@@ -135,6 +138,54 @@ def match_snapshot(package, snapshot, raw):
         raise ValueError('snapshot manifest does not match working input')
 
 
+def publish(package, views):
+    """Stage a complete view, then replace pages/navigation with rollback."""
+    stage = Path(tempfile.mkdtemp(prefix='.material-reading-',dir=package))
+    entry = package/'MATERIAL_INDEX.md'
+    folder = package/'material-index'
+    prior_pages = stage/'prior-pages'
+    prior_entry = stage/'prior-entry.md'
+    old_entry = entry.read_bytes() if entry.exists() else None
+    installed_pages = False
+    cleanup = True
+    try:
+        (stage/'material-index').mkdir()
+        for name,text in views.items():
+            target = stage/name
+            target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(text.encode('utf8'))
+        if old_entry is not None:
+            prior_entry.write_bytes(old_entry)
+        try:
+            if folder.exists():
+                os.replace(folder,prior_pages)
+            os.replace(stage/'material-index',folder)
+            installed_pages = True
+            os.replace(stage/'MATERIAL_INDEX.md',entry)
+        except OSError:
+            try:
+                if installed_pages:
+                    os.replace(folder,stage/'failed-pages')
+                if prior_pages.exists():
+                    os.replace(prior_pages,folder)
+                if old_entry is not None:
+                    if not entry.is_file() or entry.read_bytes()!=old_entry:
+                        os.replace(prior_entry,entry)
+                elif entry.exists():
+                    os.replace(entry,stage/'failed-entry.md')
+            except OSError as recovery:
+                cleanup = False
+                raise ValueError('view rollback failed; prior backup retained in '+stage.name) from recovery
+            raise
+    finally:
+        # Only our same-package temporary directory is eligible for cleanup.
+        if cleanup and stage.resolve().parent==package.resolve():
+            try:
+                shutil.rmtree(stage)
+            except OSError:
+                pass  # Successful view or restored old view remains authoritative.
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package',type=Path,required=True)
@@ -151,12 +202,16 @@ def main():
         folder = args.package/'material-index'
         if folder.is_symlink():
             raise ValueError('refusing symlink output')
+        if folder.exists() and not folder.is_dir():
+            raise ValueError('reading page directory conflicts with an existing file')
         expected = {args.package/name for name in views}
-        extras = set(folder.glob('page-*.md'))-expected
+        extras = set(folder.iterdir())-expected if folder.is_dir() else set()
         if extras:
             raise ValueError('unexpected extra reading pages; preserve and review them')
         if any(p.is_symlink() for p in expected):
             raise ValueError('refusing symlink output')
+        if any(p.exists() and not p.is_file() for p in expected):
+            raise ValueError('reading output target is not a regular file')
         if args.check:
             # Git may convert LF to CRLF on checkout; compare view text only.
             for name,text in views.items():
@@ -164,10 +219,7 @@ def main():
                 if not output.is_file() or output.read_text(encoding='utf8') != text:
                     raise ValueError('material reading view is stale or missing: '+name)
         else:
-            folder.mkdir(exist_ok=True)
-            # Publish the small navigation file only after all pages are written.
-            for name,text in views.items():
-                (args.package/name).write_bytes(text.encode('utf8'))
+            publish(args.package,views)
         print(('Checked' if args.check else 'Generated')+' '+str(len(manifest['items']))+' material rows')
     except (OSError,ValueError,KeyError,TypeError) as exc:
         parser.exit(1,str(exc)+'\n')
