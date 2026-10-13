@@ -54,6 +54,18 @@ ALIASES.extend([['10.4230/lipics.socg.2025.75','2504.07752','2504.07770'],['10.4
 
 ALIASES.extend([['10.4230/lipics.fscd.2026.5','inria-cambium/not-choosing-is-still-a-choice']])
 
+ALIASES.extend([['10.4230/lipics.socg.2025.78','2503.14115'],['10.4230/lipics.fscd.2026.6','2602.09874']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.4','2603.26585'],['10.4230/lipics.socg.2026.5','19346228','20315082','2605.21636'],['10.4230/lipics.fscd.2026.7','2401.07914']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.6','2412.04162'],['10.4230/lipics.socg.2026.7','2603.08890'],['10.4230/lipics.socg.2026.8','2601.16468']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.9','2601.02920'],['10.4230/lipics.socg.2026.10','2512.08652'],['10.4230/lipics.fscd.2025.14','2506.09453']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2026.11','2601.05199'],['10.4230/lipics.fscd.2026.12','2510.20452','05518918'],['10.4230/lipics.fscd.2026.13','2605.07259'],['10.4230/lipics.socg.2026.11','2512.16474']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.12','2602.16306']])
+
 LANES=[('codex-parallel-work-20261013','codex-parallel-20261013'),('codex-work-01a13326','codex-01a13326-20261013'),('codex-work-01a1332f','codex-01a1332f-20261013')]
 @cache
 def read(p):return p.read_text(encoding='utf-8-sig')

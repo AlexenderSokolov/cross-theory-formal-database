@@ -22,7 +22,7 @@ def proof_source(t):
  return text
 found={}
 for root in [P/'jobs']:
- for f in root.glob('*/r*/job-state.json'):
+ for f in sorted(root.glob('*/r*/job-state.json')):
   state=load(f)
   if state['status']!='compiled_pending_qa' or not state['task_id'].startswith('CP01A1333E-'):continue
   job=f.parent;pkg=job/state['package'];task=load(pkg/state['task_snapshot']);row=load(pkg/'manifest.json')['items'][0];receipt=load(pkg/row['compile_receipt'])
