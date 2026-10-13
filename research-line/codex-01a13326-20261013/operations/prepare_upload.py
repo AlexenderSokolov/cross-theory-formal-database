@@ -56,6 +56,9 @@ for original_lane in ['algebra-geometry','analysis-probability','combinatorics-l
   for original_key in ['source_version','license']:
    if entry.get(original_key):record[original_key]=entry[original_key]
   originals.append(record)
+covered_original_sources={norm(x['source_id']) for x in originals}
+missing_original_sources=sorted(selected_source_ids-covered_original_sources)
+if missing_original_sources:raise ValueError('Selected author-original source records missing: '+repr(missing_original_sources))
 originals_file.write_text(json.dumps({'purpose':'Unmodified author originals actually used by the selected delivered materials; no unused candidates.','sources':originals},ensure_ascii=False,indent=2)+'\n')
 add(originals_file)
 for x in items:
