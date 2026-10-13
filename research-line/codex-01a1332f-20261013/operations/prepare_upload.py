@@ -2,14 +2,14 @@ from pathlib import Path
 import json,re,argparse,subprocess
 parser=argparse.ArgumentParser();parser.add_argument('batch');args=parser.parse_args()
 P=Path(__file__).resolve().parent.parent;R=P.parent.parent;D=P/'delivery'/args.batch
-from source_neighbors import neighbors, normalize_source
+from source_neighbors import neighbors, normalize_source, same_claim
 def load(f):return json.loads(f.read_text(encoding='utf-8-sig'))
 items=[json.loads(x) for x in (D/'ITEMS.jsonl').read_text().splitlines()]
 targets={(normalize_source(x['source_id']),x['claim_key'].lower()):x['task_id'] for x in items}
 near=neighbors({v for x in items for v in [x['source_id'],*x.get('source_aliases',[])]});duplicates=[]
 for x in near:
- key=(normalize_source(x.get('source_id','')),str(x.get('claim_key','')).lower())
- if key in targets:duplicates.append((targets[key],x.get('task_id',x.get('problem_id')),x.get('state',x.get('status'))))
+ for target in items:
+  if same_claim(target,x):duplicates.append((target['task_id'],x.get('task_id',x.get('problem_id')),x.get('state',x.get('status'))))
 if duplicates:raise ValueError('already claimed: '+repr(duplicates))
 selected=set()
 def add(f):
@@ -40,6 +40,7 @@ for x in items:
 for f in [R/'PROJECT.md',P/'README.md',P/'STATUS.json',P/'operations/export_materials.py',P/'operations/source_neighbors.py',P/'operations/assemble_materials.py',P/'operations/run_assemble.sh',P/'operations/run_export.sh',Path(__file__),D/'INDEX.md',D/'ITEMS.jsonl',D/'SELECTION.json',D/'corpus.sqlite3']:add(f)
 for f in (P/'delivery').glob('*/UPLOADED.json'):add(f)
 if (P/'delivery/EXCLUDED.json').exists():add(P/'delivery/EXCLUDED.json')
+if (D/'RETAINED_DUPLICATES.jsonl').exists():add(D/'RETAINED_DUPLICATES.jsonl')
 pattern=re.compile(r'(?:sk-[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9]{25,}|-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----)')
 hits=[s for s in selected if (R/s).suffix in ['.json','.jsonl','.md','.py','.sh','.tex','.txt'] and pattern.search((R/s).read_text(errors='replace'))];assert not hits,hits
 files=sorted(selected)

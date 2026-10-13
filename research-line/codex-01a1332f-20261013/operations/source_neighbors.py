@@ -19,6 +19,13 @@ def normalize_source(s):
    return 'eccc:'+year+':'+m.group(2).zfill(3)
  return s
 
+def claim_position(s):
+ s=str(s).lower().strip()
+ return re.sub(r'^(?:doi:10\.\d{4,9}/[^:]+|arxiv:\d{4}\.\d{4,5}(?:v\d+)?|eccc:tr\d{2,4}-\d{1,3}):','',s)
+def same_claim(a,b):
+ def identities(x):return {normalize_source(v) for v in [x.get('source_id',''),x.get('source_url',''),*x.get('source_aliases',[])] if v}
+ return bool(identities(a)&identities(b)) and bool(a.get('claim_key')) and bool(b.get('claim_key')) and claim_position(a['claim_key'])==claim_position(b['claim_key'])
+
 def neighbors(sources):
  wanted={normalize_source(s) for s in sources};aliases=[]
  for f in [B/'repo/handoff/catalog/source_works.jsonl',B/'repo/handoff/catalog/candidate_catalog.jsonl']:

@@ -47,7 +47,7 @@ columns=['task_id','title','route','difficulty_level','source_id','claim_key','s
 manifest=[]
 with db:
  db.execute('CREATE TABLE IF NOT EXISTS problems ('+','.join(c+' TEXT'+(' PRIMARY KEY' if c=='task_id' else '') for c in columns)+', UNIQUE(source_id,claim_key))')
- db.execute("UPDATE problems SET state='excluded_from_current_selection' WHERE state='prepared_unpublished' AND task_id NOT IN ("+','.join('?' for _ in selected)+')',selected)
+ db.execute("UPDATE problems SET state='excluded_from_current_selection',tex_path=NULL,pdf_path=NULL WHERE state='prepared_unpublished' AND task_id NOT IN ("+','.join('?' for _ in selected)+')',selected)
  for key,(job,state,pkg,t,row,tex,pdf) in sorted(found.items()):
   values=[key,t['title'],t['route'],t['difficulty_level'],t['source_id'],t['claim_key'],t['source_url'],t['source_version'],json.dumps(t['authors'],ensure_ascii=False),json.dumps(t['license'],ensure_ascii=False),source(t['statement_spans']),source(t['proof_spans']),source(t['context_spans']),tex.read_text(encoding='utf-8'),rel(tex),rel(pdf),json.dumps(t,ensure_ascii=False),'prepared_unpublished']
   db.execute('INSERT INTO problems VALUES ('+','.join('?' for _ in columns)+') ON CONFLICT(task_id) DO UPDATE SET '+','.join(c+'=excluded.'+c for c in columns[1:]),values)
@@ -55,8 +55,9 @@ with db:
  assert db.execute("SELECT count(*) FROM problems WHERE state='prepared_unpublished' AND (length(statement_text)=0 OR length(proof_text)=0 OR length(tex_content)=0)").fetchone()[0]==0
  assert {x[0] for x in db.execute("SELECT task_id FROM problems WHERE state='prepared_unpublished'")}==set(selected)
  count=db.execute('SELECT count(*) FROM problems WHERE state="prepared_unpublished"').fetchone()[0]
+ retained_count=db.execute("SELECT count(*) FROM problems WHERE state!='prepared_unpublished'").fetchone()[0]
 (OUT/'ITEMS.jsonl').write_text(''.join(json.dumps(m,ensure_ascii=False)+'\n' for m in manifest),encoding='utf-8')
-lines=['# 第三条Codex主机产线：作者题证成品','',f'本地可用 {count} 道；上传情况另见批次记录。生产主库公开增量不由本索引推断。','', '遵循仓库根PROJECT.md，不认证作者数学。SQLite为corpus.sqlite3，表problems保存题面、证明、上下文及成品TeX。路径相对于仓库根。','','| 题目 | 方向 | 级别 | 成品 |','|---|---|---|---|']
+lines=['# 第三条Codex主机产线：作者题证成品','',f'本地可用 {count} 道；上传情况另见批次记录。生产主库公开增量不由本索引推断。','', f'数据库另保留 {retained_count} 份不计新增记录；默认接入清单ITEMS只含上述有效条目。', '', '遵循仓库根PROJECT.md，不认证作者数学。SQLite为corpus.sqlite3，表problems保存题面、证明、上下文及成品TeX。路径相对于仓库根。','','| 题目 | 方向 | 级别 | 成品 |','|---|---|---|---|']
 for key,(job,state,pkg,t,row,tex,pdf) in sorted(found.items()):
  lines.append('| '+t['title'].replace('|','/')+' | '+t['route']+' | '+t['difficulty_level']+' | [TeX]('+os.path.relpath(tex,OUT)+') · [PDF]('+os.path.relpath(pdf,OUT)+') |')
 (OUT/'INDEX.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
