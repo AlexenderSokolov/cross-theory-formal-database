@@ -11,6 +11,20 @@ ALIASES.extend([
 ['10.3842/sigma.2025.072','2411.03882','ricci-flat manifolds, parallel spinors'],
 ['10.3842/sigma.2025.073','2304.00699','splice diagrams']])
 
+ALIASES.extend([
+['10.3842/sigma.2025.075','2404.15767','isomonodromy and painlev'],
+['10.3842/sigma.2025.080','2504.08293','skew pl'],
+['10.3842/sigma.2025.079','2405.03259','ising model coupled to 2d gravity'],
+['10.3842/sigma.2025.088','2408.16696','perturbations of aps boundary'],
+['10.3842/sigma.2025.081','2409.11306','killing (super)algebras associated'],
+['10.3842/sigma.2025.083','2410.14068'],
+['10.3842/sigma.2025.089','2509.17976'],
+['10.3842/sigma.2025.091','2412.02042'],
+['10.4230/lipics.fscd.2025.12','2505.06193','ohana trees'],
+['10.4230/lipics.fscd.2025.21','2411.13125','expressive trace logic'],
+['10.4230/lipics.socg.2025.54','2407.03101'],
+['10.4230/lipics.socg.2025.55','2504.03942']])
+
 LANES=[('codex-parallel-work-20261013','codex-parallel-20261013'),('codex-work-01a13326','codex-01a13326-20261013'),('codex-work-01a1332f','codex-01a1332f-20261013')]
 @cache
 def read(p):return p.read_text(encoding='utf-8-sig')

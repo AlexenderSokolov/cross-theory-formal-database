@@ -46,3 +46,15 @@ python operations/prepare_upload.py batch-001
 - LL：FSCD2025.12（固定arxiv2505.06193v2，CCBY4）、.13、.15。
 
 作者形式证明附件以原始源文件交付，并将完整文本纳入SQLite proof_text；不重跑形式验证。
+
+## 第二批接续来源
+
+- PM：SIGMA2025.083（arxiv2410.14068）；.088（arxiv2408.16696，旧164471仅graphest Lemma3.8，有限比较后避让）。
+- MD：SIGMA2025.089（arxiv2509.17976）；.084与旧177319 trop-dist同题不计新增。
+- LL：FSCD2025.17（作者固定正式证明commit70dfc56f33a6e4835281044e68aa68279989047e，代码MPL2单列）、.18、.19、.20。
+
+## 第三批预分配（具体作品独占）
+
+- MD：SoCG2025.54、.55（Fréchet近似、knot factorisation）。
+- PM：FSCD2025.26（Functorial Models of Differential Linear Logic）。
+- LL：FSCD2025.27（Conversion Checker作者材料，只收作者证明，不执行认证）。
