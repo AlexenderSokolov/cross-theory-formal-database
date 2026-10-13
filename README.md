@@ -1,5 +1,7 @@
 # 人类数学证明题库 · Human-Proof Mathematics Corpus
 
+**全量材料阅读入口：[MATERIAL_INDEX.md](editable-corpus/MATERIAL_INDEX.md)**。按稳定 ID 自然/数值顺序排列，另列连续展示序号、原材料/审阅状态和来源证据。覆盖所标快照的全部 manifest 材料（含 prepared）；展示序号和材料状态均不是新标准资格或新增交付计数。
+
 这是可编辑数学题证与来源证据的材料库。当前公开材料总数为 **14,875**：原有 **14,866** 条历史公开材料，加上本轮实际审核、修复并公开恢复的 **9** 条。历史标签保留，**14,866 条不因此自动成为符合当前 H2/H3 标准的题**；全库新标准资格总数尚未完成重核。
 
 本轮已公开的精确题证版本如下，审阅依据、固定版本源码和许可随题一起保存：
@@ -38,8 +40,8 @@
 | 文档 | 内容 | 适合谁 |
 |---|---|---|
 | [`INDEX.md`](editable-corpus/INDEX.md) | **逐题清单**（题号·题名·难度·TeX 链接·作者原文·原文定位）——题库主入口 | 所有人 |
-| [`CORPUS_INDEX.md`](editable-corpus/CORPUS_INDEX.md) | 增强版清单：附 arXiv id/版本、计数命题、难度、许可证、交付哈希 | 需要核验来源的人 |
-| [`catalog.csv`](editable-corpus/catalog.csv) · [`catalog.json`](editable-corpus/catalog.json) | 同上，机器可读（表格/程序直接消费） | 做数据分析的人 |
+| [`CORPUS_INDEX.md`](editable-corpus/CORPUS_INDEX.md) | 6,759 条历史增强清单；全量材料阅读统一使用上方 MATERIAL_INDEX | 追溯历史的人 |
+| [`catalog.csv`](editable-corpus/catalog.csv) · [`catalog.json`](editable-corpus/catalog.json) | 同一 6,759 条历史机器快照；不覆盖后续旧交付与 prepared 全量材料 | 追溯历史数据的人 |
 | [`SOURCES.md`](editable-corpus/SOURCES.md) | 来源与许可说明：候选池、过滤表达式、许可政策、撤回处理 | 关心合规的人 |
 | [`DELIVERIES.md`](editable-corpus/DELIVERIES.md) | 交付台账：每批条目数与 `public_exact_commit_full<N>_restored_verified` 提交 | 审计交付历史的人 |
 | [`manifest.json`](editable-corpus/manifest.json) · [`delivery-evidence.json`](editable-corpus/delivery-evidence.json) | 逐文件哈希 / 逐题交付证据与保真回执 | 校验字节一致性的人 |
