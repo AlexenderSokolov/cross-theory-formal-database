@@ -1,6 +1,6 @@
 # 人类数学证明题库 · Human-Proof Mathematics Corpus
 
-全量材料阅读统一使用 **[MATERIAL_INDEX.md](MATERIAL_INDEX.md)**：从 manifest 全部材料可复现生成，稳定 ID 与连续展示序号分开，原状态与证据链接保留；不会据此授予科学资格或改变交付计数。主 INDEX 保持旧交付范围的五列契约，CORPUS_INDEX/catalog 保留为 6,759 条历史快照。
+全量材料阅读统一使用 **[MATERIAL_INDEX.md](MATERIAL_INDEX.md)**：同一入口分轻量页，每页至多 200 条，每条仅出现一次；从 manifest 全部材料可复现生成，稳定 ID 与全局连续展示序号分开，原状态与证据链接保留；不会据此授予科学资格或改变交付计数。主 INDEX 保持旧交付范围的五列契约，CORPUS_INDEX/catalog 保留为 6,759 条历史快照。
 
 > **这是一个"题目 + 完整人类证明"的数据库本体。** 每条记录 = 一道高于博士资格考水平的数学命题，
 > 连同作者本人的完整证明、可编译的 LaTeX 源码、来源定位与许可证证据。
