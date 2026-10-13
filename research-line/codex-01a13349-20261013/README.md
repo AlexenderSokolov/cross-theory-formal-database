@@ -33,3 +33,7 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 - batch-001：25道，交付提交`646a870b6baf6af8867330a62a2b876f2e339cfb`；11逻辑、7几何、7代数。准备分支上传已核对远端提交，生产主库公开增量0。
 
 首批OA003/OA004已修订为r002，恢复作者原allowdisplaybreaks以保留长公式跨页。旧r001保存，索引及数据库只指向当前r002；同题修正不增加数量。
+
+## 原生TeX装配要点
+
+保留作者在begin{document}后、数学正文前设置的实际分页选项；原class隐式提供的定理环境、拥有计数器及列表选项须在自有wrapper对齐。不要在extra_packages提前重复加载作者带options的包。只对实际缺失且用到的依赖保留本地源码与许可；未用的前置包可从自有wrapper省略，原native文件保留。已成功材料若确需包装修订，使用新revision，保留旧作业；同task_id修订不增加数量。
