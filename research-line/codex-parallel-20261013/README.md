@@ -61,3 +61,5 @@ Batch015 uploaded: 25 new author-proof materials; cumulative 15 batches, 375 mat
 Batch016 uploaded: 25 new author-proof materials; cumulative 16 batches, 400 materials / 397 net prepared. Commit 5956f2b2bed5c812efadcfa7be883fbfce10393b; production public increment 0. Continue next batch under the active native persistent goal.
 
 Batch016 classification correction uploaded: proof-complexity routes corrected to logic in task metadata, index and SQLite without changing mathematics, recompiling successful products or adding counts. Commit 6c206e5ce4dbf553eec25640a5c9463a30e2664e. Cumulative count remains 397 net.
+
+Batch017 uploaded: 25 new author-proof materials; cumulative 17 batches, 425 materials / 422 net prepared. Commit ba4826436772ee19ef6cc47c7e8d1dc4db86faee; production public increment 0. Existing intake now follows the compiled task snapshot when a worklist row omits its task path, and recognizes identical Stacks chapter/label objects across source-key spellings. No old mathematical review is repeated. Continue next batch under the active native persistent goal.
