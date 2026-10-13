@@ -32,6 +32,32 @@ if duplicates:raise ValueError('already claimed: '+repr(duplicates))
 selected=set()
 def add(f):
  f=f.resolve();assert f.is_relative_to(R),str(f);assert f.is_file(),str(f);selected.add(f.relative_to(R).as_posix())
+# Preserve unmodified author originals for selected items, including earlier deliveries.
+originals_file=P/'delivery/ORIGINAL_SOURCES.json'
+previous_originals=load(originals_file).get('sources',[]) if originals_file.is_file() else []
+selected_source_ids=set()
+for selected_manifest in (P/'delivery').glob('*/ITEMS.jsonl'):
+ for line in selected_manifest.read_text().splitlines():
+  if line.strip():selected_source_ids.add(norm(json.loads(line)['source_id']))
+originals=[]
+for original_lane in ['algebra-geometry','analysis-probability','combinatorics-logic']:
+ original_manifest=P/original_lane/'ORIGINAL_SOURCES.json'
+ if original_manifest.is_file():
+  raw=load(original_manifest);entries=raw if isinstance(raw,list) else raw['sources']
+ else:entries=[x for x in previous_originals if x.get('lane')==original_lane]
+ for entry in entries:
+  if norm(entry['source_id']) not in selected_source_ids:continue
+  paths=list(entry.get('paths',[]))
+  if entry.get('archive_path'):paths.append(entry['archive_path'])
+  paths+=entry.get('original_native_paths',[])
+  paths=sorted(set(paths))
+  for original_path in paths:add(P/original_path)
+  record={'source_id':entry['source_id'],'lane':original_lane,'paths':paths}
+  for original_key in ['source_version','license']:
+   if entry.get(original_key):record[original_key]=entry[original_key]
+  originals.append(record)
+originals_file.write_text(json.dumps({'purpose':'Unmodified author originals actually used by the selected delivered materials; no unused candidates.','sources':originals},ensure_ascii=False,indent=2)+'\n')
+add(originals_file)
 for x in items:
  tid=x['task_id'];lane={'AP':'analysis-probability','CL':'combinatorics-logic','AG':'algebra-geometry'}[tid.split('-')[1]]
  candidates=[P/lane/tid/'task.json',P/lane/'drafts'/tid/'task.json'];tf=next(f for f in candidates if f.is_file());add(tf);t=load(tf);a=t['assembly']
