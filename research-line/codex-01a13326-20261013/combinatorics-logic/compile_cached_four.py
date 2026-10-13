@@ -37,7 +37,7 @@ def compile_direct(job):
 paths=[Path(a).resolve() for a in sys.argv[1:]] if len(sys.argv)>1 else sorted(lane.glob('CP01A13326-CL-*/task.json'))
 for path in paths:
  task=json.loads(path.read_text())
- if not any(a in task['source_id'] for a in ['2402.00133','2111.03639','2403.09184','2307.02968']):continue
+ if len(sys.argv)==1 and not any(a in task['source_id'] for a in ['2402.00133','2111.03639','2403.09184','2307.02968']):continue
  job=lane/'jobs'/task['task_id']/task['revision']
  if (job/'job-state.json').exists():print('PRESERVED',task['task_id'],json.loads((job/'job-state.json').read_text())['status'],flush=True);continue
  try:pd.assemble(path,root,lane/'jobs',material_only=True,compile_now=False)

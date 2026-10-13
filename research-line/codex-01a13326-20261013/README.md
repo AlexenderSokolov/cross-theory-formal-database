@@ -51,3 +51,5 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 包装说明修正：15条已整理题目及1条新候选移除了模板误加的sampler/extractor先修段，作者正文、原文位置与图形不变；旧修订保留，新修订已编译。已上传批次中14条成品链接/SQLite同步指向新修订，其余正常进入新批次，不增加旧题净新增数。
 
 - batch-012：25道；提交`fd548deb094e11c77b78db0a500d33b9c8b36ba2`。[索引](delivery/batch-012/INDEX.md)、[SQLite](delivery/batch-012/corpus.sqlite3)。累计上传297道，生产主库公开增量0。
+
+- batch-013：25道；提交`25cda279b04a386e4d199393a358855d10237654`。[索引](delivery/batch-013/INDEX.md)、[SQLite](delivery/batch-013/corpus.sqlite3)。累计净上传322道，生产主库公开增量0。
