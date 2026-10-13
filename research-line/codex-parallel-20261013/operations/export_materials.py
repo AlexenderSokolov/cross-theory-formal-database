@@ -26,7 +26,9 @@ for root in [P/'jobs',P/'combinatorics-logic/jobs',P/'analysis-probability/jobs'
   if receipt.get('ok') is not True:continue
   tex=pkg/row['item_path'];pdf=job/receipt['pdf_path']
   if not tex.is_file() or not pdf.is_file():raise ValueError('missing product '+state['task_id'])
-  found[state['task_id']]=(job,state,pkg,task,row,tex,pdf)
+  previous=found.get(state['task_id'])
+  if previous is None or int(state['revision'][1:]) > int(previous[1]['revision'][1:]):
+   found[state['task_id']]=(job,state,pkg,task,row,tex,pdf)
 excluded_file=P/'delivery/EXCLUDED.json'
 excluded=set(load(excluded_file).get('task_ids',[])) if excluded_file.exists() else set()
 found={k:v for k,v in found.items() if k not in excluded}
