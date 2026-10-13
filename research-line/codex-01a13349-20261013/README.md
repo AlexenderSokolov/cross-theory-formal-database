@@ -1,5 +1,7 @@
 # 第五条Codex主机收题与上传
 
+执行地点硬约束（用户2026-10-13明确要求）：禁止在Windows本机编译。全部题目取材生产、Python装配、TeX编译、任何兼容性probe和SQLite建库仅在Yupeng执行；本机仅用于SSH控制与本线Git认证中继。
+
 统一准则见../../PROJECT.md。作者承担原始数学责任。收完整作者题证、续证与必要上下文，H2/H3用途，定向去重，编译建库和上传。不重证、不补证、不加假设、不审稿、不双审、不哈希/逐字节核对、不做日志工程。
 
 模型统一gpt-6.1-sol / medium。材料代理只写各自lane；根代理独占jobs、数据库、索引和Git。
@@ -48,4 +50,6 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 
 第四批上传时，累计100道已核实交付独立准备分支，生产主库公开增量0；其余已编译材料接续第五批，持续目标保持active。
 
-第五批25道已编译入库（logic15、geometry2、algebra7、probability1），[第五批索引](delivery/batch-005/INDEX.md)。Schanuel条件在相关Big-O题标题及原题面完整保留；旧public557的Kirillov projector与193493的conformal-staticity identities只作已命中近邻，不重复计数。上传结果见本批UPLOADED.json。另1道已编译材料进入第六批。
+第五批25道已上传（logic15、geometry2、algebra7、probability1），提交2cd81fbff7b27e69c816612e4ef89042e173d2eb，[第五批索引](delivery/batch-005/INDEX.md)。Schanuel条件在相关Big-O题标题及原题面完整保留；旧public557的Kirillov projector与193493的conformal-staticity identities只作已命中近邻，不重复计数。上传结果见本批UPLOADED.json。其余已编译材料接续第六批。
+
+五批共125道已核实上传准备分支，生产主库公开增量0。第六批继续；当前主机已编译入库132道，其中7道未上传。
