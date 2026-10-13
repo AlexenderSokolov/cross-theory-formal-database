@@ -55,3 +55,5 @@ reference/existing-claims.jsonl仅覆盖开工新增/在途元数据，不能代
 并行来源只读去重同时查询第三线 `/disks/sata1/yupeng/human-proof-corpus/operations/codex-work-01a1332f/research-line/codex-01a1332f-20261013` 的交付与在途任务、排除记录，不修改其文件。当前避让其明确占用的CCC2025.4/.5/.7/.17/.26及CCC2023.4/.5/.13/.14/.25/.26；其已上传CCC2025.12 Theorem18 weighted adversary不重复计数。来源占用以后以该线实际任务和交付记录更新，不新增锁服务或审计流程。
 
 Batch014 uploaded: 25 new author-proof materials; cumulative 14 batches, 350 materials / 347 net prepared. Commit 95b85edfd1596b1561c420aa32e627785d66f182; production public increment 0.
+
+Batch015 uploaded: 25 new author-proof materials; cumulative 15 batches, 375 materials / 372 net prepared. Commit 9309e1aacda4985e033e5bb2d9043b5e4327c1e3; production public increment 0. Continue next batch under the active native persistent goal.
