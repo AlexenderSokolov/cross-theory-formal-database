@@ -35,6 +35,9 @@ def add(f):
 # Preserve unmodified author originals for selected items, including earlier deliveries.
 originals_file=P/'delivery/ORIGINAL_SOURCES.json'
 previous_originals=load(originals_file).get('sources',[]) if originals_file.is_file() else []
+committed_originals_result=subprocess.run(['git','show','HEAD:'+originals_file.relative_to(R).as_posix()],cwd=R,capture_output=True,text=True)
+committed_originals=json.loads(committed_originals_result.stdout).get('sources',[]) if committed_originals_result.returncode==0 else []
+committed_originals_by_source={(x['source_id'],x['lane']):x for x in committed_originals}
 selected_source_ids=set()
 for selected_manifest in (P/'delivery').glob('*/ITEMS.jsonl'):
  for line in selected_manifest.read_text().splitlines():
@@ -51,10 +54,11 @@ for original_lane in ['algebra-geometry','analysis-probability','combinatorics-l
   if entry.get('archive_path'):paths.append(entry['archive_path'])
   paths+=entry.get('original_native_paths',[])
   paths=sorted(set(paths))
-  for original_path in paths:add(P/original_path)
   record={'source_id':entry['source_id'],'lane':original_lane,'paths':paths}
   for original_key in ['source_version','license']:
    if entry.get(original_key):record[original_key]=entry[original_key]
+  if committed_originals_by_source.get((record['source_id'],original_lane))!=record:
+   for original_path in paths:add(P/original_path)
   originals.append(record)
 covered_original_sources={norm(x['source_id']) for x in originals}
 missing_original_sources=sorted(selected_source_ids-covered_original_sources)

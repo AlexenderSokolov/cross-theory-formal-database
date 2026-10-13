@@ -29,3 +29,9 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 - batch-004：25道；提交`6a62ad21ee2df4868d8f16b400ff76a19681e317`。[索引](delivery/batch-004/INDEX.md)、[SQLite](delivery/batch-004/corpus.sqlite3)。累计上传100道，生产主库公开增量0。
 
 - batch-005：25道；提交`edf5db2583635e315a47e20b669afdd8ec9fa3e2`。[索引](delivery/batch-005/INDEX.md)、[SQLite](delivery/batch-005/corpus.sqlite3)。累计上传125道，生产主库公开增量0。
+
+- batch-006：25道；提交`c13dd56e7f0e55fbd973b9750c272a176fce5bfb`。[索引](delivery/batch-006/INDEX.md)、[SQLite](delivery/batch-006/corpus.sqlite3)。累计上传150道，生产主库公开增量0。
+
+## 作者原件入口
+
+[所选作者原件清单](delivery/ORIGINAL_SOURCES.json)按来源列出未修改源码包、native源码或官方HTML/PDF的仓库相对路径。各lane在新源task就绪时记录原件，上传按实际交付来源过滤；弃用候选和暂缓来源不混入公开清单。原件补充不增加题目计数，也不触发已有PDF重编。
