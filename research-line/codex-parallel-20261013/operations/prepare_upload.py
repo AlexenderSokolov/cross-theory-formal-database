@@ -11,6 +11,39 @@ for x in [json.loads(l) for l in (B/'PREPARATION_WORKLIST.jsonl').read_text(enco
  except (OSError,json.JSONDecodeError):t=x
  key=(str(t.get('source_id','')).lower(),str(t.get('claim_key','')).lower())
  if key in targets:duplicates.append((targets[key],x.get('task_id'),x['state']))
+# Other production line: read only its existing claims and delivery records.
+T=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-work-01a1332f/research-line/codex-01a1332f-20261013')
+def source_keys(t):
+ keys={str(t.get('source_id','')).lower()}
+ keys.update(str(a).lower() for a in t.get('source_aliases',[]))
+ for value in list(keys)+[str(t.get('source_url',''))]:
+  m=re.search(r'(?:arxiv:|arxiv.org/(?:abs|pdf)/)([0-9]{4}\.[0-9]{4,5})',value,re.I)
+  if m:keys.add('arxiv:'+m.group(1))
+ return keys-{''}
+third={};uploaded_third=set()
+if T.exists():
+ for marker in (T/'delivery').glob('*/UPLOADED.json'):uploaded_third.update(load(marker).get('task_ids',[]))
+ excluded_third=set(load(T/'delivery/EXCLUDED.json').get('task_ids',[])) if (T/'delivery/EXCLUDED.json').exists() else set()
+ for ip in (T/'delivery').glob('*/ITEMS.jsonl'):
+  for line in ip.read_text(encoding='utf-8-sig').splitlines():
+   if line.strip():
+    x=json.loads(line);third[x['task_id']]=x
+ for lane in ['communication-complexity','geometry-algorithms','number-theory']:
+  for tf in (T/lane).glob('*/task.json'):
+   try:x=load(tf)
+   except (OSError,json.JSONDecodeError):continue
+   third[x['task_id']]=x
+ third={k:v for k,v in third.items() if k in uploaded_third or (k not in excluded_third and not str(v.get('status','')).startswith(('duplicate','retired','withdraw')) and 'no_new_count' not in str(v.get('count_disposition','')))}
+third_near=[]
+for own in items:
+ tid=own['task_id'];lane={'AP':'analysis-probability','CL':'combinatorics-logic','AG':'algebra-geometry'}[tid.split('-')[1]]
+ tf=next(p for p in [P/lane/tid/'task.json',P/lane/'drafts'/tid/'task.json'] if p.is_file());own_full=load(tf);sk=source_keys(own_full)
+ for other in third.values():
+  if sk & source_keys(other):
+   third_near.append({'task_id':tid,'other_task_id':other['task_id'],'source_id':other.get('source_id'),'claim_key':other.get('claim_key'),'title':other.get('title')})
+   if own['claim_key'].lower()==str(other.get('claim_key','')).lower():duplicates.append((tid,other['task_id'],'other_line_claim'))
+print(json.dumps({'third_line_claims_read':len(third),'third_line_same_source':third_near},ensure_ascii=False))
+
 if duplicates:raise ValueError('already claimed: '+repr(duplicates))
 selected=set()
 def add(f):
