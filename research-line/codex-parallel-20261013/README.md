@@ -57,3 +57,5 @@ reference/existing-claims.jsonl仅覆盖开工新增/在途元数据，不能代
 Batch014 uploaded: 25 new author-proof materials; cumulative 14 batches, 350 materials / 347 net prepared. Commit 95b85edfd1596b1561c420aa32e627785d66f182; production public increment 0.
 
 Batch015 uploaded: 25 new author-proof materials; cumulative 15 batches, 375 materials / 372 net prepared. Commit 9309e1aacda4985e033e5bb2d9043b5e4327c1e3; production public increment 0. Continue next batch under the active native persistent goal.
+
+Batch016 uploaded: 25 new author-proof materials; cumulative 16 batches, 400 materials / 397 net prepared. Commit 5956f2b2bed5c812efadcfa7be883fbfce10393b; production public increment 0. Continue next batch under the active native persistent goal.
