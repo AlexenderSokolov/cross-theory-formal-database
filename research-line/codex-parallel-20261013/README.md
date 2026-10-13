@@ -9,3 +9,5 @@ reference/existing-claims.jsonl is a metadata lookup snapshot, not a production 
 ## 已上传成果
 
 [batch-001：25道新成品](delivery/batch-001/INDEX.md)，提交b6ba3f0a5。所有生产在Yupeng完成；主机提交仅通过已有认证通道上传GitHub。生产主库公开增量为0；继续下一批。
+
+[batch-002：25道新成品](delivery/batch-002/INDEX.md)，提交fec85d970，累计上传50道。继续第三批，子智能体统一GPT-6.1 Sol / medium。
