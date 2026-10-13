@@ -1,5 +1,13 @@
 # 第三条Codex主机收题产线
 
+## 当前交付与接续入口
+
+[第七批完整成品：25道](delivery/batch-007/INDEX.md)。本线累计174道净新增可用材料已完成编译和SQLite建库；正式生产主库增量仍为0。上传确认读取各批UPLOADED.json，现场进度读取STATUS.json。
+
+第八批接续范围：通信CCC2021.11未交付的两项PIT材料，以及CCC2021.12对应TheoretiCS 10.46298/theoretics.22.1/arxiv2112.00673/ECCC TR20-149；几何CCC2022.24对应IACR ePrint2022/168（官方有CC BY许可、2023-07-13修订）；数论继续CCC2021.25剩余独立作者主结果。以上来源及实际别名均已完整旧库、准备表和两线身份刷新。仍按完整题证、作者责任及不拆支撑/直接推论规则取材。
+
+下方为来源分配和交付的历史记录，旧阶段计数不代表当前进度。
+
 用户明确硬约束（2026-10-13）：禁止在本机编译。所有正文编译、最小文档测试、装配、提取和SQLite生产均只在Yupeng主机执行；本机仅SSH控制、GitHub认证中转及查看主机已生成成品。
 
 统一准则见../../PROJECT.md。作者承担数学责任；执行者只负责完整取材、配对、必要上下文、用途难度、针对性去重、编译和交付。禁止重证、补证明、加假设、审稿、强制双审、内容哈希、逐字节核对、会话日志工程或跨机器重放。
@@ -77,3 +85,27 @@ CCC2022来源实际别名刷新已完成：通信2201.10997/2111.02999、几何E
 下一分工实际别名刷新：几何CCC2022.17=ECCC TR22-023，.18=arxiv2203.03705，均零同源；数论CCC2022.29完整题名零命中且正式页无Related Versions，.30=ECCC TR20-165零命中，正式元数据主机缓存可复用。通信下一CCC2021.5/.6已查DOI零同源。所有生产继续仅Yupeng。
 
 下一几何独占来源CCC2022.19/.20已查DOI零同源，GA073起；通信CCC2021.5/.6等实际别名后生产。共享主Goal由用户/根控制，子源缺口仅汇报。第六批当前23道主机编译入库。
+
+[batch-006：实际24道净新增成品](delivery/batch-006/INDEX.md)，提交`a1f5eca853ad68c817d5649f55e52dab54108c50`，远端分支与固定提交入口已核实，累计149道。所有编译/SQLite均在Yupeng；模型容量不足未更换模型，约25节点按实际24交付，不凑数。进入第七批，GA073已主机编译并入库。
+
+第七批最新独占来源：通信CCC2021.5/arxiv2011.04071及CCC2021.7/arxiv2103.00864/ECCC TR21-037；CCC2021.6的期刊版DOI10.4086/toc.2026.v022a002已命中旧库792，停止本线该源生产，原件保留。几何CCC2022.19/arxiv2205.02374v2与2022.20/arxiv2111.10409v4；数论CCC2022.30/arxiv2011.04295/ECCC TR20-165。上述未占来源实际别名已完整旧库/准备表/两线刷新无命中。Goal记录仍存在，但再次观察为blocked，工具不能resume；用户/system需/goal resume，当前授权生产继续，不标记目标完成。
+
+数论后续精确独占CCC2022.31 Vanishing Spaces of Random Sets and Applications to Reed-Muller Codes，实际arxiv2205.10749及10.48550 DOI/ECCC TR22-075已完整旧库/准备/两线刷新零命中，NT053起；主结论与直接Reed-Muller应用不拆数。NT052当前TeX包装待修复，尚未计入可用或上传。
+
+目标现已回读恢复active，按原30000总目标继续。第七批已新增编译入库11题。下一精确独占来源：几何CCC2022.21/arxiv2103.14134/ECCC TR21-047，数论CCC2022.33/arxiv2202.07761/ECCC TR22-018/期刊DOI10.1137/22M1498346；全部实际身份已完整旧库/准备/两线刷新零命中。CCC2022.32正式刊本主证明defer缺口见MATERIAL-GAP.md，不计新增，保留原件转源。
+
+数论完成2022.33后独占CCC2022.34（Xin Lyu, Improved Pseudorandom Generators for AC0 Circuits），实际arxiv2301.10102/10.48550 DOI/ECCC TR22-021/Berkeley EECS-2024-212与正式DOI已完整身份刷新零命中。按实际版本许可取完整作者题证；支撑switching/partition框架不额外拆数。
+
+通信后续CCC2021.8的期刊身份DOI10.4086/toc.2022.v018a022命中旧库970，避让该源，不创建新题。改独占CCC2021.9 Shadows of Newton Polytopes（Hrubeš/Yehudayoff），实际ECCC TR20-189与正式DOI完整身份刷新零命中，CC051起；发现额外实际版本先刷新后生产。第七批NT054完整编译入库，其原作者复杂TikZ图已在Yupeng渲染并查看，标签/图注完整。
+
+第七批现15份已主机编译入库（其中GA080正式Gaussian PTF PRG）。几何后续独占CCC2022.22（Aggarwal/Alman, Optimal-Degree Polynomial Approximations for Exponentials and Gaussian Kernel Density Estimation），实际arxiv2205.06249及10.48550 DOI/正式DOI已完整旧库/准备/两线刷新零命中；GA081起，实际许可/额外别名先确认，参数区间及正负指数同机制不拆数。工作树/前缀沿用20261013固定身份。
+
+第七批当前16份实际编译入库。数论后续独占CCC2022.35 Characterizing Derandomization Through Hardness of Levin-Kolmogorov Complexity（Liu/Pass），实际ECCC TR22-084与正式DOI已完整旧库/准备/两线刷新零命中，NT056起；两个方向及hitting-set/support合1主等价，保留原promise与量词条件。
+
+通信2021.9补报实际期刊身份DOI10.1007/s11856-023-2510-z（Israel Journal of Mathematics 2023），根完整身份刷新同样零命中，正式CCBY范围不自动扩到期刊额外内容。数论2022.35当前承重参数改造证明defer到长稿，先核对完整版本许可；下一备用独占CCC2022.36 On One-Way Functions from NP-Complete Problems（Liu/Pass），ECCC TR21-059与正式DOI完整身份刷新零命中。先与本线NT047/NT045题面做有限近邻比较，重复NP-hardness/直接SoI后果不额外计数。
+
+第七批现18份主机编译入库。几何下一独占CCC2022.23 Extremely Efficient Constructions of Hash Functions, with Applications to Hardness Magnification and PRFs（Chen/Li/Yang），实际ECCC TR22-086/正式DOI完整旧库/准备/两线刷新零命中，GA082起；support组件与直接PRF替换应用不拆数，额外实际身份先刷新。
+
+第七批当前19份实际编译入库。数论转源CCC2021.25 Arithmetic Circuit Complexity of Division and Truncation（Dutta/Jindal/Pandey/Sinhababu），实际ECCC TR21-072与正式DOI完整身份刷新零命中，NT056起。通信独占CCC2021.10 Fractional Pseudorandom Generators from Any Fourier Level，实际arxiv2008.01316/10.48550 DOI/ECCC TR20-121（旧题名from the kth Fourier Level同源）完整身份刷新零命中，CC053起，保留实际选版5作者。其他新版本先刷新再取材；参数分支/support不拆数。
+
+通信完成2021.10后独占CCC2021.11 Deterministic Identity Testing Paradigms for Bounded Top-Fanin Depth-4 Circuits（Dutta/Dwivedi/Saxena），实际arxiv2304.11325及10.48550 DOI/正式DOI完整身份刷新零命中，CC055起。作者页标ToC2026 to appear，未确认正式期刊DOI不编造；实际额外身份先报根。
