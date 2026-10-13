@@ -1,6 +1,6 @@
-# 当前并行生产授权（2026-10-13）
+# 第四条Codex主机收题产线（2026-10-13）
 
-Codex与DeepSeek同时找题建库。Codex在Yupeng主机本独立工作树和codex/corpus-parallel-20261013分支生产，根代理加三个GPT-6.1 Sol / medium材料子智能体；只写自有材料和批次，不接管DeepSeek，不修改其活动目录或工作表。每批完成即上传并继续，直到用户要求停止。此前不替作者证明、不审稿和不做无关工程等准则全部适用。当前入口research-line/codex-parallel-20261013/README.md。
+本线工作树operations/codex-work-01a1333e，分支codex/corpus-01a1333e-20261013，材料入口research-line/codex-01a1333e-20261013/README.md。全部取材、整理、编译、建库和提交在Yupeng；本地仅SSH与独立认证中转。根代理加三个GPT-6.1 Sol / medium材料代理，约25道净新增一批，上传后继续至用户停止、项目30000目标达到或所有路径实际阻断。不接管DeepSeek或其他产线，不改生产队列、owner和正式编号，不直接合并主线。全部下述统一准则适用，旧目标/抽检/astra设置不覆盖本节。
 
 # 人类数学证明题库：统一工作准则
 
