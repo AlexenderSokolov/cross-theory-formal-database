@@ -17,6 +17,7 @@ def add(f):
 for x in items:
  tid=x['task_id'];lane={'CC':'communication-complexity','GA':'geometry-algorithms','NT':'number-theory'}[tid.split('-')[1]]
  candidates=[P/lane/tid/'task.json',P/lane/'drafts'/tid/'task.json'];tf=next(f for f in candidates if f.is_file());add(tf);t=load(tf);a=t['assembly']
+ assert t['task_id']==tid and t['revision']==x['revision'], 'task revision changed after export: '+tid
  for spans in [t['statement_spans'],t['proof_spans'],t['context_spans'],a['preamble_spans'],a['body_spans']]:
   for sp in spans:add(P/sp['path'])
  for ref in a.get('external_references',[]):
@@ -25,9 +26,13 @@ for x in items:
   for v in a.get(key,[]):add(P/(v if isinstance(v,str) else v['path']))
  add(P/t['license']['evidence_path'])
  original_root=(P/t['license']['evidence_path']).parent
- for original in original_root.glob('*.pdf'):add(original)
- for original in original_root.glob('*.html'):add(original)
- j=R/x['assembly_job'];s=load(j/'job-state.json');pkg=j/s['package'];m=load(pkg/'manifest.json')['items'][0]
+ if 'public_original_paths' in t:
+  for original in t['public_original_paths']:add(P/original)
+ else:
+  for original in original_root.glob('*.pdf'):add(original)
+  for original in original_root.glob('*.html'):add(original)
+ j=R/x['assembly_job'];s=load(j/'job-state.json');assert s['revision']==x['revision'] and s['task_id']==tid, 'compiled revision mismatch: '+tid
+ pkg=j/s['package'];m=load(pkg/'manifest.json')['items'][0]
  for f in [j/'job-state.json',pkg/'manifest.json',pkg/s['task_snapshot'],pkg/m['item_path'],pkg/m['compile_receipt'],pkg/m['license_path'],pkg/m['license_evidence_path'],R/x['pdf_path']]:add(f)
  for v in m['source_files']+m['asset_dependencies']:add(pkg/v['path'])
  for v in m['source_files']:

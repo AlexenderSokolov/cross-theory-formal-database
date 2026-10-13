@@ -13,6 +13,7 @@ for tf in sorted(paths):
   if not sf.is_file():d.assemble(tf,P,P/'jobs',compile_now=False,material_only=True)
   state=d.load(sf)
   if state['status']=='compiled_pending_qa':continue
+  if state['status']=='needs_codex' and not args.tasks:continue
   if state['status']=='needs_codex':
    d.assemble(tf,P,P/'jobs',compile_now=False,material_only=True,refresh=True)
    d.compile_job(job,resume=True)

@@ -12,6 +12,11 @@ def normalize_source(s):
  if m:return 'doi:'+m.group(0).rstrip('/.,;')
  m=re.search(r'(?:arxiv[:/]|arxiv.org/(?:abs|pdf)/)(\d{4}\.\d{4,5})(?:v\d+)?',s)
  if m:return 'arxiv:'+m.group(1)
+ if 'eccc' in s:
+  m=re.search(r'tr(\d{2,4})[-:/](\d{1,3})',s) or re.search(r'(?:report/|eccc[:/])(\d{4})[:/](\d{1,3})',s)
+  if m:
+   year=m.group(1);year='20'+year if len(year)==2 else year
+   return 'eccc:'+year+':'+m.group(2).zfill(3)
  return s
 
 def neighbors(sources):
