@@ -27,3 +27,9 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 本线批次入口[batch-001索引](delivery/batch-001/INDEX.md)及[SQLite](delivery/batch-001/corpus.sqlite3)。实际采用来源及同作别名见[来源分工](reference/SOURCE_ALLOCATION.json)。CSL2025.25与.38目前仅保留来源，不计题；SIGMA与后续LMCS原生源按独占分工继续补充。
 
 批量装配使用`bash operations/run_pending.sh`，只处理尚未装配的新任务；已成功题直接跳过。实际修正失败任务后，把其完整任务号作为参数传给同一脚本才重试，不重复编译成功题。
+
+## 已上传批次
+
+- batch-001：25道，交付提交`646a870b6baf6af8867330a62a2b876f2e339cfb`；11逻辑、7几何、7代数。准备分支上传已核对远端提交，生产主库公开增量0。
+
+首批OA003/OA004已修订为r002，恢复作者原allowdisplaybreaks以保留长公式跨页。旧r001保存，索引及数据库只指向当前r002；同题修正不增加数量。
