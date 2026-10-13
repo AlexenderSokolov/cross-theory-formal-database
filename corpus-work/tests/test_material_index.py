@@ -111,6 +111,14 @@ class MaterialIndexTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertEqual(output.read_bytes(),checkout_bytes)
 
+    def test_source_link_preserves_recorded_exact_tag_locator(self):
+        item = row('001')
+        item['source_url'] = 'https://stacks.math.columbia.edu/'
+        item['primary'] = {'tag_url':'https://stacks.math.columbia.edu/tag/01XF'}
+        self.assertEqual(self.run_tool([item]).returncode,0)
+        text = (self.root/'MATERIAL_INDEX.md').read_text(encoding='utf8')
+        self.assertIn('[来源](https://stacks.math.columbia.edu/tag/01XF)',text)
+
 
 if __name__ == '__main__':
     unittest.main()

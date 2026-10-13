@@ -72,6 +72,9 @@ def render(manifest, snapshot):
              '|---|---|---|---|---|---|---|']
     for ordinal,row in enumerate(sorted(rows,key=lambda r:natural_key(r['problem_id'])),1):
         url = row.get('source_url','')
+        primary = row.get('primary')
+        if isinstance(primary,dict):
+            url = primary.get('tag_url') or url
         if url and urlsplit(url).scheme not in ('http','https'):
             raise ValueError('unsafe source URL')
         evidence = ['[来源]('+quote(url,safe=':/?#=&%+-._~')+')'] if url else []
