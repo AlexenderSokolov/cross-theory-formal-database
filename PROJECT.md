@@ -1,3 +1,7 @@
+# 本对话独立生产入口：01a1332f
+
+本线在Yupeng工作树operations/codex-work-01a1332f及分支codex/corpus-01a1332f-20261013生产。材料根research-line/codex-01a1332f-20261013；三个GPT-6.1 Sol / medium材料代理分别负责communication-complexity、geometry-algorithms、number-theory，只写各自目录。根代理装配、编译、SQLite建库、每批约25道上传并继续，直到用户要求停止或总目标达到。其他产线、DeepSeek目录、queue/owner/reservations只读，不占正式题号。下方统一准则继续适用，其他产线入口仅作继承参考。
+
 # 当前并行生产授权（2026-10-13）
 
 Codex与DeepSeek同时找题建库。Codex在Yupeng主机本独立工作树和codex/corpus-parallel-20261013分支生产，根代理加三个GPT-6.1 Sol / medium材料子智能体；只写自有材料和批次，不接管DeepSeek，不修改其活动目录或工作表。每批完成即上传并继续，直到用户要求停止。此前不替作者证明、不审稿和不做无关工程等准则全部适用。当前入口research-line/codex-parallel-20261013/README.md。
