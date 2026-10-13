@@ -1,0 +1,171 @@
+# Changelog for keytheorems package
+
+## [v0.4.2]
+- fix `\renewkeytheorem` and `\declarekeytheorem` with `\DocumentMetadata`
+  ([\#74](https://github.com/mbertucci47/keytheorems/issues/74))
+- add code for `break` style key with `\DocumentMetadata`
+  ([\#76](https://github.com/mbertucci47/keytheorems/issues/76))
+- document how to always capitalize refnames
+  ([\#42](https://github.com/mbertucci47/keytheorems/issues/42))
+
+## [v0.4.1]
+- provide temporary definition of `\linebox@qed`; partial fix for
+  [\#68](https://github.com/mbertucci47/keytheorems/issues/68)
+- fix infinite loop with `overload` (also called by `thmtools-compat`) and
+  tagging code ([\#71](https://github.com/mbertucci47/keytheorems/issues/71))
+- prioritize `sibling` over `parent`
+  ([\#72](https://github.com/mbertucci47/keytheorems/issues/72))
+
+## [v0.4.0]
+- add `auto-qed` option (alias `thmmarks`) for automatic QED placement;
+  meant to emulate ntheorem's `thmmarks` option
+
+## [v0.3.7]
+- adapt support for tagged PDF with June 2026 LaTeX release
+
+## [v0.3.6]
+- add Hungarian translations
+  ([\#53](https://github.com/mbertucci47/keytheorems/pull/53); thanks Lóránt Hadnagy!)
+
+## [v0.3.5]
+- add `ignore` key ([\#46](https://github.com/mbertucci47/keytheorems/issues/46))
+- fix bug when `tcb-append` is used with `tcolorbox-no-titlebar`
+
+## [v0.3.4]
+- add `plural-refname` and `plural-Refname` theorem keys
+  ([\#50](https://github.com/mbertucci47/keytheorems/issues/50))
+- add `legacy2e` theorem style
+- add `tcb-append` key
+
+## [v0.3.3]
+- make `\IfRestating(TF)` expandable
+- update required LaTeX to 2025-06-01
+
+## [v0.3.2]
+- fix marks in memoir class to match `\listoffigures`
+- add `swapnumber` functionality for `\listofkeytheorems` in memoir and AMS classes
+- add `one-col` list key
+- change initial values for `refname` and `Refname`
+- speed up package loading (https://tex.stackexchange.com/a/751122/208544)
+
+## [v0.3.1]
+- add `sharenumbers` alias for `siblings` key of the `predefined` option
+  ([\#28](https://github.com/mbertucci47/keytheorems/issues/28))
+- allow for beamer overlays with `noamsthm` option
+  ([\#16](https://github.com/mbertucci47/keytheorems/issues/16))
+- add ltx-talk class support
+- documentation improvements
+  ([\#30](https://github.com/mbertucci47/keytheorems/issues/30))
+- give subfiles example in the documentation
+  ([\#32](https://github.com/mbertucci47/keytheorems/issues/32))
+
+## [v0.3.0]
+- no longer `\edef` qed symbol (https://tex.stackexchange.com/q/745584/208544)
+- add `predefined` option
+- make `\keythms_getthm_theorem:nnnnn`, `\keythms_getthm_body:nnn`, and
+  `\keythms_listof_listcmd:nnnnnnn` public ([\#23](https://github.com/mbertucci47/keytheorems/issues/23))
+
+## [v0.2.7]
+- fix [\#20](https://github.com/mbertucci47/keytheorems/issues/20)
+- fix [\#21](https://github.com/mbertucci47/keytheorems/issues/21)
+- define `\<env>autorefname` using `\MakeLowercase` and `\<env>Autorefname` using `\MakeUppercase`
+- add `margin` key as shortcut for setting both `leftmargin` and `rightmargin`
+
+## [v0.2.6]
+- add `\externaltheorems` command to restate theorems from an external file
+
+## [v0.2.5]
+- disable `\index` and `\glossary` in restated theorems
+- fix [\#11](https://github.com/mbertucci47/keytheorems/issues/11)
+- fix [\#13](https://github.com/mbertucci47/keytheorems/issues/13)
+- avoid printing `note={}` to thlist file for theorems without a note
+- add `counter-format` key
+
+## [v0.2.4]
+- fixed issue with too much expansion in `manual-num`
+- fix [\#14](https://github.com/mbertucci47/keytheorems/issues/14)
+
+## [v0.2.3]
+- add many translations; some missing translation of "continuing from p."
+- add `manual-num` key
+- `leftmargin` and `rightmargin` now work correctly with tagging loaded
+
+## [v0.2.2]
+- fix implementation of `inherit-style` so it can contain thm keys
+- add support for zref-clever in `refname` and `Refname`
+
+## [v0.2.1]
+- make several commands "long" so keyvals can contain `\par` tokens
+- add `leftmargin` and `rightmargin` keys
+- improve implementation of tcolorbox theorems
+
+## [v0.1.8]
+- add support for tagged PDF ([\#4](https://github.com/mbertucci47/keytheorems/issues/4))
+- add tagged example file tagged-keytheorems-amsthmtest.tex
+
+## [v0.1.7]
+- add support for aomart class
+- add support for Michael Sharpe's font packages that change plain style
+
+## [v0.1.6]
+- add `\renewkeytheorem`, `\providekeytheorem`, and `\declarekeytheorem` ([\#5](https://github.com/mbertucci47/keytheorems/issues/5))
+- tcolorbox theorems no longer error with beamer
+- add support for beamer action spec
+
+## [v0.1.5]
+- add `format-code` list key
+- can now use `\thmname`, `\thmnumber`, `\thmnote` in `headformat`
+
+## [v0.1.4]
+- add `store-sets-label` option
+- add `restatable*` environment for `thmtools-compat`
+- add `numberfont` style key
+- add `restate-keys` key
+- styles defined with `\newkeytheoremstyle` now work as expected with `\theoremstyle`
+
+## [v0.1.3]
+- add `noteseparator` key
+- add `\IfRestatingT`, `\IfRestatingF`
+- add `store*` key
+- add Portuguese translations
+
+## [v0.1.2]
+- Move support for memoir and AMS classes to dedicated files
+- document `headformat` key
+- add Italian translations
+- add `indent` list key
+- add `no-toc` list key
+- documentation improvements
+
+## [v0.1.1] - 2024-09-09
+- First CTAN release
+
+## 0.1.0 - 2024-09-04
+- First release
+
+[v0.4.2]: https://github.com/mbertucci47/keytheorems/compare/v0.4.1...v0.4.2
+[v0.4.1]: https://github.com/mbertucci47/keytheorems/compare/v0.4.0...v0.4.1
+[v0.4.0]: https://github.com/mbertucci47/keytheorems/compare/v0.3.7...v0.4.0
+[v0.3.7]: https://github.com/mbertucci47/keytheorems/compare/v0.3.6...v0.3.7
+[v0.3.6]: https://github.com/mbertucci47/keytheorems/compare/v0.3.5...v0.3.6
+[v0.3.5]: https://github.com/mbertucci47/keytheorems/compare/v0.3.4...v0.3.5
+[v0.3.4]: https://github.com/mbertucci47/keytheorems/compare/v0.3.3...v0.3.4
+[v0.3.3]: https://github.com/mbertucci47/keytheorems/compare/v0.3.2...v0.3.3
+[v0.3.2]: https://github.com/mbertucci47/keytheorems/compare/v0.3.1...v0.3.2
+[v0.3.1]: https://github.com/mbertucci47/keytheorems/compare/v0.3.0...v0.3.1
+[v0.3.0]: https://github.com/mbertucci47/keytheorems/compare/v0.2.7...v0.3.0
+[v0.2.7]: https://github.com/mbertucci47/keytheorems/compare/v0.2.6...v0.2.7
+[v0.2.6]: https://github.com/mbertucci47/keytheorems/compare/v0.2.5...v0.2.6
+[v0.2.5]: https://github.com/mbertucci47/keytheorems/compare/v0.2.4...v0.2.5
+[v0.2.4]: https://github.com/mbertucci47/keytheorems/compare/v0.2.3...v0.2.4
+[v0.2.3]: https://github.com/mbertucci47/keytheorems/compare/v0.2.2...v0.2.3
+[v0.2.2]: https://github.com/mbertucci47/keytheorems/compare/v0.2.1...v0.2.2
+[v0.2.1]: https://github.com/mbertucci47/keytheorems/compare/v0.1.8...v0.2.1
+[v0.1.8]: https://github.com/mbertucci47/keytheorems/compare/v0.1.7...v0.1.8
+[v0.1.7]: https://github.com/mbertucci47/keytheorems/compare/v0.1.6...v0.1.7
+[v0.1.6]: https://github.com/mbertucci47/keytheorems/compare/v0.1.5...v0.1.6
+[v0.1.5]: https://github.com/mbertucci47/keytheorems/compare/v0.1.4...v0.1.5
+[v0.1.4]: https://github.com/mbertucci47/keytheorems/compare/v0.1.3...v0.1.4
+[v0.1.3]: https://github.com/mbertucci47/keytheorems/compare/v0.1.2...v0.1.3
+[v0.1.2]: https://github.com/mbertucci47/keytheorems/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/mbertucci47/keytheorems/compare/v0.1.0...v0.1.1

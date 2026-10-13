@@ -1,0 +1,175 @@
+# Makefile for urlbst
+
+# BSTSTYLES are the standard styles that we distribute
+BSTSTYLES=plainurl.bst unsrturl.bst alphaurl.bst abbrvurl.bst
+# TESTSTYLES are a couple of extra ones that we explicitly test
+TESTSTYLES=mlaurl.bst amsalphaurl.bst
+
+MAINTAINER_FILES= Makefile configure
+GENERATED=urlbst urlbst.tex urlbst.pdf urlbst.html README VERSION $(BSTSTYLES)
+# distribute generated files
+# ...plus the configure files
+# ...plus the configured files
+DISTRIBS=$(GENERATED) \
+	configure configure.ac \
+	urlbst.in urlbst.bib Makefile.in \
+	LICENCE-gpl-2.0.txt LICENCE-lppl.txt
+
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+DIST=urlbst-@PACKAGE_VERSION@
+
+# On OS X, the following avoids extended attributes being included
+TAR=COPYFILE_DISABLE=1 tar
+#TAR=tar
+
+### Implicit rules
+
+# Don't include --inlinelinks when generating %url.bst here, as we
+# do want the links visible when generating the documentation, and it's
+# probably abetter default in any case.
+%url.bst: urlbst
+	export BSTINPUTS=test: ; \
+	if test -z "`kpsewhich ${@:url.bst=.bst}`"; then \
+		echo "Can't locate ${@:url.bst=.bst}"; \
+	else \
+		./urlbst --eprint --doi --pubmed --hyperref `kpsewhich ${@:url.bst=.bst}` $@; \
+	fi
+
+# Incomplete TeX support
+%.ps: %.dvi
+	dvips -o $@ $<
+%.bbl: %.tex plainurl.bst
+	pdflatex $<
+	if ! test -f $@ || grep -q 'Citation.*undefined' ${<:.tex=.log}; then \
+		bibtex ${<:.tex=}; \
+		pdflatex $<; \
+		rm ${<:.tex=.pdf}; \
+	fi
+%.pdf: %.tex %.bbl
+	pdflatex $<
+%.dvi: %.tex %.bbl
+	latex $<
+%.gz: %
+	gzip --best -f $<
+
+.PRECIOUS: .bbl
+
+### Targets start here
+
+all: urlbst
+
+dist: $(DIST).tar.gz $(DIST).zip
+
+$(DIST).tar: $(DIST)/urlbst.in
+	$(TAR) cf $@ $(DIST)
+
+$(DIST).zip: $(DIST)/urlbst.in
+	zip -r $@ $(DIST)
+
+$(DIST)/urlbst.in: $(DISTRIBS)
+	if test -d $(DIST); then rm -Rf $(DIST); fi && mkdir $(DIST)
+	cp $(DISTRIBS) $(DIST)
+
+urlbst: urlbst.in config.status
+	./config.status urlbst
+
+urlbst.tex: urlbst.tex.in hg.sed release-notes.tex
+	sed -f hg.sed -e '/include:release-notes/r release-notes.tex' urlbst.tex.in >$@
+
+urlbst.html: urlbst.html.in release-notes.html hg.sed
+	sed -f hg.sed -e '/include:release-notes/r release-notes.html' urlbst.html.in >$@
+
+Makefile: Makefile.in config.status
+	./config.status Makefile
+
+README: README.md hg.sed
+	rm -f $@
+	sed -f hg.sed README.md >$@
+
+configure: configure.ac
+	autoconf
+
+config.status: configure
+	./configure
+
+hg.sed: Makefile .hg
+	rm -f $@
+	{ echo 's,@PACKAGE_VERSION\@,@PACKAGE_VERSION@,g'; \
+	  echo 's,@RELEASEDATE\@,@RELEASEDATE@,g'; \
+	  echo 's/@COPYRIGHTYEARS\@/@COPYRIGHTYEARS@/'; \
+	  echo 's,@REPOURL\@,@REPOURL@,g'; \
+	  echo 's,@CTANURL\@,@CTANURL@,g'; \
+	  hg parent --template 's/@HGIDENT\@/{node|short} ({latesttag}+{latesttagdistance}), {date|isodate}/\n'; \
+	  } >hg.sed
+
+release-notes.tex: release-notes.html
+	rm -f $@
+	xsltproc tools/release-notes-to-latex.xslt release-notes.html >$@.tmp && mv $@.tmp $@
+
+# Version stamp file, included in the distribution for convenience,
+# so it's easy to see which version it is has been unpacked at CTAN.
+VERSION: Makefile.in
+	echo $(DIST) >VERSION
+
+# Very simple install target -- hardly worth bothering, really....
+install: urlbst
+	cp urlbst $(bindir)
+
+# Very simple test target -- just check that we don't bomb converting
+# the standard styles
+check: $(BSTSTYLES) $(TESTSTYLES)
+	for f in $(BSTSTYLES) $(TESTSTYLES); do		\
+		ROOT=`echo $$f|sed s/\.bst$$//`;	\
+		{ printf '\\relax\n'; 			\
+		  sed -n 's/^.*\(test:[a-z0-9-]*\).*/\\citation{\1}/p' urlbst.bib; \
+		  printf '\\bibdata{urlbst}\n';		\
+		  printf '\\bibstyle{'"$$ROOT"'}\n';	} >test-$$ROOT.aux; \
+		echo "*** testing $$f"; \
+		bibtex test-$$ROOT; \
+	done
+
+# Brute-force test target, which finds all the system .bst files,
+# converts them, and runs BibTeX on them.  It doesn't test the results
+# in any way -- you have to do that by eye.
+#
+# No, this is a hopelessly blunderbus approach.  And in any case the
+# 'locate *.bst' doesn't work.  At least the following would find only things
+# on the .bst search path.
+#     BSTPATH=`kpsepath bst`
+#     for d in `IFS=:; echo $BSTPATH`; do
+#         dd=`expr "$d" : '!*\(.*[^/]\)/*$'`
+#         echo dd=$dd
+#         test -d "$dd" && find $dd -name \*.bst
+#     done
+check-all:
+	printf '\\relax\n'>check-all.mainaux
+	sed -n 's/^.*{\(test:.*\),/\\citation{\1}/p' urlbst.bib>>check-all.mainaux
+	for f in `locate '*.bst' | grep -v norman`; do T=`echo $$f|sed 's+.*/\(.*\)\.bst+\1url+'`;perl urlbst $$f $$T.bst; if test $$? = 0; then TF=test-$$T.aux; cp check-all.mainaux $$TF;printf '\\bibdata{urlbst}\n'>>$$TF; printf '\\bibstyle{$$T}\n'>>$$TF; else rm $$T.bst; fi done
+	for f in `ls test-*.aux|sed s+.aux++`;do bibtex $$f;done
+	rm check-all.mainaux
+
+# Tarball for unpacking in the webpage distribution directory
+webpage-tarball.tar: urlbst.pdf urlbst.html $(DIST).tar.gz $(DIST).zip
+	mkdir webpage-tarball
+	cp urlbst.pdf $(DIST).tar.gz $(DIST).zip webpage-tarball
+	cp urlbst.html webpage-tarball/index.html
+	cd webpage-tarball; $(TAR) cf ../webpage-tarball.tar *
+	rm -Rf webpage-tarball
+
+tidy:
+	rm -f webpage-tarball.tar
+	rm -f *~ test-*
+	rm -f *.aux *.bbl *.log *.blg *.dvi *.pdf
+	rm -Rf urlbst.app
+
+clean: tidy
+	rm -f *.bst
+	rm -Rf config.status autom4te.cache prepare-roff.sed
+	rm -Rf $(DIST).tar $(DIST).tar.gz $(DIST).zip $(DIST)
+	rm -f $(GENERATED)
+
+maintainer-clean: clean
+	rm -f $(MAINTAINER_FILES)

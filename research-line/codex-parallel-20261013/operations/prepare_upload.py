@@ -25,6 +25,15 @@ for x in [json.loads(l) for l in (B/'PREPARATION_WORKLIST.jsonl').read_text(enco
  except (OSError,KeyError,json.JSONDecodeError):t=x
  key=identity(t)
  if key in targets:duplicates.append((targets[key],x.get('task_id'),x['state']))
+# Earlier uploads on this line retain their original counting identity even if a new task id is chosen.
+for marker in (P/'delivery').glob('*/UPLOADED.json'):
+ if marker.parent == D:continue
+ prior=marker.parent/'ITEMS.jsonl'
+ if prior.is_file():
+  for line in prior.read_text(encoding='utf-8-sig').splitlines():
+   if line.strip():
+    old=json.loads(line);key=identity(old)
+    if key in targets:duplicates.append((targets[key],old['task_id'],'already_uploaded_this_line'))
 # Other production line: read only its existing claims and delivery records.
 T=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-work-01a1332f/research-line/codex-01a1332f-20261013')
 def source_keys(t):
