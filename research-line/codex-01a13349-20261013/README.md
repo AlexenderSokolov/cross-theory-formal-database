@@ -44,7 +44,7 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 
 第三批已上传25道（逻辑13、几何6、代数6），提交628f99b20a8de6ca64a4e4b8f830857a26852a8b，[第三批索引](delivery/batch-003/INDEX.md)。上传结果以该批UPLOADED.json为准，生产主库公开增量仍为0。
 
-本线装配工具仅修正TeX日志错误识别：长公式hbox诊断中独立一行的感叹号不再当错误；带具体错误文本的TeX错误、非零编译返回、缺字与未解析引用仍阻断。只改本工作树corpus-work/scripts/prepared_delivery.py，其他产线和共享工具不变。已用实际误判日志复现并验证，未定义命令的真实XeLaTeX负例仍被拒绝。
+本线装配工具仅修正TeX日志错误识别：长公式hbox诊断中纯感叹号行、以及感叹号后紧接TeX字体编码路径的字形诊断行不再当错误；带具体错误文本的TeX错误、非零编译返回、缺字与未解析引用仍阻断。只改本工作树corpus-work/scripts/prepared_delivery.py，其他产线和共享工具不变。已用实际误判日志复现并验证，未定义命令的真实XeLaTeX负例仍被拒绝。
 
 第四批25道已上传（logic12、geometry4、algebra9），提交6a4e4b833b42ed8d28f81ca67abe9762e1d7414c，[第四批索引](delivery/batch-004/INDEX.md)。上传结果以本批UPLOADED.json为准；其余已编译任务进入下一批。若失败作业移除了旧依赖asset，使用新revision以保留历史并避免旧包目录残留输入，不删除旧文件。
 
@@ -52,4 +52,4 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 
 第五批25道已上传（logic15、geometry2、algebra7、probability1），提交2cd81fbff7b27e69c816612e4ef89042e173d2eb，[第五批索引](delivery/batch-005/INDEX.md)。Schanuel条件在相关Big-O题标题及原题面完整保留；旧public557的Kirillov projector与193493的conformal-staticity identities只作已命中近邻，不重复计数。上传结果见本批UPLOADED.json。其余已编译材料接续第六批。
 
-五批共125道已核实上传准备分支，生产主库公开增量0。第六批继续；当前主机已编译入库132道，其中7道未上传。
+五批共125道已核实上传准备分支，生产主库公开增量0。第六批继续；当前主机已编译入库135道，其中10道未上传。

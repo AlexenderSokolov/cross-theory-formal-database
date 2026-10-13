@@ -567,7 +567,7 @@ def compile_job(job, *, resume=False):
             receipt["engine_runs"] += 1
             text = final_log.read_text(encoding="utf-8", errors="replace")
         errors = [line for line in text.splitlines() if re.search(
-            r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\(s\) may have changed|Rerun to get|^!\s*\S", line, re.I)]
+            r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\(s\) may have changed|Rerun to get|^!(?!\s*\\[A-Za-z0-9]+/)\s*\S", line, re.I)]
         require(not errors, "final engine log has unresolved errors: " + "; ".join(errors[:4]))
         fls = build / (tex.stem + ".fls")
         require(fls.is_file(), "TeX recorder output missing")

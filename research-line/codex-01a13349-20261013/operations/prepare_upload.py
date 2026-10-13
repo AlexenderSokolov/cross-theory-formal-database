@@ -10,7 +10,8 @@ queries=set(x['source_id'].removeprefix('doi:').removeprefix('arxiv:') for x in 
 allocation=P/'reference/SOURCE_ALLOCATION.json'
 if allocation.exists():
  for rec in load(allocation):
-  if any(norm(q) in norm(' '.join(rec['identities'])) for q in queries.copy()):queries.update(rec['identities'])
+  if any(norm(q) in norm(' '.join(rec['identities'])) for q in queries.copy()):
+   queries.update(rec['identities']);queries.update(rec.get('related_identifiers',[]))
 queries=sorted(queries)
 near=search(queries)
 duplicates=[]
