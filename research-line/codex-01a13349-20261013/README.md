@@ -37,3 +37,5 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 ## 原生TeX装配要点
 
 保留作者在begin{document}后、数学正文前设置的实际分页选项；原class隐式提供的定理环境、拥有计数器及列表选项须在自有wrapper对齐。不要在extra_packages提前重复加载作者带options的包。只对实际缺失且用到的依赖保留本地源码与许可；未用的前置包可从自有wrapper省略，原native文件保留。已成功材料若确需包装修订，使用新revision，保留旧作业；同task_id修订不增加数量。
+
+- batch-002：25道，提交`81983ed67def8ad9efa04801e5e39bcca990efe1`，5逻辑、10几何、10代数；[第二批索引](delivery/batch-002/INDEX.md)。两批50道不重叠，生产主库公开增量仍为0，继续第三批。
