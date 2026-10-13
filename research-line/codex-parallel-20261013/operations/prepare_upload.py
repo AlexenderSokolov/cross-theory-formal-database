@@ -31,6 +31,7 @@ for x in items:
   if (P/v['original_path']).is_file():add(P/v['original_path'])
 for f in [R/'PROJECT.md',P/'README.md',P/'STATUS.json',P/'operations/export_materials.py',P/'operations/run_export.sh',Path(__file__),D/'INDEX.md',D/'ITEMS.jsonl',D/'SELECTION.json',D/'corpus.sqlite3']:add(f)
 for f in (P/'delivery').glob('*/UPLOADED.json'):add(f)
+if (P/'delivery/EXCLUDED.json').exists():add(P/'delivery/EXCLUDED.json')
 pattern=re.compile(r'(?:sk-[A-Za-z0-9_-]{24,}|gh[pousr]_[A-Za-z0-9]{25,}|-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----)')
 hits=[s for s in selected if (R/s).suffix in ['.json','.jsonl','.md','.py','.sh','.tex','.txt'] and pattern.search((R/s).read_text(errors='replace'))];assert not hits,hits
 files=sorted(selected)
