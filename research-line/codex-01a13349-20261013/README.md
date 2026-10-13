@@ -46,4 +46,6 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 
 第四批25道已上传（logic12、geometry4、algebra9），提交6a4e4b833b42ed8d28f81ca67abe9762e1d7414c，[第四批索引](delivery/batch-004/INDEX.md)。上传结果以本批UPLOADED.json为准；其余已编译任务进入下一批。若失败作业移除了旧依赖asset，使用新revision以保留历史并避免旧包目录残留输入，不删除旧文件。
 
-当前四批共100道已核实上传独立准备分支，生产主库公开增量0。主机已编译入库113道，未上传的13道进入第五批，持续目标保持active。
+第四批上传时，累计100道已核实交付独立准备分支，生产主库公开增量0；其余已编译材料接续第五批，持续目标保持active。
+
+第五批25道已编译入库（logic15、geometry2、algebra7、probability1），[第五批索引](delivery/batch-005/INDEX.md)。Schanuel条件在相关Big-O题标题及原题面完整保留；旧public557的Kirillov projector与193493的conformal-staticity identities只作已命中近邻，不重复计数。上传结果见本批UPLOADED.json。另1道已编译材料进入第六批。
