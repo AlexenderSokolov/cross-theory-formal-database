@@ -40,4 +40,4 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 
 - batch-002：25道，提交`81983ed67def8ad9efa04801e5e39bcca990efe1`，5逻辑、10几何、10代数；[第二批索引](delivery/batch-002/INDEX.md)。两批50道不重叠，生产主库公开增量仍为0，继续第三批。
 
-第三批已编译入库25道（逻辑13、几何6、代数6），[第三批索引](delivery/batch-003/INDEX.md)。上传结果以该批UPLOADED.json为准，生产主库公开增量仍为0。
+第三批已上传25道（逻辑13、几何6、代数6），提交628f99b20a8de6ca64a4e4b8f830857a26852a8b，[第三批索引](delivery/batch-003/INDEX.md)。上传结果以该批UPLOADED.json为准，生产主库公开增量仍为0。
