@@ -4,12 +4,26 @@ parser=argparse.ArgumentParser();parser.add_argument('batch');args=parser.parse_
 P=Path(__file__).resolve().parent.parent;R=P.parent.parent;D=P/'delivery'/args.batch
 B=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-takeover-01a12558/corpus-repair-20261010/research-line/harness-ready-20261011')
 def load(f):return json.loads(f.read_text(encoding='utf-8-sig'))
-items=[json.loads(x) for x in (D/'ITEMS.jsonl').read_text().splitlines()];targets={(x['source_id'].lower(),x['claim_key'].lower()):x['task_id'] for x in items};duplicates=[]
+def identity(t):
+ source=str(t.get('source_id','')).lower();claim=str(t.get('claim_key','')).lower()
+ # A Stacks chapter/label remains one counting object across source-key spellings.
+ m=re.match(r'stacks-project:(?:stacks-)?([^:@]+\.tex)',source)
+ if m:
+  source='stacks-project:'+m.group(1)
+  if claim.startswith('stacks:'):claim=claim.split(':',2)[-1]
+ return source,claim
+items=[json.loads(x) for x in (D/'ITEMS.jsonl').read_text().splitlines()];targets={identity(x):x['task_id'] for x in items};duplicates=[]
 for x in [json.loads(l) for l in (B/'PREPARATION_WORKLIST.jsonl').read_text(encoding='utf-8-sig').splitlines() if l.strip()]:
  rel=x.get('task_path');f=B/rel if rel else None
- try:t=load(f) if f and f.is_file() else x
- except (OSError,json.JSONDecodeError):t=x
- key=(str(t.get('source_id','')).lower(),str(t.get('claim_key','')).lower())
+ try:
+  t=load(f) if f and f.is_file() else x
+  if not t.get('source_id') and x.get('assembly_job'):
+   for job in [B/x['assembly_job'],B.parent.parent/x['assembly_job']]:
+    if job.resolve().is_relative_to(B) and (job/'job-state.json').is_file():
+     state=load(job/'job-state.json');snapshot=job/state['package']/state['task_snapshot']
+     if snapshot.is_file():t=load(snapshot);break
+ except (OSError,KeyError,json.JSONDecodeError):t=x
+ key=identity(t)
  if key in targets:duplicates.append((targets[key],x.get('task_id'),x['state']))
 # Other production line: read only its existing claims and delivery records.
 T=Path('/disks/sata1/yupeng/human-proof-corpus/operations/codex-work-01a1332f/research-line/codex-01a1332f-20261013')
