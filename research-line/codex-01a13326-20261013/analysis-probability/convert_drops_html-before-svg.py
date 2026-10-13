@@ -1,0 +1,72 @@
+from html.parser import HTMLParser
+from pathlib import Path
+import re,json,sys
+class N:
+ def __init__(self,t,a=()):self.t=t;self.a=dict(a);self.c=[]
+class Parser(HTMLParser):
+ def __init__(self):super().__init__(convert_charrefs=True);self.root=N('root');self.stack=[self.root]
+ def handle_starttag(self,t,a):
+  n=N(t,a);self.stack[-1].c.append(n)
+  if t not in {'meta','link','img','br','hr','input','base','wbr','source'}:self.stack.append(n)
+ def handle_startendtag(self,t,a):self.handle_starttag(t,a);self.handle_endtag(t)
+ def handle_endtag(self,t):
+  for i in range(len(self.stack)-1,0,-1):
+   if self.stack[i].t==t:self.stack=self.stack[:i];break
+ def handle_data(self,d):self.stack[-1].c.append(d)
+def esc(s):
+ return ''.join({'\\':r'\textbackslash{}','&':r'\&','%':r'\%','$':r'\$','#':r'\#','_':r'\_','{':r'\{','}':r'\}','~':r'\textasciitilde{}','^':r'\textasciicircum{}'}.get(c,c) for c in s).replace('\u2062','').replace('\u200b','')
+def nodes(n,t=None):
+ if isinstance(n,str):return
+ if t is None or n.t==t:yield n
+ for c in n.c:yield from nodes(c,t)
+def plain(n):
+ if isinstance(n,str):yield n
+ else:
+  for c in n.c:yield from plain(c)
+def render(n,eq=False):
+ if isinstance(n,str):return esc(n)
+ cl=n.a.get('class','');tag=n.t
+ if tag in ['script','style','svg']:return ''
+ if tag=='math':
+  a=n.a.get('alttext','');a=re.sub(r'%\\?\n', '', a); refs=[''.join(x for x in plain(c)).strip() for c in nodes(n,'a')]; ri=iter(refs)
+  a=re.sub(r'\\hyperref@@ii\[[^]]*\]\{[^}]*\}|\\lx@cref\{[^}]*\}\{[^}]*\}',lambda m:next(ri,'source reference'),a)
+  a=re.sub(r'\\eqref\{[^}]*\}',lambda m:'('+next(ri,'source reference')+')',a)
+  a=a.replace(r'\leavevmode', '').replace(r'\hfill','')
+  return a if eq else ('$'+a+'$' if n.a.get('display')!='block' else '\n\\['+a+'\\]\n')
+ if 'ltx_note_mark' in cl or 'ltx_tag_note' in cl:return ''
+ if 'ltx_note_outer' in cl:return ''.join(render(c) for c in n.c)
+ if 'ltx_note_content' in cl:return r'\footnote{'+''.join(render(c) for c in n.c)+'}'
+ if tag=='table' and 'ltx_eqn' in cl:
+  rows=[]
+  for row in nodes(n,'tr'):
+   cells=[]
+   for cell in row.c:
+    if isinstance(cell,N) and cell.t=='td' and 'ltx_eqn_eqno' not in cell.a.get('class',''):
+     text=''.join(render(c,True) for c in cell.c).strip()
+     if text:cells.append(text)
+   if cells:rows.append(' '.join(cells))
+  return '\n\\[\\begin{gathered}\n'+(' \\\\\n'.join(rows))+'\n\\end{gathered}\\]\n'
+ body=''.join(render(c,eq) for c in n.c)
+ if tag in ['h1','h2','h3','h4','h5','h6']:return '\n\\par\\medskip\\noindent\\textbf{'+body+'}\\par\n'
+ if tag=='p':return '\n'+body+'\\par\n'
+ if tag in ['ul','ol']:return '\n\\begin{'+('enumerate' if tag=='ol' else 'itemize')+'}\n'+body+'\n\\end{'+('enumerate' if tag=='ol' else 'itemize')+'}\n'
+ if tag=='li':return '\n\\item[] '+body+'\n'
+ if tag=='br':return '\n'
+ if tag=='tr':return body+r'\par'+ '\n'
+ if tag in ['td','th']:return body+' '
+ if tag=='table':return '\n'+body+'\n'
+ if tag=='img':return ''
+ if 'ltx_font_italic' in cl and tag in ['span','em']:return r'\emph{'+body+'}'
+ if 'ltx_font_bold' in cl and tag in ['span','strong']:return r'\textbf{'+body+'}'
+ if 'ltx_theorem' in cl and 'ltx_theorem_' in cl:return '\n% SOURCE-ID '+n.a.get('id','')+'\n'+body+'\n% END-SOURCE-ID '+n.a.get('id','')+'\n'
+ return body
+if __name__=='__main__':
+ p=Path(sys.argv[1]);parser=Parser();parser.feed((p/'published.html').read_text());article=next(nodes(parser.root,'article'))
+ parts=[render(n) for n in article.c if isinstance(n,N) and n.t=='section'];out='\n'.join(parts);(p/'official-source.tex').write_text(out)
+ lines=out.splitlines();m={}
+ for i,l in enumerate(lines):
+  if l.startswith('% SOURCE-ID '):m[l[12:]]=[i+1,0]
+  if l.startswith('% END-SOURCE-ID '):
+   k=l[16:]
+   if k in m:m[k][1]=i+1
+ (p/'official-source-map.json').write_text(json.dumps(m,indent=2));print(len(lines),m)
