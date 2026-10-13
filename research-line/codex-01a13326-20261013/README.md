@@ -41,3 +41,5 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 - batch-008：25道；提交`3a807e6327be4771f5e0e8685c4121800de9399b`。[索引](delivery/batch-008/INDEX.md)、[SQLite](delivery/batch-008/corpus.sqlite3)。累计上传200道，生产主库公开增量0。
 
 - batch-009：25道；提交`26fb06728fa4c3fc13fa34c7d49bb3d9a0388d71`。[索引](delivery/batch-009/INDEX.md)、[SQLite](delivery/batch-009/corpus.sqlite3)。累计上传225道，生产主库公开增量0。
+
+- batch-010：25道；提交`2e58ea33609d144aa4e28d8891f12da4a29dcf2a`。[索引](delivery/batch-010/INDEX.md)、[SQLite](delivery/batch-010/corpus.sqlite3)。累计上传250道，生产主库公开增量0。
