@@ -15,7 +15,7 @@ class Parser(HTMLParser):
    if self.stack[i].t==t:self.stack=self.stack[:i];break
  def handle_data(self,d):self.stack[-1].c.append(d)
 def esc(s):
- return ''.join({'\\':r'\textbackslash{}','&':r'\&','%':r'\%','$':r'\$','#':r'\#','_':r'\_','{':r'\{','}':r'\}','~':r'\textasciitilde{}','^':r'\textasciicircum{}'}.get(c,c) for c in s).replace('\u2062','').replace('\u200b','')
+ return ''.join({'\\':r'\textbackslash{}','&':r'\&','%':r'\%','$':r'\$','#':r'\#','_':r'\_','{':r'\{','}':r'\}','~':r'\textasciitilde{}','^':r'\textasciicircum{}'}.get(c,c) for c in s).replace('\u2062','').replace('\u200b','').replace('\u2009',r'\thinspace{}')
 def nodes(n,t=None):
  if isinstance(n,str):return
  if t is None or n.t==t:yield n
@@ -64,8 +64,8 @@ def render(n,eq=False):
  if tag in ['td','th']:return body+' '
  if tag=='table':return '\n'+body+'\n'
  if tag=='img':return ''
- if 'ltx_font_italic' in cl and tag in ['span','em']:return r'\emph{'+body+'}'
- if 'ltx_font_bold' in cl and tag in ['span','strong']:return r'\textbf{'+body+'}'
+ if 'ltx_font_italic' in cl and tag in ['span','em']:return (r'{\itshape '+body+'}') if (r'\par' in body or re.search(r'\n\s*\n',body)) else (r'\emph{'+body+'}')
+ if 'ltx_font_bold' in cl and tag in ['span','strong']:return (r'{\bfseries '+body+'}') if (r'\par' in body or re.search(r'\n\s*\n',body)) else (r'\textbf{'+body+'}')
  if 'ltx_theorem' in cl and 'ltx_theorem_' in cl:return '\n% SOURCE-ID '+n.a.get('id','')+'\n'+body+'\n% END-SOURCE-ID '+n.a.get('id','')+'\n'
  return body
 if __name__=='__main__':
