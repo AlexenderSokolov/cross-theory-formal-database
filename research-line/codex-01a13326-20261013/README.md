@@ -17,3 +17,7 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 ```
 
 任务参数从本task_root执行时可用相对路径。修正失败包装后使用run_assemble.sh的`--refresh --assemble-only`，再`bash operations/run_compile.sh --job jobs/TASK/r001 --resume`；不删除失败构建，也不重编成功题目。
+
+## 已上传批次
+
+- batch-001：25道；提交`dc51f6d6b54495b3df33dec4ba11d233a45eb8b4`。成品入口[索引](delivery/batch-001/INDEX.md)、[SQLite](delivery/batch-001/corpus.sqlite3)。生产主库公开增量0。

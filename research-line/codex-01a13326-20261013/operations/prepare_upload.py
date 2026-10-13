@@ -36,6 +36,8 @@ for x in items:
   for sp in spans:add(P/sp['path'])
  for ref in a.get('external_references',[]):
   if ref.get('source_span'):add(P/ref['source_span']['path'])
+ for helper in ['run_assemble.sh','run_compile.sh']:
+  if (P/lane/helper).is_file():add(P/lane/helper)
  for key in ['asset_paths','bibliography_paths']:
   for v in a.get(key,[]):add(P/(v if isinstance(v,str) else v['path']))
  add(P/t['license']['evidence_path']);j=R/x['assembly_job'];s=load(j/'job-state.json');pkg=j/s['package'];m=load(pkg/'manifest.json')['items'][0]
