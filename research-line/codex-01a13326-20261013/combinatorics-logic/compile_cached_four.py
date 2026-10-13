@@ -10,6 +10,9 @@ def compile_direct(job):
  receipt=dict(schema_version=2,policy=state['policy'],**pd.binding(state),ok=False,compile_run_id=state['task_id']+'/'+state['revision']+'/compile-001',engine='xelatex',driver='explicit_xelatex',latexmk_used=False,shell_escape=False,started_at=pd.utc_now(),bibliography_backend='bibtex',bibliography_runs=0,engine_runs=0,asset_paths=[a['path'] for a in row['asset_dependencies']])
  try:
   env=os.environ.copy();env['BIBINPUTS']=str(tex.parent)+os.pathsep
+  for key in ['TFMFONTS','MFINPUTS','TEXINPUTS']:env[key]=str(tex.parent)+os.pathsep
+  for key in ['TEXMFVAR','TEXMFCONFIG','XDG_CACHE_HOME']:
+   local=job/'tmp'/key.lower();local.mkdir(parents=True,exist_ok=True);env[key]=str(local)
   for n in range(1,4):
    cmd=['xelatex','-no-shell-escape','-interaction=nonstopmode','-halt-on-error','-file-line-error','-recorder','-output-directory='+str(build),tex.name]
    result=subprocess.run(cmd,cwd=tex.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);(build/('xelatex-'+str(n)+'.stdout')).write_text(result.stdout)

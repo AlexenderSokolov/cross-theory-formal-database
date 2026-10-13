@@ -53,3 +53,7 @@ bash operations/run_export.sh --batch batch-001 --limit 25
 - batch-012：25道；提交`fd548deb094e11c77b78db0a500d33b9c8b36ba2`。[索引](delivery/batch-012/INDEX.md)、[SQLite](delivery/batch-012/corpus.sqlite3)。累计上传297道，生产主库公开增量0。
 
 - batch-013：25道；提交`25cda279b04a386e4d199393a358855d10237654`。[索引](delivery/batch-013/INDEX.md)、[SQLite](delivery/batch-013/corpus.sqlite3)。累计净上传322道，生产主库公开增量0。
+
+- batch-014：25道；提交`2a98b4f9594a4b7222690fd05272ed4e14e2fc72`。[索引](delivery/batch-014/INDEX.md)、[SQLite](delivery/batch-014/corpus.sqlite3)。累计净上传347道，生产主库公开增量0。
+
+单批执行入口（只在Yupeng本工作树）：bash operations/run_prepare_batch.sh batch-NNN 复用现有导出器和选择器，满25道后生成提交与bundle；普通推送并核对GitHub提交/入口后，bash operations/run_mark_uploaded.sh batch-NNN COMMIT --verified-remote-head COMMIT 更新本批已上传记录及下一批库存。入口保留当前Goal控制状态，不启动后台服务。
