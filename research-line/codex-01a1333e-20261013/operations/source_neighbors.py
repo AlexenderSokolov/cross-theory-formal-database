@@ -38,6 +38,22 @@ ALIASES.extend([
 
 ALIASES.extend([['10.4230/lipics.fscd.2024.6','2405.03264','delooping generated groups','delooping presented groups']])
 
+ALIASES.extend([['10.4230/lipics.fscd.2024.7','2402.14485'],['10.4230/lipics.socg.2025.67','2412.03372']])
+
+ALIASES.extend([['10.4230/lipics.socg.2025.68','2412.02591']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2024.9','04568289','laplace distributors']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2024.10','akaposi/sogat','second-order generalised algebraic theories'],['10.4230/lipics.fscd.2024.11','04568253']])
+
+ALIASES.extend([['10.4230/lipics.socg.2025.72','2504.06079'],['10.4230/lipics.socg.2025.73','2504.06503'],['10.4230/lipics.socg.2025.74','2210.12817'],['10.4230/lipics.fscd.2025.5','2505.09242'],['10.4230/lipics.fscd.2025.6','2505.08496'],['10.4230/lipics.fscd.2024.12','04514677']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2025.24','2505.09960'],['10.4230/lipics.fscd.2025.11','2505.13495'],['10.4230/lipics.fscd.2026.4','2602.05528']])
+
+ALIASES.extend([['10.4230/lipics.socg.2025.75','2504.07752','2504.07770'],['10.4230/lipics.socg.2025.76','2412.02866']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2026.5','inria-cambium/not-choosing-is-still-a-choice']])
+
 LANES=[('codex-parallel-work-20261013','codex-parallel-20261013'),('codex-work-01a13326','codex-01a13326-20261013'),('codex-work-01a1332f','codex-01a1332f-20261013')]
 @cache
 def read(p):return p.read_text(encoding='utf-8-sig')

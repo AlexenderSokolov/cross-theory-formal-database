@@ -86,3 +86,19 @@ python operations/prepare_upload.py batch-001
 用户已明确要求持久执行，当前Codex持久目标为active；沿用项目30000总目标，约25道上传节点后继续，不另设后台服务/调度器。当前后续独占：MD SoCG2025.65/.67；PM FSCD2024.7/.8；LL FSCD2024.5/.6。
 
 第三批25道净新增已上传：[batch-003成品索引](delivery/batch-003/INDEX.md)，内容提交`1e4fec0a820e84b28ccd11a337f6fffed7de8c65`，累计75。远端分支及HTTP200入口已核对，生产主库公开增量仍为0；持久目标active，继续第四批。
+
+第四批后续独占：MD SoCG2025.68/.69；PM FSCD2024.7（arxiv2402.14485v4、CCBY4）/.8；LL FSCD2024.9/.10。SoCG2025.67完整版本arxiv2412.03372v3归MD；FSCD2024.6固定CCBY版本arxiv2405.03264v1归LL。未明确授权的外部代码缓存不纳入资产，论文自身完整作者证明可独立交付。
+
+PM后续独占FSCD2024.11（Optimizing a Non-Deterministic Abstract Machine with Environments）、.12（A Linear Type System for L^p-Metric Sensitivity Analysis），根完整旧库/准备表/三线定向DOI标题查询无命中；固定作者版本别名由材料组补查。MD027已实际编译成功，第四批当前4道净新增入本线库；容量错误接续原GPT6.1Sol medium，不更换模型。
+
+MD后续独占SoCG2025.70与.72，根全旧库/准备5229/三线372,289,110定向DOI标题查重0。SoCG69的实际完整版arxiv2410.22242v3为nonexclusive且官方版缺Appendix续证，原件保留不计。FSCD2024.9的HAL04568289归同作品别名，根补查0；选用许可仍为官方CCBY论文。当前第四批8道已编译入库，累计83、已上传75，持久目标active继续。
+
+当前精确后续分配：LL完成FSCD2024.10后独占FSCD2025.4（Substructural Parametricity）；PM保留FSCD2024.11/.12合法完整PDF待editable转录，继续独占FSCD2025.5（The Cost of Skeletal Call-By-Need, Smoothly）。根已对完整旧14875、准备5229及三线377,295,119定向DOI/标题查询0，具体版本别名由材料组补查。
+
+后续精确分工：MD SoCG2025.73/.74；LL FSCD2025.4/.7；PM FSCD2025.14/.11。FSCD2025.6会议版全部证明指向nonexclusive全文，已保留缺口不计。旧HTML转换器依赖BeautifulSoup；项目Python可append现有/disks/sata1/yupeng/anaconda3/lib/python3.13/site-packages读取bs4 4.13.5与soupsieve（已实测），不新增依赖。来源转换脚本自己的运行说明保留该路径，装配/编译/SQLite仍用项目Python。
+
+用户明确执行边界：禁止在本机编译；所有取材、装配、TeX编译、SQLite建库及提交仅在Yupeng主机执行。本机仅SSH控制、Git认证中转及查看成品。
+
+当前独占接续：MD SoCG2025.75/.76；LL FSCD2025.24（arxiv2505.09960v1 CCBY4）和FSCD2026.4；PM FSCD2025.11（arxiv2505.13495v1完整论文版本，原封面作者/导师角色与arxiv作者列差异均保留）与2025.14。材料/编译/建库继续仅Yupeng，本机禁止编译。
+
+MD后续明确独占SoCG2025.77/.78，根全旧14875/准备6704/三线418,446,186定向DOI标题查询0。SoCG2025.75两个固定完整版本2504.07752v1/2504.07770v1归同组，缺失作者公式上下文已从其自身CCBY companion原文收齐，不猜测改数学；2025.76固定2412.02866v1主结果一题。

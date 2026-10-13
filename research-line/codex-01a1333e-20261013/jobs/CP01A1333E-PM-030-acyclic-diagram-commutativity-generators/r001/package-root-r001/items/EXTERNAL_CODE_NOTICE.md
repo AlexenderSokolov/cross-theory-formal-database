@@ -1,0 +1,3 @@
+# Formal code source notice
+
+Official FSCD2024.7 landing links GitLab coq-diagram-chasing and SWH revision c9405e8f75c463c6cef57e43ff4e2dde1bd6a597. This exact source archive was obtained for source identification. The archived README and source files do not supply a redistribution license. Therefore author-code-c9405e8.tar.gz and author-code/ are not publication dependencies and must not be uploaded. The counted material instead uses the independently licensed CC BY4 arxiv2402.14485v4 author article, whose full mathematical construction and proof of the comcut result are present in the editable native TeX. Code snippets printed in that CC article remain part of the article. No Coq execution or formal verification is claimed.

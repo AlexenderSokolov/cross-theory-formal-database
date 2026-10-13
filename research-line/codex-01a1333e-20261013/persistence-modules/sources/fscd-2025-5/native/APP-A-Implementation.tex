@@ -1,0 +1,113 @@
+% !TEX root = main.tex
+\section{OCaml Implementation}
+\label{sect:implementation}
+
+We provide at \url{https://github.com/Franciman/fullylazymad}
+a reference implementation in OCaml of the Skeletal MAD,
+meant to guarantee the soundness of the assumptions that underly the complexity analyses.
+The implementation takes in input a user provided term and it shows the full run printing all transitions and all intermediate machine states. We highlight here a few details on the implementation.
+
+\subparagraph{Data structures.}
+Pre-terms are represented by the following algebraic data type (ADT):
+\begin{lstlisting}
+type term =
+  | Var of { v: var_ref; mutable taken: bool; mutable parent: term option }
+  | Abs of { v: var_ref; mutable body: term; mutable occurrences: term list; mutable taken: bool; mutable parent: term option }
+  | App of { mutable head: term; mutable arg: term; mutable taken: bool; mutable parent: term option }
+and var_ref =
+ { mutable prev : var_ref option;
+   orig_name : string; (* to help generating new names *)
+   name : string;
+   mutable sub : sub;
+   mutable next : var_ref option }
+and sub =
+  NoSub | Sub of term | SubSkel of term | Hole | Copy of (term list ref * var_ref)
+\end{lstlisting}
+whose constructors \lstinline{App} for applications, \lstinline{Abs} for abstractions and \lstinline{Var} for variable occurrence hold mutable pointers to their subterms, a mutable optional pointer to the parent and a mutable boolean \lstinline{taken} for marking terms during skeleton extraction.
+
+Variable occurrences point to a shared, unique variable declaration/substitution in memory of type \lstinline{var_ref}, which holds the variable name, a substitution description field of type \lstinline{sub} and two optional pointers (\lstinline{prev} and \lstinline{next}) to insert the variable in an environment, that is a double-linked lists of variable declarations. A substitution description is an ADT whose constructors are \lstinline{Sub $\tm$} for the explicit substitution $\esub\var\tm$, \lstinline{SubSkel $\tm$} for the skeletal substitutions $\skesub\var\val$, \lstinline{NoSub} for bound variables, \lstinline{Hole} to represent $\esub\var\cdot$ in chain items and \lstinline{Copy (parents,$\var$)} to point to another variable declaration $\var$ together with the list of its parents. The latter form is used temporarily to preserve sharing of variable declarations during the implementation of $\renamenop\cdot$: the first time a variable is to be copied its substitution is make to point to the new copy and each time an occurrence of the variable is to be copied, the same variable declaration is reused and a new parent is added for it.
+
+Abstractions also point to the list of occurrences of the bound variable, to implement rule $\rtomarkblthree$ in $\bigo(1)$. This is a minor memory-saving divergence from the paper where it was suggested to have backpointers to the occurrences stored in the bound variable declaration node, of type \lstinline{var_ref}: once an abstraction is consumed, the backpointers become useless and thus avoiding them in the implementation saves some space.
+
+Machine states are implemented straightforwardly using lists for stacks, chains, and the set of roots (which is then actually represented as a list, not as a set), and doubly linked lists of variable declarations for environments:
+\begin{lstlisting}
+type env = var_ref option
+  (* Some head of the doubly-linked list, or None for empty list *)
+type stack = term list                                                                                   
+type chain = (var_ref * stack * env) list
+type state = chain * term * stack * env
+\end{lstlisting}
+
+
+\subparagraph{Skeleton Reconstruction.}
+The rewriting system for marking terms to extract the skeleton and flesh is implemented sequentially as a recursive function.
+Each activation record for a call to \lstinline{mark_skeleton} in the OCaml stack corresponds
+in the paper to an occurrence of $\skelu\cdot$ in the rewritten term.
+\begin{lstlisting}
+let rec mark_skeleton =
+ function
+  | None -> ()
+  | Some (Var v) -> (v.taken <- true; mark_skeleton v.parent)
+  | Some (Abs a) ->
+      if not a.taken
+      then (a.taken <- true;
+            List.iter (fun v -> mark_skeleton (Some v)) a.occurrences;
+            mark_skeleton a.parent)
+  | Some (App a) ->
+      if not a.taken
+      then (a.taken <- true; mark_skeleton a.parent)
+\end{lstlisting}
+Parallel implementations of \lstinline{mark_skeleton} are possible, but because of the necessity of syncronization over application nodes and because the size of skeletonized terms is supposed to be small, it is unclear if actual parallelization would provide any speed-up.
+
+\subparagraph{Remaining Code.}
+The code to extract the skeleton and flesh from marked terms, and the code for machine transitions follow
+straightforwardly the rules in the paper, up to noisy code to keep the doubly linked structure of terms and environments. Here is an example of the code for one transition in the Skeletal MAD:
+\newcommand{\quotx}{"}
+\begin{lstlisting}
+let step : state -> string * state =
+ function
+  ...
+  | chain, Abs { v; body; _ }, arg :: args, env ->
+      set_parent body None;  (* unliks body from its parent (double link severed)*)
+      v.sub <- Sub arg;      (* turns v into an explicit substitution *)
+      push v env;            (* pushes v on top of the env *)
+      $\quotx$$\ensuremath{\beta}$$\quotx$,(chain, body, args, Some v)
+  ...
+\end{lstlisting}
+
+The code that implements $\renamenop\cdot$ also follows the standard algorithm to copy a graph in linear
+time preserving the sharing, described by Accattoli and Barras in \cite{DBLP:conf/ppdp/AccattoliB17}. It uses the \lstinline{Copy} constructor to temporarily associate
+each variable to its copy.
+
+%\subparagraph{Garbage Collection.}
+%All memory allocations in OCaml are left implicit. 
+%
+%The Skeletal MAD has no garbage collection mechanism and no explicit substitution is collected by the OCaml runtime either because they all remain linked in the environments of the machine state.
+%
+%To obtain the ECO Skeletal MAD from the Skeletal MAD the impact on the previous code is really minimal:
+%one first needs to add the \lstinline{refno} field to variable declarations and a few lines to
+%update it correctly during term copy, and the \lstinline{roots} list to the machine state.
+%Then the changes shown in the \reffig{gc-machine} are to applied to the function that implements the
+%transition rule. The side condition \mbox{(*)} is implemented by a simple linear recursive function over
+%$\tmtwo$ to extract its free variables; the check $\vartwo\notin\fv{\chain,\tm,\stack,\envthree}$ is implemented in constant time looking at the \lstinline{refno} field that is also decremented during the process. Here is an example of the code for the $\beta$ transitions of the ECO machine:
+%
+%\begin{lstlisting}
+%let step : state -> string * state =
+% function
+%  ...
+%  | chain, Abs { v; body; occurrences=(_::_ as occurrences); _ }, arg :: args, env, [] ->
+%      set_parent body None;
+%      v.sub <- Sub arg;
+%      v.refno <- List.length occurrences; (* remember the number of occurrences *)
+%      push v env;
+%      $\quotx$$\ensuremath{\beta_1}$$\quotx$,(chain, body, args, Some v, []) (* empty set [] of roots *)
+%  | chain, Abs { v; body; occurrences=[]; _ }, arg :: args, env, [] ->
+%      set_parent body None;
+%      v.sub <- Sub arg;
+%      v.refno <- 0;
+%      push v env;
+%      $\quotx$$\ensuremath{\beta_2}$$\quotx$,(chain, body, args, Some v, [v]) (* v is the only root *)
+%  ...
+%\end{lstlisting}
+%
+%Since the ECO Skeletal MAD detaches the substitution from the environment, OCaml's implicit garbage collection is triggered to recover the memory of the definiens of the substitution.

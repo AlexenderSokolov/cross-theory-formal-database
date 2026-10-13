@@ -58,7 +58,7 @@ with db:
  assert {r[0] for r in db.execute("SELECT task_id FROM problems WHERE state='prepared_unpublished'")}==set(selected)
  count=db.execute('SELECT count(*) FROM problems WHERE state="prepared_unpublished"').fetchone()[0]
 (OUT/'ITEMS.jsonl').write_text(''.join(json.dumps(m,ensure_ascii=False)+'\n' for m in manifest),encoding='utf-8')
-lines=['# 第四条Codex主机产线：作者题证成品','',f'本地可用 {count} 道；上传情况另见批次记录。生产主库公开增量不由本索引推断。','', '遵循仓库根PROJECT.md，不认证作者数学。SQLite为corpus.sqlite3，表problems保存题面、证明、上下文及成品TeX。路径相对于仓库根。','','| 题目 | 方向 | 级别 | 成品 |','|---|---|---|---|']
+lines=['# 第四条Codex主机产线：作者题证成品','',f'Yupeng主机已编译入库 {count} 道；上传情况另见批次记录。生产主库公开增量不由本索引推断。','', '遵循仓库根PROJECT.md，不认证作者数学。SQLite为corpus.sqlite3，表problems保存题面、证明、上下文及成品TeX。路径相对于仓库根。','','| 题目 | 方向 | 级别 | 成品 |','|---|---|---|---|']
 for key,(job,state,pkg,t,row,tex,pdf) in sorted(found.items()):
  lines.append('| '+t['title'].replace('|','/')+' | '+t['route']+' | '+t['difficulty_level']+' | [TeX]('+os.path.relpath(tex,OUT)+') · [PDF]('+os.path.relpath(pdf,OUT)+') |')
 (OUT/'INDEX.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
