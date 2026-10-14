@@ -66,6 +66,24 @@ ALIASES.extend([['10.4230/lipics.fscd.2026.11','2601.05199'],['10.4230/lipics.fs
 
 ALIASES.extend([['10.4230/lipics.socg.2026.12','2602.16306']])
 
+ALIASES.extend([['10.4230/lipics.fscd.2026.15','2512.19401'],['10.4230/lipics.fscd.2026.16','2604.26059'],['10.4230/lipics.socg.2026.13','2603.23490'],['10.4230/lipics.socg.2026.14','2603.14293'],['10.4230/lipics.socg.2026.15','2602.17801'],['10.4230/lipics.socg.2026.16','2603.22262']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2026.20','2605.06533'],['10.4230/lipics.fscd.2026.21','2602.18921']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.17','2602.09551'],['10.4230/lipics.socg.2026.18','2603.18997'],['10.4230/lipics.socg.2026.19','2602.10795'],['10.4230/lipics.fscd.2026.19','2602.04641'],['10.4230/lipics.fscd.2026.23','2609.17324']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.20','2603.09048'],['10.4230/lipics.fscd.2026.25','2512.22930']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.21','2511.09230']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2026.27','2605.00295'],['10.4230/lipics.socg.2026.24','19271844','19271845']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.25','2509.26525'],['10.4230/lipics.socg.2026.26','2503.11575'],['10.4230/lipics.socg.2026.27','2507.23105'],['10.4230/lipics.fscd.2026.28','2601.23082'],['10.4230/lipics.fscd.2026.29','2603.25215','05540426'],['10.4230/lipics.fscd.2026.31','2605.00655']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2026.22','olaure01/islogic']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.28','2603.21617'],['10.4230/lipics.socg.2026.29','2603.21790']])
+
 LANES=[('codex-parallel-work-20261013','codex-parallel-20261013'),('codex-work-01a13326','codex-01a13326-20261013'),('codex-work-01a1332f','codex-01a1332f-20261013')]
 @cache
 def read(p):return p.read_text(encoding='utf-8-sig')
