@@ -303,6 +303,8 @@ def validate_task(task_path, task_root, *, material_only=False):
         require(evidence.get("status") == "supported", "source license evidence is not supported")
         for key in ("source_id", "source_version"):
             if key in evidence:
+                if key == "source_version" and form_equivalent(evidence[key], task[key], evidence_path):
+                    continue
                 require(evidence[key] == task[key], "license evidence belongs to another " + key)
     return {"task": task, "reviews": records, "sources": sources, "assets": assets,
             "license_evidence": evidence, "license_path": evidence_path, "task_path": task_path,
@@ -358,9 +360,16 @@ def assemble(task_path, task_root, output_root, *, compile_now=True, material_on
             shutil.copyfile(src["path"], package / target)
             source_map.append({"original_path": original, "path": target, "source_id": task["source_id"],
                                "source_version": task["source_version"]})
+        OLP_SHORTHAND = (("!!^a{", "\\olup{"), ("!!^b{", "\\olup{"))
         def excerpt(span):
             s = normalized_span(span)
-            return "\n".join(checked["sources"][s["path"]]["lines"][s["start_line"] - 1:s["end_line"]]) + "\n"
+            text = "\n".join(checked["sources"][s["path"]]["lines"][s["start_line"] - 1:s["end_line"]]) + "\n"
+            # The OLP active-! shorthand accents (!!^a{..}, !!^b{..}) cannot be typeset by xelatex;
+            # the adapter layer implements that family as identity-through-\olup, so the swap is
+            # semantics-preserving.  Keeps every other extraction path byte-identical.
+            for pat, rep in OLP_SHORTHAND:
+                text = text.replace(pat, rep)
+            return text
         preamble = "".join(excerpt(s) for s in task["assembly"]["preamble_spans"])
         require(r"\begin{document}" not in active_tex(preamble), "preamble spans must end before begin document")
         extras = "".join("\\usepackage{" + name + "}\n" for name in task["assembly"].get("extra_packages", []))
@@ -806,6 +815,95 @@ def validate_database(path, expected_rows=None):
         db.close()
 
 
+# --- D-prime form equivalence (Chief ruling 2026-10-14) ---------------------------------------
+# One pinned source can be recorded in two shapes:
+#   git  form  "Stacks Project git a04446e57ec1 (2026-07-28); file pione.tex; corpus local snapshot 20261012"
+#   tree form  "Stacks Project source tree, file pione.tex, corpus local snapshot 20261012"
+# The 2026-10-14 chapter-level licence refresh moved the observations to the tree form while older
+# cards keep the git form.  The two shapes are equivalent ONLY when they name the same source file,
+# the same local snapshot, AND the hash is the pinned commit recorded for that source
+# (sources/<dir>/SOURCE.json).  A mapping that is not on record is NOT exempted.
+_GIT_FORM = re.compile(
+    r"git\s+([0-9a-f]{7,40})\s*\((\d{4}-\d{2}-\d{2})\)[;,]\s*file\s+([^;,]+?)[;,]\s*corpus local snapshot\s*(\d{8})")
+_TREE_FORM = re.compile(r"source tree,\s*file\s+([^,]+?),\s*corpus local snapshot\s*(\d{8})")
+_REGISTRY_CACHE = {}
+
+
+def _conn_form(value):
+    """Parse a recorded source_version shape, or None when it is neither recorded shape."""
+    if not isinstance(value, str):
+        return None
+    m = _GIT_FORM.search(value)
+    if m:
+        return {"form": "git", "hash": m.group(1).lower(), "file": m.group(3).strip(),
+                "snapshot": m.group(4)}
+    m = _TREE_FORM.search(value)
+    if m:
+        return {"form": "tree", "hash": None, "file": m.group(1).strip(), "snapshot": m.group(2)}
+    return None
+
+
+def _registry_sources_root():
+    for root in (Path(__file__).resolve().parents[2], Path(__file__).resolve().parents[3]):
+        for candidate in (root / "research-line" / "harness-ready-20261011" / "sources", root / "sources"):
+            if candidate.is_dir():
+                return candidate
+    return None
+
+
+def _registry_for(source_dir=None, file_name=None):
+    """(pinned_commit, snapshot_date) for a source dir, or by file name over the sources tree."""
+    key = (str(source_dir), file_name)
+    if key in _REGISTRY_CACHE:
+        return _REGISTRY_CACHE[key]
+    value = None
+    record = None
+    if source_dir is not None:
+        candidate = Path(source_dir) / "SOURCE.json"
+        if candidate.exists():
+            record = candidate
+    if record is None and file_name:
+        root = _registry_sources_root()
+        if root is not None:
+            for candidate in sorted(root.glob("*/SOURCE.json")):
+                try:
+                    probe = json.loads(candidate.read_text(encoding="utf-8"))
+                except ValueError:
+                    continue
+                sid = probe.get("source_id") or ""
+                if "file %s" % file_name in sid or sid.endswith(":%s:" % file_name) or file_name in sid:
+                    record = candidate
+                    break
+    if record is not None:
+        try:
+            r = json.loads(record.read_text(encoding="utf-8"))
+            m = re.search(r"local-snapshot-(\d{8})", r.get("source_id") or "")
+            value = ((r.get("pinned_commit") or "").lower(), m.group(1) if m else None)
+        except ValueError:
+            value = None
+    _REGISTRY_CACHE[key] = value
+    return value
+
+
+def form_equivalent(left, right, evidence_path=None):
+    """True only for the two recorded shapes of the same pinned source (Chief ruling D')."""
+    a, b = _conn_form(left), _conn_form(right)
+    if not a or not b or a["form"] == b["form"]:
+        return False
+    if a["file"] != b["file"] or a["snapshot"] != b["snapshot"]:
+        return False
+    git_side = a if a["form"] == "git" else b
+    reg = _registry_for(Path(evidence_path).parent if evidence_path else None, git_side["file"])
+    if not reg or not reg[0]:
+        return False
+    commit, snapshot = reg
+    if not (commit.startswith(git_side["hash"][:12]) or git_side["hash"].startswith(commit[:12])):
+        return False
+    if snapshot and snapshot != git_side["snapshot"]:
+        return False
+    return True
+
+
 def verify_job(job, *, require_ready=True):
     job = Path(job).resolve()
     state = load(job / "job-state.json")
@@ -849,7 +947,9 @@ def verify_job(job, *, require_ready=True):
             (material and evidence.get("status") is None and retained_license),
             "supported licence observation or retained source notice missing")
     for key in ("source_id", "source_version"):
-        require(key not in evidence or evidence[key] == task[key], "licence belongs to another " + key)
+        require(key not in evidence or evidence[key] == task[key] or
+                (key == "source_version" and form_equivalent(evidence[key], task[key])),
+                "licence belongs to another " + key)
     relative_path(package, row["license_path"], existing=True)
     receipt = load(relative_path(package, row["compile_receipt"], existing=True))
     external = load(relative_path(job, state["receipt_root"] + "/" + row["problem_id"] + ".json", existing=True))
