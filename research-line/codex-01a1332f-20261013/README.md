@@ -2,9 +2,21 @@
 
 ## 当前交付与接续入口
 
-[第七批完整成品：25道](delivery/batch-007/INDEX.md)。本线累计174道净新增可用材料已完成编译和SQLite建库；正式生产主库增量仍为0。上传确认读取各批UPLOADED.json，现场进度读取STATUS.json。
+[第七批完整成品：25道](delivery/batch-007/INDEX.md)，已上传并核实提交`f031d842f54e81139937a5b0d15bc55b4fb67ac0`。本线累计174道净新增可用材料已上传；第八批另有25道已在Yupeng编译入库并完成当前可读性检查，NT061公式越界已在r003修复。正式生产主库增量仍为0。上传确认读取各批UPLOADED.json，现场进度读取STATUS.json。
 
-第八批接续范围：通信CCC2021.11未交付的两项PIT材料，以及CCC2021.12对应TheoretiCS 10.46298/theoretics.22.1/arxiv2112.00673/ECCC TR20-149；几何CCC2022.24对应IACR ePrint2022/168（官方有CC BY许可、2023-07-13修订）；数论继续CCC2021.25剩余独立作者主结果。以上来源及实际别名均已完整旧库、准备表和两线身份刷新。仍按完整题证、作者责任及不拆支撑/直接推论规则取材。
+第八批当前接续范围：通信CCC2021.24/arxiv2106.00287/ECCC TR21-004（junta-distance，CC067起）；几何CCC2021.23/arxiv2105.07517（coloring SoS，GA090起）；数论CCC2021.28/arxiv2011.09823（quantum minimum cut，NT063起）。以上实际身份均已完整旧库、准备表和两线刷新。此前CC065/066、GA089、NT062已主机编译入库；CCC2021.21=ToC2026v022a004第一线已用，避开。所有生产只在Yupeng、各lane独占材料、根独占jobs/数据库/上传；原逐项许可和不拆支撑/直接推论标准继续。
+
+几何组完成CCC2021.22后下一独占CCC2021.23/arxiv2105.07517/doi10.48550/arXiv.2105.07517（coloring SoS lower bound，GA090起）。完整旧库、准备记录及两线实际身份零命中；保留原multiple-color-class模型，主下界与承重归约合题，不把unique-color-class开放问题补成结论。
+
+数论组完成CCC2021.27后下一独占CCC2021.28/arxiv2011.09823/doi10.48550/arXiv.2011.09823（quantum minimum cut，NT063起）。完整旧库、准备记录及两线实际身份零命中；保留matrix/array与权重参数模型，上界同主题合题，独立下界仅按实际完整H2主证选取。
+
+通信组CC065/066完成后下一独占CCC2021.24/arxiv2106.00287/doi10.48550/arXiv.2106.00287/ECCC TR21-004（junta-distance tolerant testing，CC067起）。完整旧库、准备记录及两线实际身份零命中；保留relaxed/nonrelaxed模型和参数，同主题与承重证明合题，不拆算法支撑与参数变体。
+
+几何组GA090完成后下一独占CCC2021.29/arxiv2002.11594/doi10.48550/arXiv.2002.11594（highest-weight-vector evaluation，GA091起）。完整旧库、准备记录及两线实际身份零命中；保留编码、field与条件性假设，算法同主题合题，只有独立完整主证明的硬度或结构结果另取，不拆参数/支撑。
+
+通信组CC067完成后下一独占CCC2021.30/arxiv2012.03415/doi10.48550/arXiv.2012.03415（adversary-bound query-to-communication lifting，CC068起）。完整旧库、准备记录及两线实际身份零命中；保留constant gadget/partial function/round/条件性隐私假设，只按实际独立完整主机制选题。
+
+数论组NT063/064完成后下一独占CCC2021.31/ECCC TR21-030（constant-round communication hardness，NT065起）。完整旧库、准备记录及两线实际身份零命中；保留totalBoolean矩阵输入和round/approximation模型，同主题完整证明与承重round elimination合题，不拆支撑。
 
 下方为来源分配和交付的历史记录，旧阶段计数不代表当前进度。
 
@@ -109,3 +121,9 @@ CCC2022来源实际别名刷新已完成：通信2201.10997/2111.02999、几何E
 第七批当前19份实际编译入库。数论转源CCC2021.25 Arithmetic Circuit Complexity of Division and Truncation（Dutta/Jindal/Pandey/Sinhababu），实际ECCC TR21-072与正式DOI完整身份刷新零命中，NT056起。通信独占CCC2021.10 Fractional Pseudorandom Generators from Any Fourier Level，实际arxiv2008.01316/10.48550 DOI/ECCC TR20-121（旧题名from the kth Fourier Level同源）完整身份刷新零命中，CC053起，保留实际选版5作者。其他新版本先刷新再取材；参数分支/support不拆数。
 
 通信完成2021.10后独占CCC2021.11 Deterministic Identity Testing Paradigms for Bounded Top-Fanin Depth-4 Circuits（Dutta/Dwivedi/Saxena），实际arxiv2304.11325及10.48550 DOI/正式DOI完整身份刷新零命中，CC055起。作者页标ToC2026 to appear，未确认正式期刊DOI不编造；实际额外身份先报根。
+
+第八批用途处理：NT059作者主要结果区明确为独立dense transcendental-series短电路构造，相关38/40/44已合1题；NT060独立PosSLP判定结果保留完整材料作背景，H2用途不足暂不单计，不能称为别题承重引理或重复。来源接续：通信CCC2021.13/arxiv2102.06652（已全身份零命中，修订/许可逐版保留）；几何CCC2021.14/ECCC TR20-054（已全身份零命中），避开下载受阻的2022.24完整长稿。
+
+数论下一独占CCC2021.26 SOS Lower Bound for Exact Planted Clique（Shuo Pang），实际ECCC TR21-070与正式DOI已完整身份刷新零命中，NT061起，完整作者pseudoexpectation/PSD主证链合主题，不拆技术by-product。
+
+第八批接续独占：通信CCC2021.15/arxiv2011.05085（v2实际CC BY-NC-SA4.0按原许可），几何CCC2021.16/期刊10.1145/3625308/共享长稿arxiv1907.00309（另含SIAM10.1137/21M1441110部分），数论CCC2021.26/ECCC TR21-070；所有实际身份已完整旧库/准备/两线刷新零命中，后续另有身份先报。CC059图片依实际TeX目录修复，原图主机渲染查看完整；CC060 r002显式恢复array依赖已实际编译。
