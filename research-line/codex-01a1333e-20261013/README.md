@@ -162,3 +162,5 @@ MD后继独占SoCG2026.28（2603.21617）/.29（2603.21790），只选官方CCBY
 当前接续精确独占：PM CSL2026.31 Parametric Disjunctive Timed Networks（2512.04991；只选官方完整证明，nonexclusive全文不公开）/.32 Mean-Payoff and Energy Discrete-Bidding Games（2509.00506v1 CCBY4），root全旧14875/prep7826/三线639,457,219 DOI/title查询0，实际别名由PM继续补查；LL CSL2026.29/.30，MD SoCG2026.37固定HAL04816535v1自身CCBY4完整作者PDF可编辑转录，v2不同许可不混。第七批23道已编译入库、累计173，已上传150，所有编译仅Yupeng。
 
 第七批25道已完成主机编译与SQLite最终集合核对，准备上传；累计175已入库、另PM054成功46页待后批，已上传150。LL049全部68原数学电路PNG（76实际引用）保留，完整normal-form证明6页成功并视读；PM053仅官方完整Theorem17全局不可达证明30页，未选Theorem20 sketch；三处r002仅更新呈现同题不重计。上传前root再次刷新完整旧库/准备表/三条线，再按最终明确资产选择提交，所有编译仅Yupeng。
+
+第七批25道净新增已上传：[batch-007成品索引](delivery/batch-007/INDEX.md)，内容提交`f4d8e280954ef9efd2dd7872c0f7603a5d8dec42`；远端本线分支与HTTP200入口均已实核，累计上传175，生产主库公开增量0。第八批已主机编译入库2道（PM05446页、MD07321页），累计177。持久目标active继续30000总目标，所有编译仅Yupeng，禁止本机编译。当前后继独占MD SoCG2026.38/.39、LL CSL2026.33/.34、PM CSL2026.35/.36；精确DOI/title完整旧库与三线查重无邻居，实际版本别名继续补查。
