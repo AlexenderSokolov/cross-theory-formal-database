@@ -79,3 +79,5 @@ batch-023 uploaded: 25 new author-proof materials; cumulative 23 batches, 574 ma
 batch-024 uploaded: 15 new author-proof materials; cumulative 24 batches, 589 materials / 586 net prepared. Commit d1968b4cdb66c41e306910058981eac6c774c01e; production public increment 0. Continue next batch under the active native persistent goal.
 
 Counting correction: batch-019 proetale constructible-projective local structure is the already public AGP-stacks-09C3 /900000092, same original label. Retain 589 material products; net new prepared count is 585 after subtracting this one duplicate. Four uploaded duplicate products retained. Only this identified counting overlap was corrected; no recompilation or mathematical review.
+
+batch-025 uploaded: 13 new author-proof materials; cumulative 25 batches, 602 materials / 598 net prepared. Commit 744caa692486bb07fcd658f67a5bb081b3d5058e; production public increment 0. Continue next batch under the active native persistent goal.
