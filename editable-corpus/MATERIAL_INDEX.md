@@ -1,6 +1,6 @@
 # 全量材料阅读索引
 
-来源快照：`d9f80e6fd908cee72ef6f4a09e4a00efea8525b2`（已核对 manifest 内容，仅允许 Git checkout 换行差异）。材料共 **18722** 条：legacy **14875**，prepared **3847**。
+来源快照：`41b4ab870b5b24d235c74e7123bccba6d9b9b042`（已核对 manifest 内容，仅允许 Git checkout 换行差异）。材料共 **19789** 条：legacy **14875**，prepared **4914**。
 
 展示序号仅为此快照的阅读顺序；稳定 problem_id、来源、许可和审阅身份不变。材料状态、历史 H 标签、prepared 或 status 字段均不自动证明现行科学资格，序号也不是新增/交付计数。
 
@@ -9,9 +9,9 @@
 从仓库根重新生成（先取得匹配来源快照的 manifest）：
 
 ```sh
-python3 corpus-work/tools/render_material_index.py --package editable-corpus --snapshot d9f80e6fd908cee72ef6f4a09e4a00efea8525b2
+python3 corpus-work/tools/render_material_index.py --package editable-corpus --snapshot 41b4ab870b5b24d235c74e7123bccba6d9b9b042
 # 只检查过期/缺失/多余行，不覆盖文件
-python3 corpus-work/tools/render_material_index.py --package editable-corpus --snapshot d9f80e6fd908cee72ef6f4a09e4a00efea8525b2 --check
+python3 corpus-work/tools/render_material_index.py --package editable-corpus --snapshot 41b4ab870b5b24d235c74e7123bccba6d9b9b042 --check
 ```
 
 每页最多 200 条，各页序号延续全局顺序；每条仅出现在一页。
@@ -111,4 +111,9 @@ python3 corpus-work/tools/render_material_index.py --package editable-corpus --s
 | [第 91 页](material-index/page-091.md) | 18001–18200 | 900003131–900003330 |
 | [第 92 页](material-index/page-092.md) | 18201–18400 | 900003331–900003530 |
 | [第 93 页](material-index/page-093.md) | 18401–18600 | 900003531–900003730 |
-| [第 94 页](material-index/page-094.md) | 18601–18722 | 900003731–900003852 |
+| [第 94 页](material-index/page-094.md) | 18601–18800 | 900003731–900003961 |
+| [第 95 页](material-index/page-095.md) | 18801–19000 | 900003962–900004161 |
+| [第 96 页](material-index/page-096.md) | 19001–19200 | 900004162–900004361 |
+| [第 97 页](material-index/page-097.md) | 19201–19400 | 900004362–900004572 |
+| [第 98 页](material-index/page-098.md) | 19401–19600 | 900004573–900004772 |
+| [第 99 页](material-index/page-099.md) | 19601–19789 | 900004773–900004961 |
