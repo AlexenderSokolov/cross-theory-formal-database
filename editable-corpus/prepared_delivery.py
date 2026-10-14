@@ -244,7 +244,8 @@ def validate_record(task, records, *, material_only=False):
         # 2026-10-14 CONTROL (bg) merge ruling (Chief-approved): "*" joins
         # the same classes in one edit (label "eq:PgLambdaT*Mcoord");
         # tri-char single regression run, no second window.
-        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*!&^][A-Za-z0-9:_. \-/()>+=*!&^]*", str(reference.get("label", ""))), "invalid external label")
+        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*!&^$][A-Za-z0-9:_. \-/()>+=*!&^$]*", str(reference.get("label", ""))), "invalid external label")
+        require(str(reference.get("label", "")).count("$") % 2 == 0, "unbalanced $ in external label")
         require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
         require(re.fullmatch(r"[A-Za-z0-9.()-]+", str(reference.get("number", ""))), "original reference number required")
