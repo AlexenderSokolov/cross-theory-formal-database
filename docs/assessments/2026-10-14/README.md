@@ -20,3 +20,5 @@ python3 -m unittest discover -s docs/assessments/2026-10-14 -p test_source_metad
 ```
 
 Read the evidence limits before interpreting metadata counts as independently distinct works, people, publication years, claims, or duplicates. Reproduction commands are not a claim that final validation has passed; that evidence belongs with the maintenance review.
+
+Evening increment: [Two topology materials at fixed snapshot e8b55b5](evening_topology_incremental.md), assessed at `e8b55b5159fa7d55c0bdd5d95e9742963be2a559`. This is an auxiliary two-item report; the original 24-item reports and metadata statistics remain fixed at 41b4ab8. It does not change production H/qualification records or support a population-wide rate.
