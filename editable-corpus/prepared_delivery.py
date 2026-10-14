@@ -229,7 +229,9 @@ def validate_record(task, records, *, material_only=False):
         require(isinstance(reference, dict) and reference.get("non_load_bearing") is True and nonempty(reference.get("reason")),
                 "external reference requires a reviewed non-load-bearing reason")
         # Native TeX labels can contain ordinary spaces (e.g. the JEP317
-        # label "thm:fact into k parts"); retain those author identifiers.
+        # label "thm:fact into k parts") and slashes (e.g. the JEP135 labels
+        # "Prop:A/C", "Rec:A/C", "it:A/C-d"); retain those author identifiers.
+        # The label is only embedded in \newlabel{...} keys, where both are legal.
         require(re.fullmatch(r"[A-Za-z0-9:_.\-/][A-Za-z0-9:_. \-/]*", str(reference.get("label", ""))), "invalid external label")
         require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
@@ -566,8 +568,26 @@ def compile_job(job, *, resume=False):
                      build / f"xelatex-{passes + 1}.stdout", cwd=tex.parent, env=env)
             receipt["engine_runs"] += 1
             text = final_log.read_text(encoding="utf-8", errors="replace")
-        errors = [line for line in text.splitlines() if re.search(
-            r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\(s\) may have changed|Rerun to get|^!", line, re.I)]
+        # Ticket (lane-p1 L40423 dualizing-finite false positive): TeX prints the offending box's
+        # content on the LINES FOLLOWING an Overfull/Underfull report, and those continuation lines
+        # can begin with "!".  Skip at most three such continuation lines (stop at a blank line) so a
+        # leading "!" is still an error everywhere else.  Deliberately NOT a keyword allowlist: real
+        # errors such as "! Display math should end with $$." or "! Too many }'s." carry no
+        # allowlisted keyword and would be missed.
+        errors = []
+        box_report_lines = 0
+        for line in text.splitlines():
+            if re.match(r"^(?:Overfull|Underfull)\s+\\[hv]box", line):
+                box_report_lines = 3
+                continue
+            if box_report_lines:
+                box_report_lines -= 1
+                if line.strip() == "":
+                    box_report_lines = 0
+                continue
+            if re.search(
+                r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\\(s\\) may have changed|Rerun to get|^!", line, re.I):
+                errors.append(line)
         require(not errors, "final engine log has unresolved errors: " + "; ".join(errors[:4]))
         fls = build / (tex.stem + ".fls")
         require(fls.is_file(), "TeX recorder output missing")
