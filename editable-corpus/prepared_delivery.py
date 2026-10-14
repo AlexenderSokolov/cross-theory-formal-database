@@ -898,10 +898,26 @@ def _registry_for(source_dir=None, file_name=None):
 
 
 def form_equivalent(left, right, evidence_path=None):
-    """True only for the two recorded shapes of the same pinned source (Chief ruling D')."""
+    """True for the recorded shapes of the same pinned source (Chief ruling D').
+
+    1. Same recorded shape with every parsed field equal (git: hash+file+snapshot;
+       tree: file+snapshot): a separator or whitespace difference (";" vs ",")
+       carries no identity change and involves no cross-form mapping, so no
+       registry lookup is needed.  2026-10-14 CONTROL (br) root-fix, S3-co
+       batch-198 case: the assembled package evidence kept the ";" spelling
+       while the task string used ",", the same-form guard below rejected the
+       pair, adopt-material died before writing final-item and prepare lost
+       those items batch after batch.
+    2. Cross-shape git vs tree of the same source, proven through the pinned
+       commit recorded for that source (sources/<dir>/SOURCE.json).  A mapping
+       that is not on record is NOT exempted.
+    """
     a, b = _conn_form(left), _conn_form(right)
-    if not a or not b or a["form"] == b["form"]:
+    if not a or not b:
         return False
+    if a["form"] == b["form"]:
+        return (a["hash"] == b["hash"] and a["file"] == b["file"]
+                and a["snapshot"] == b["snapshot"])
     if a["file"] != b["file"] or a["snapshot"] != b["snapshot"]:
         return False
     git_side = a if a["form"] == "git" else b
