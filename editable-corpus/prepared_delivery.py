@@ -232,7 +232,19 @@ def validate_record(task, records, *, material_only=False):
         # label "thm:fact into k parts") and slashes (e.g. the JEP135 labels
         # "Prop:A/C", "Rec:A/C", "it:A/C-d"); retain those author identifiers.
         # The label is only embedded in \newlabel{...} keys, where both are legal.
-        require(re.fullmatch(r"[A-Za-z0-9:_.\-/][A-Za-z0-9:_. \-/]*", str(reference.get("label", ""))), "invalid external label")
+        # 2026-10-14 CONTROL 8.8.100 (Chief-approved, lane-x4 sigma case;
+        # originally drafted as 8.8.95, renumbered on landing):
+        # parentheses and the arrow ">" are also legal in \newlabel keys
+        # (author labels "prop: grading of Jac(f)", "thm:ccn->2ps").
+        # 2026-10-14 CONTROL (be) ignition (Chief-approved, lane-x4 evidence
+        # pack): "=" and "+" are legal -- external-label layer only,
+        # claim_key layer untouched; downstream-splitting audit found no
+        # splitting semantics; unparks univ-fin / S5fmp / 029-tw-refl and
+        # the sigma-2023-023 "+" park (labels "eq DC+", "impliSH2=PHI").
+        # 2026-10-14 CONTROL (bg) merge ruling (Chief-approved): "*" joins
+        # the same classes in one edit (label "eq:PgLambdaT*Mcoord");
+        # tri-char single regression run, no second window.
+        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*][A-Za-z0-9:_. \-/()>+=*]*", str(reference.get("label", ""))), "invalid external label")
         require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
         require(re.fullmatch(r"[A-Za-z0-9.()-]+", str(reference.get("number", ""))), "original reference number required")
@@ -886,10 +898,26 @@ def _registry_for(source_dir=None, file_name=None):
 
 
 def form_equivalent(left, right, evidence_path=None):
-    """True only for the two recorded shapes of the same pinned source (Chief ruling D')."""
+    """True for the recorded shapes of the same pinned source (Chief ruling D').
+
+    1. Same recorded shape with every parsed field equal (git: hash+file+snapshot;
+       tree: file+snapshot): a separator or whitespace difference (";" vs ",")
+       carries no identity change and involves no cross-form mapping, so no
+       registry lookup is needed.  2026-10-14 CONTROL (br) root-fix, S3-co
+       batch-198 case: the assembled package evidence kept the ";" spelling
+       while the task string used ",", the same-form guard below rejected the
+       pair, adopt-material died before writing final-item and prepare lost
+       those items batch after batch.
+    2. Cross-shape git vs tree of the same source, proven through the pinned
+       commit recorded for that source (sources/<dir>/SOURCE.json).  A mapping
+       that is not on record is NOT exempted.
+    """
     a, b = _conn_form(left), _conn_form(right)
-    if not a or not b or a["form"] == b["form"]:
+    if not a or not b:
         return False
+    if a["form"] == b["form"]:
+        return (a["hash"] == b["hash"] and a["file"] == b["file"]
+                and a["snapshot"] == b["snapshot"])
     if a["file"] != b["file"] or a["snapshot"] != b["snapshot"]:
         return False
     git_side = a if a["form"] == "git" else b
