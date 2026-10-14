@@ -1,0 +1,7 @@
+Official CSL2026.31 published2026-02-18 CC BY4.0. Count Theorem17 only: PGR-emptiness undecidability for one-clock/one-parameter PDTNs, with the original with-or-without-invariants wording preserved. Complete chosen author proof is in official AppendixA4; complete actual Lemma11/Prop13/Prop14 encodings and all original gadget figures retained. Whole official mathematical article and appendices are reproduced, but supporting cases/theorems are not separate inventory.
+
+Actual full-version alias arxiv2512.04991v1 is nonexclusive. Official Theorem20 positive decidability has only a sketch and refers to this full version; that positive theorem is NOT selected/counted and its missing licensed full proof is explicitly acknowledged. No official CC BY license is applied to nonexclusive full-version rawcache. Public arxiv metadata is kept only for alias/license evidence; no full arxiv manuscript included.
+
+MathML-alttext mathematics, publisher prose and all16 original SVG graphics with vector PDF conversions retained, plus original x1 inline symbol image. All selected proof continuations and original block identifiers preserved. Math embedding graphics keeps its complete adjacent TeX. Script/run_extract.sh provides reproducible extraction using existing project Python/bs4/fitz; no installation/TeX/author-program execution. Original full publisher HTML/PDF retained.
+
+Full old14875/prep7826/three other lines640,457,219 exact DOI/actual arxiv alias query returns zero neighbors; root fulltitle query0 also reused. One work/version group.

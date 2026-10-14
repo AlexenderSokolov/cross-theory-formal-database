@@ -84,6 +84,28 @@ ALIASES.extend([['10.4230/lipics.fscd.2026.22','olaure01/islogic']])
 
 ALIASES.extend([['10.4230/lipics.socg.2026.28','2603.21617'],['10.4230/lipics.socg.2026.29','2603.21790']])
 
+ALIASES.extend([['10.4230/lipics.socg.2026.30','2603.21585'],['10.4230/lipics.socg.2026.31','2601.03516'],['10.4230/lipics.csl.2026.20','2608.28473','phart3/colimits-agda'],['10.4230/lipics.fscd.2026.33','05694098']])
+
+ALIASES.extend([['10.4230/lipics.fscd.2026.32','right_forward_closure','right-forward closures']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.32','18877833'],['10.4230/lipics.socg.2026.33','2603.28268']])
+
+ALIASES.extend([['10.4230/lipics.csl.2026.23','2506.14538'],['10.4230/lipics.csl.2026.24','2507.18539']])
+
+ALIASES.extend([['10.4230/lipics.csl.2026.21','2512.10064','05553827']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.34','2603.09846'],['10.4230/lipics.socg.2026.35','2512.07728']])
+
+ALIASES.extend([['10.4230/lipics.csl.2026.22','2501.16208']])
+
+ALIASES.extend([['10.4230/lipics.socg.2026.36','2603.17128'],['10.4230/lipics.socg.2026.37','04816535']])
+
+ALIASES.extend([['10.4230/lipics.csl.2026.25','2504.08639'],['10.4230/lipics.csl.2026.26','2507.10732']])
+
+ALIASES.extend([['10.4230/lipics.csl.2026.27','2508.03574'],['10.4230/lipics.csl.2026.28','2507.18246']])
+
+ALIASES.extend([['10.4230/lipics.csl.2026.31','2512.04991'],['10.4230/lipics.csl.2026.32','2509.00506']])
+
 LANES=[('codex-parallel-work-20261013','codex-parallel-20261013'),('codex-work-01a13326','codex-01a13326-20261013'),('codex-work-01a1332f','codex-01a1332f-20261013')]
 @cache
 def read(p):return p.read_text(encoding='utf-8-sig')
