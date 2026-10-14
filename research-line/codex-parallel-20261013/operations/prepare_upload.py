@@ -11,6 +11,9 @@ def identity(t):
  if m:
   source='stacks-project:'+m.group(1)
   if claim.startswith('stacks:'):claim=claim.split(':',2)[-1]
+  # Original statement labels identify the same Stacks claim when one task uses a tag.
+  labels={str(x.get('label','')).strip().lower() for x in t.get('statement_spans',[]) if re.fullmatch(r'(?:lemma|theorem|proposition|remark|example|definition)-[a-z0-9_-]+',str(x.get('label','')).strip().lower())}
+  if len(labels)==1:claim=next(iter(labels))
  return source,claim
 items=[json.loads(x) for x in (D/'ITEMS.jsonl').read_text().splitlines()];targets={identity(x):x['task_id'] for x in items};duplicates=[]
 for x in [json.loads(l) for l in (B/'PREPARATION_WORKLIST.jsonl').read_text(encoding='utf-8-sig').splitlines() if l.strip()]:
