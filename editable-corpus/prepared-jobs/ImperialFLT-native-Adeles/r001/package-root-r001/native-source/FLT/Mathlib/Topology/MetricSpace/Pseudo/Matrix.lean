@@ -1,0 +1,33 @@
+/-
+Copyright (c) 2025 Salvatore Mercuri. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Salvatore Mercuri, Kevin Buzzard
+-/
+module
+
+public import Mathlib.Analysis.Normed.Ring.Basic
+public import Mathlib.Topology.Instances.Matrix
+import FLT.Mathlib.Topology.Constructions
+
+/-!
+# Matrix
+
+Material destined for Mathlib.
+-/
+
+@[expose] public section
+
+/-- Let `A : X → Matrix n n R` be a parameterisation of a matrix ring with entries in a
+seminormed commutative ring `R` by a metric space `X` and let `f : Y → X` be dense.
+If the identity matrix is in the parameterisation `A`, then there exists a
+`y : Y` such that `A (f y)` has non-zero determinant. -/
+theorem DenseRange.exists_matrix_det_ne_zero {X Y n R : Type*} [PseudoMetricSpace X]
+    [Fintype n] [DecidableEq n] [SeminormedCommRing R] [NormOneClass R]
+    [IsTopologicalRing R] {A : X → Matrix n n R} {f : Y → X} (hA : Continuous A) (hf : DenseRange f)
+    {b : X} (hb : A b = 1) :
+    ∃ y, (A (f y)).det ≠ 0 := by
+  replace hf := hf.codRestrict_comp (Continuous.matrix_det hA)
+  simp only [Metric.denseRange_iff, gt_iff_lt, Function.comp_apply, Subtype.forall, Set.mem_range,
+    forall_exists_index] at hf
+  let ⟨y, h⟩ := hf (A b).det b rfl (1 / 2) (by linarith)
+  exact ⟨y, fun hc => by simp [Subtype.dist_eq, hc, hb] at h; linarith⟩

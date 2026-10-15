@@ -1,0 +1,1 @@
+Full original author work is retained at /disks/sata1/yupeng/human-proof-corpus/operations/corpus-maintenance-20261015-01a13ff0/processing/imperial-flt/author-original; see source_version and original Apache LICENSE. Same-work full native proof chain is in parent delivery for Fujisaki; Hurwitz native endpoint remains incomplete.

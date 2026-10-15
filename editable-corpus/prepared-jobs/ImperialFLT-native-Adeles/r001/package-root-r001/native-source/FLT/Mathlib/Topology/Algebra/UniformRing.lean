@@ -1,0 +1,53 @@
+/-
+Copyright (c) 2025 Kevin Buzzard. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Kevin Buzzard, Salvatore Mercuri
+-/
+module
+
+public import Mathlib.Topology.Algebra.UniformRing
+public import FLT.Mathlib.Algebra.Algebra.Hom
+
+/-!
+# Completion of topological rings
+-/
+
+@[expose] public section
+
+namespace UniformSpace.Completion
+
+variable {α : Type*} [Ring α] [UniformSpace α] [IsTopologicalRing α] [IsUniformAddGroup α]
+  {β : Type*} [UniformSpace β] [Ring β] [IsUniformAddGroup β] [IsTopologicalRing β]
+  (f : α →+* β) (hf : Continuous f)
+
+variable {f}
+
+/-- The semialgebra homomorphism `Completion α →ₛₐ[f] Completion β` induced from
+a continuous ring homomorphism `f : α →+* β`.
+-/
+noncomputable def mapSemialgHom {α : Type*} [CommRing α] [UniformSpace α]
+    [IsTopologicalRing α] [IsUniformAddGroup α] {β : Type*} [UniformSpace β] [CommRing β]
+    [IsUniformAddGroup β] [IsTopologicalRing β] (f : α →+* β) (hf : Continuous f) :
+    Completion α →ₛₐ[f] Completion β where
+  __ := UniformSpace.Completion.mapRingHom f hf
+  map_smul' m x := by
+    simp only [RingHom.toMonoidHom_eq_coe, OneHom.toFun_eq_coe, MonoidHom.toOneHom_coe,
+      MonoidHom.coe_ofClass]
+    rw [Algebra.smul_def, map_mul, Algebra.smul_def]
+    congr
+    exact extensionHom_coe _ _ m
+
+theorem mapSemialgHom_apply {α : Type*} [CommRing α] [UniformSpace α]
+    [IsTopologicalRing α] [IsUniformAddGroup α] {β : Type*} [UniformSpace β] [CommRing β]
+    [IsUniformAddGroup β] [IsTopologicalRing β] (f : α →+* β) (hf : Continuous f)
+    (x : UniformSpace.Completion α) :
+    mapSemialgHom f hf x = UniformSpace.Completion.map f x := rfl
+
+theorem mapSemialgHom_coe {α : Type*} [CommRing α] [UniformSpace α]
+    [IsTopologicalRing α] [IsUniformAddGroup α] {β : Type*} [UniformSpace β] [CommRing β]
+    [IsUniformAddGroup β] [IsTopologicalRing β] {f : α →+* β} (hf : UniformContinuous f)
+    (a : α) :
+    mapSemialgHom f hf.continuous a = f a := by
+  rw [mapSemialgHom_apply, map_coe hf]
+
+end UniformSpace.Completion
