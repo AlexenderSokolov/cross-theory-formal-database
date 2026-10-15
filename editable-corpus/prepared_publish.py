@@ -964,9 +964,10 @@ def prefetch_public_job_blobs(repo, commit, incoming):
     ordered = sorted(objects)
     batches = 0
     for offset in range(0, len(ordered), 64):
-        # Explicit --filter is required by the server's Git 2.17 partial-clone
-        # client. Directly wanted blobs are still transferred by the server.
-        git(["--git-dir", repo, "fetch", "--filter=blob:none", "--no-tags", "origin", *ordered[offset:offset + 64]])
+        # Git 2.17 quickfetch treats missing promisor blobs as connected and
+        # can skip object transfer. A depth request bypasses that shortcut;
+        # explicit --filter remains required by that partial-clone client.
+        git(["--git-dir", repo, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", *ordered[offset:offset + 64]])
         batches += 1
     return {"objects_requested": len(ordered), "fetch_batches": batches}
 
