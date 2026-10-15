@@ -437,7 +437,18 @@ def assemble(task_path, task_root, output_root, *, compile_now=True, material_on
         # theorem or proof is manufactured in the delivered mathematical body.
         for i, reference in enumerate(references, 1):
             label, kind, number = reference["label"], reference["kind"], reference["number"]
-            name = "original" + kind
+            # 2026-10-15 CONTROL 8.8.193 (duty manager, Chief merged ruling for
+            # the lane-s13/lane-s12 pointer cases): the pointer block name is the
+            # label prefix (the text before the first colon) so it matches the
+            # name the delivered body actually writes; prefix-less labels keep
+            # the historical synthetic name.  Host probes t1/t5 (2026-10-15,
+            # xelatex): cleveref takes the type from the @cref entry and accepts
+            # either name without demanding a counter, so the rename is safe.
+            # The real r001-r004 failure was initial_counters \setcounter on an
+            # undeclared counter, resolved by the chain before \begin{document}.
+            name = label.split(":", 1)[0] if ":" in label else ""
+            if not name:
+                name = "original" + kind
             preamble += "\\crefname{" + name + "}{original " + kind + "}{original " + kind + "s}\n"
             preamble += "\\Crefname{" + name + "}{Original " + kind + "}{Original " + kind + "s}\n"
             preamble += "\\makeatletter\n\\newlabel{" + label + "}{{" + number + "}{source}{}{sourcepointer-" + str(i) + "}{}}\n"
@@ -447,8 +458,56 @@ def assemble(task_path, task_root, output_root, *, compile_now=True, material_on
                 r"\author{" + tex_escape(", ".join(task["authors"])) + "}",
                 r"\date{" + tex_escape(task["source_id"] + "; " + task["license"]["name"]) + "}",
                 r"\begin{document}", r"\maketitle"]
-        for name, value in task["assembly"].get("initial_counters", {}).items():
-            out.append(r"\setcounter{" + name + "}{" + str(value) + "}")
+        # 2026-10-15 CONTROL 8.8.193 (duty manager, Chief merged ruling):
+        # initial_counters keys must resolve to a real counter before
+        # \setcounter is emitted.  Resolution order: explicit
+        # assembly.counter_map, then discovery in the card preamble (the key
+        # is a counter itself, or a theorem environment whose declared parent
+        # chain ends in one), then fail closed -- a bare \setcounter on an
+        # undeclared name is exactly the lane-s12 alco-491 r001-r004 failure
+        # ("No counter 'lemma' defined", host log l.99).  An environment
+        # alias (\newtheorem{X}[Y]{..}) shares Y's counter and creates none,
+        # which is why the alias shim alone never fixed it.
+        declared_parents = {}
+        own_counters = set()
+        for m in re.finditer(r"\\newtheorem(\*?)\{([^}]+)\}(?:\[([^\]]+)\])?\{", preamble):
+            if m.group(1):
+                continue
+            env_name = m.group(2).strip()
+            parent = (m.group(3) or "").strip()
+            if parent:
+                declared_parents[env_name] = parent
+            else:
+                own_counters.add(env_name)
+        own_counters.update(("section", "subsection", "subsubsection", "paragraph", "subparagraph",
+                             "equation", "figure", "table", "footnote", "page", "enumi", "enumii", "enumiii", "enumiv"))
+        counter_map = task["assembly"].get("counter_map")
+        require(counter_map is None or isinstance(counter_map, dict), "counter_map must be an object")
+        counter_map = counter_map or {}
+
+        def resolve_counter(key, seen=None):
+            key = str(key).strip()
+            if key in counter_map:
+                mapped = str(counter_map[key]).strip()
+                require(mapped != key, "counter_map entry for " + key + " maps to itself")
+                resolved = resolve_counter(mapped, set()) if mapped in counter_map else resolve_counter(mapped)
+                require(resolved is not None, "counter_map maps " + key + " to undeclared counter " + mapped)
+                return resolved
+            if key in own_counters:
+                return key
+            if key in declared_parents:
+                seen = set() if seen is None else seen
+                require(key not in seen, "cyclic theorem counter alias at " + key)
+                seen.add(key)
+                return resolve_counter(declared_parents[key], seen)
+            return None
+
+        for counter_key, value in task["assembly"].get("initial_counters", {}).items():
+            counter_name = resolve_counter(counter_key)
+            require(counter_name is not None,
+                    "initial_counters key " + str(counter_key) + " does not resolve to a declared counter; "
+                    "declare the family in the card preamble or add assembly.counter_map")
+            out.append(r"\setcounter{" + counter_name + "}{" + str(value) + "}")
         if task["assembly"].get("editorial_note"):
             out.append(r"\noindent\textit{Editorial scope.} " + tex_escape(task["assembly"]["editorial_note"]) + r"\par\medskip")
         for note in task["assembly"].get("editorial_notes", []):
