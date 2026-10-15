@@ -16,6 +16,18 @@
 
 ## 当前云端 TeX 运行时
 
-系统 TeX 源完整，但格式库与文件名索引的系统符号链接目标缺失。首次编译因找不到 xelatex.fmt 失败；仅在本线 `.work/texmf/web2c/xetex` 构建格式后原作业续跑成功。没有安装软件或修改全局配置。复现：在该目录运行 `TEXMF='{/usr/share/texmf,/usr/share/texlive/texmf-dist}' xetex -ini -etex -jobname=xelatex -progname=xelatex -interaction=nonstopmode -halt-on-error xelatex.ini`。包装脚本仅当本地格式存在时设置 TEXMF/TEXFORMATS，避开失效的系统 ls-R 索引；缓存不上传。
+系统 TeX 源完整，但格式库与文件名索引的系统符号链接目标缺失。首次编译因找不到 xelatex.fmt 失败；仅在本线 `.work/texmf/web2c/xetex` 构建格式后原作业续跑成功。该首次格式修复没有修改全局配置；后续缺失依赖只安装在本线私有缓存，见下方版本说明。复现：在该目录运行 `TEXMF='{/usr/share/texmf,/usr/share/texlive/texmf-dist}' xetex -ini -etex -jobname=xelatex -progname=xelatex -interaction=nonstopmode -halt-on-error xelatex.ini`。包装脚本仅当本地格式存在时设置 TEXMF/TEXFORMATS，避开失效的系统 ls-R 索引；缓存不上传。
 
 `format_source_pointers.py` 仅对编辑性 Source reference 行里的来源路径斜杠添加可断行点，保持换行数及作者数学正文不变，拒绝已开始编译的作业。实际发现截断后才修复并编译新排版版本；不重编译未变成功题证。
+
+## 后续标准依赖与复现
+
+2026-10-15 的实际任务还使用官方发行的 `faktor 0.1b`、`mathdots 0.9`、`biblatex 3.21`、`logreq 1.0`、`ytableau 1.4`、`mathabx` 字体及 `Biber 2.21`。它们来自 CTAN 或项目官方发行源，原许可证保留；没有用替代数学符号来绕过字体缺项。安装只在本线 `.work/texmf` 与 `.work/biber-2.21`，系统目录、网络和安全设置未改。
+
+一般完整 TeX Live 环境可由标准包管理器提供这些依赖。当前特殊云镜像需本地 `xelatex.fmt` 与 `mf.base`，私有字体映射仅补充 mathabx，未替换作者正文。`run_compile.sh` 会检测本线 Biber 路径，所有缓存均不进入公开题证包。
+
+`compile_material.py` 将包根加入 `BIBINPUTS`，保留原搜索路径，解决作者 `items/*.bib` 引用在独立构建目录中不可见的问题。它仍保留已有 `BSTINPUTS` 行为。回归测试见 `test_compile_material.py`；四项通过，整套本线工具测试二十五项通过。这不是整库测试或数学认证。
+
+## 准备分支与最终准入
+
+保存快照范围内的定向查重、材料及可读性检查与最终当前在途确认分开记录。最新在途身份未确认时，准备包附 `PUBLICATION_LIMITS.md`，不得作为现行全局唯一资格或生产主库新增计数。已知重复、缺少完整作者主证明或许可不明的条目不因上传而转为合格。

@@ -20,5 +20,6 @@ package = job / state["package"]
 row = json.loads((package / "manifest.json").read_text())["items"][0]
 item_dir = (package / row["item_path"]).parent
 os.environ["BSTINPUTS"] = str(item_dir) + os.pathsep + os.environ.get("BSTINPUTS", "")
+os.environ["BIBINPUTS"] = str(package) + os.pathsep + os.environ.get("BIBINPUTS", "")
 sys.argv = [sys.argv[0], "compile-job", *sys.argv[1:]]
 raise SystemExit(delivery.main())

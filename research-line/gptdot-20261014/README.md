@@ -6,37 +6,30 @@
 
 ## 当前进度
 
-2026-10-15 01:01 UTC 快照：14 个作品形成 17 个候选主张，其中 4 道可用作者题证已实际编译、完成可读性检查并写入含完整题面的 SQLite。其余 8 道待最终在途范围整合及装配，2 道暂缓，3 道排除（2 道来源先被他线收集，1 道与既有计数主张重复）。已上传题目为 0，生产主库公开增量为 0。候选、已编译、已入库和已上传分别计数，同一任务的修订不重复计数。
+2026-10-15 02:59 UTC：20 个登记候选任务，来自 17 个原始作品。其中 15 道已有完整作者题证、实际编译与可读性检查，并完整保存到本线 SQLite；2 道暂缓，3 道排除。准备分支已交付 4 道，生产主库公开增量 0。冻结发布副本、缓存、文件和修订均不另计题数。
 
-首批 [INDEX](delivery/batch-001/INDEX.md)、[ITEMS](delivery/batch-001/ITEMS.jsonl)、[SELECTION](delivery/batch-001/SELECTION.json) 和 [完整 SQLite](delivery/batch-001/corpus.sqlite3) 在本地准备完成；公开上传及远端核验尚未发生。现有启动文档提交不计题目上传数。
-
-- MD-0001 r001：Reducing Stochastic Games to Semidefinite Programming，Corollary 10 整体证明链；11 页
-- LL-0002 r002：Weak Steinberg relations imply the full graded A3, B3-small and B3-large relation sets；112 页，完整作者 Lean 代码已收录并排版，未执行 Lean，不声称形式化验证通过
-- MD-0003 r001：Possible Sizes of Sumsets，Theorem 1.4 及完整当前核心；16 页
-- PM-0004 r002：Composite Ramsey Theorems via Trees，独立几何-family 提升 Proposition 4.1；9 页
-
-四道均有实际编译成功回执和 `readable` 呈现检查记录。LL-0002 的检查为选页视读及全页文本边界检查；这不是逐页语义阅读。旧 r001 排版修订记录保留，不作为第二道题或本次公开成品。
+[已发布首批 INDEX](delivery/batch-001/INDEX.md) 包含 4 道；[待发布第二批 INDEX](delivery/batch-002/INDEX.md) 包含其余 11 道。各批次具有独立完整 SQLite、ITEMS 和 SELECTION，任务集合不重合。首批远端提交为 `1bc7a42971fb6705cfd04b937c393d569c4683b6`，已核实分支及固定提交入口；文件对象数不作为题目交付数。共 15 道本地准备成品。
 
 ## 查重范围与继续位置
 
-五条生产线在途身份快照已取得，完整工作清单身份均解析；2026-10-14 15:24:39 UTC 的增量检查未发现文件变化。公开主库增量最近复核至 `d6606aed2c59c18b3beb393b6488c8a0a8396a76`（20,588 条材料）：较 20,464 条快照新增 124 条，没有旧行变动，也没有四道成品当前来源或定向主张关键词命中；检查时间为 2026-10-14 15:47:17 UTC，见 [批次增量记录](delivery/batch-001/DEDUP_REFRESH.json)。材料总数不能转换为正式合格题数。
+完整旧库与保存的在途身份已参与定向检查；最后成功在途快照截至 2026-10-14 17:36:45 UTC。公开 main 已复核至 `652c73d739c2d5f85ef9e56e2b14e93310b2e024`；前次以来的 398 条新增没有已查候选的新精确身份命中。LL-0004 的旧同源条目 190870 已单独比较计数主张，不能把同源或共享引理直接当重复。
 
-这些是有时间边界的已完成检查，不冒充 2026-10-15 的实时在途状态。上传前仍须刷新公开分支与全部在途变动。查重按具体计数主张及完整主证明义务判断，不以来源别名零命中替代语义比较。
+此后在途重合情况尚未确认，见 [准备交付限制](delivery/batch-001/PUBLICATION_LIMITS.md)。本分支和备份只提供准备材料，不据此宣称现行全局唯一资格，也不增加生产主库计数。后续接收仍须完成现有准入步骤。
 
-8 道待处理：LL-0003、LL-0004、MD-0004、MD-0005、PM-0005、PM-0006、PM-0007、PM-0008。它们尚未进入本批成品或 SQLite，不计可用或已编译题。继续完成最终范围整合后逐题装配、实际编译、视读及入库，积累约 25 道净新增可用作者题证一批；上传核验后继续下一批。数量是快照，不能用此文件中的继续指令宣称存在后台运行服务。
+继续在独立云电脑整理新的精确作品、处理实际 TeX/许可/完整性问题并完成提交；不操作服务器或其他产线。ALCO502 已完成并纳入上述候选和成品；ALCO505 仍仅预筛，未形成 task.json，不计题数。
 
 ## 当前作品分工与别名
 
 本节供其他产线识别已开展的取材，避免并行重复；不是正式预约或准入。
 
-### 已编译入库的四道
+### 首四道已编译入库材料
 
 - MD-0001：Reducing Stochastic Games to Semidefinite Programming；DOI 10.4230/LIPIcs.ICALP.2025.145；arXiv 2411.09646；HAL hal-04902257、hal-05388185。只用固定正式会议版的 Corollary 10 整体证明链，不将其他版本许可混入
 - LL-0002：ITP2025.9，steinberg-formalization，作者代码固定提交 `e02f0aaba4b045f5c1eadfe9078a3027a3b52d68`；原结果 arXiv 2411.05916、ICALP2021.84。已与 CCC2022.18 的既有全关系群内 normal form 作定向区分；未运行 Lean
 - MD-0003：Possible Sizes of Sumsets；arXiv 2510.23022v3，DOI 10.19086/da.165102；Theorem 1.4 及完整当前核心整体一题，作者后续披露的模型生成直径界不收
 - PM-0004：Composite Ramsey Theorems via Trees；arXiv 2210.14311v3，DOI 10.19086/da.165253；只计独立完整几何-family 提升 Proposition 4.1。迭代主定理 1.2 缺作者当前扩展正文而不收，不把该同作品未选目标另加为候选题数
 
-### 八道待处理候选
+### 后续八道候选及其来源（当前完成状态见上方 INDEX）
 
 - LL-0003：G3-Criteria and Applications，Mihai Halic，arXiv 2401.16196v4，DOI 10.46298/epiga.2026.12974；主 Theorem 3.1
 - LL-0004：SIGMA 22 (2026), 091，DOI 10.3842/SIGMA.2026.091；奇异 Helffer–Nourrigat 锥的 dilation-compatible global Pedersen stratification
@@ -54,7 +47,7 @@
 
 ## 公开交付范围与许可
 
-以逐题明确白名单和 `operations/prepare_upload_manifest.py` 的实际输出选择文件，不整目录暂存。发布候选清单为 `delivery/batch-001/PUBLIC_UPLOAD_MANIFEST.json`；它记录四道有效修订的成品、完整 SQLite、索引、必要原件和许可，以及本线说明文件。清单不表示已经提交或上传；内容变化后须重新生成。
+以逐题明确白名单和 `operations/prepare_upload_manifest.py` 的实际输出选择文件，不整目录暂存。发布候选清单为 `delivery/batch-002/PUBLIC_UPLOAD_MANIFEST.json`；它记录当前选择的有效修订成品、完整 SQLite、索引、必要原件和许可，以及本线说明文件。清单不表示已经提交或上传；内容变化后须重新生成。
 
 - ICALP2025.145 仅公开正式会议版 CC BY 4.0 范围；arXiv 2411.09646v1/v2 的 nonexclusive 来源、HAL 材料及未明确许可的第三方样式不列入
 - ITP2025.9 会议论文为 CC BY 4.0，固定作者 Lean 代码为 Apache-2.0，分别保留署名与许可。外部标准 Lean/mathlib 依赖只保留固定版本引用，不重新打包
@@ -66,3 +59,12 @@
 复用本线 [operations 说明](operations/README.md)。使用系统 Python 3、XeLaTeX 和 latexmk，无 shell escape；仅在本线维护所需运行缓存。未变成功材料不重复编译。公开上传验证前保留来源、成品、旧修订和失败记录，只按既有授权处理可恢复缓存。
 
 SQLite 保存完整题面、作者证明、必要上下文和成品 TeX，行状态保持 `prepared_unpublished`。ITEMS 的 `problem_id` 为 null；SQLite 内 `task_json` 沿用装配器生成的本线 GPDOT 任务 ID 作为内部 `problem_id`，不属于正式题号分配。上传使用现有授权连接，仅普通快进更新本线准备分支；核对远端提交、入口和文件可用后再记录上传数。不得 force push、改动生产控制或把上传当成正式准入。
+
+## 后续已完成的两个原始作品
+
+- LL-0005：Hyperbolic actions of Thompson's group F and generalizations，DOI 10.5802/alco.506；使用正式期刊公开 TeX，Theorem A / 4.4 及完整当前核心整体一题，21 页。
+- MD-0006：Representation Stability in the Intrinsic Hyperplane Arrangements Associated to Irreducible Representations of the Symmetric Groups，DOI 10.5802/alco.498；正式 CC BY 4.0 PDF 忠实转录，Theorem 3.7 及完整当前 Proposition 3.5 核心整体一题，6 页。
+
+## 最新已完成作品
+
+- LL-0006：Shuffle Tableaux, Littlewood–Richardson Coefficients, and Schur Log-Concavity，DOI 10.5802/alco.502，正式 CC BY 4.0 TeX。独立 Proposition 2.13 及 Lemmas 2.14–2.17 完整作者证明整体一题，7 页；不收缺少完整当前证明的另一个主定理 1.2。四个图形从同版正式 PDF 精确矢量提取。r003 修正编辑性前提引用为 Corollary 2.7，作者数学正文未改。
