@@ -69,9 +69,9 @@ def prepare(root, batch='batch-001'):
         return path
 
     originals = {tid: [] for tid in ids}
-    # task.json only; prepared-task.json snapshots are deliberately not candidates.
+    # Canonical task.json only; package snapshots and archived revisions are not candidates.
     for path in line.rglob('task.json'):
-        if any(part.startswith('.') or part in {'jobs', 'delivery', 'operations'} for part in path.relative_to(line).parts):
+        if any(part.startswith('.') or part in {'jobs', 'delivery', 'operations', 'revisions'} for part in path.relative_to(line).parts):
             continue
         task = load(path)
         if task.get('task_id') in originals:

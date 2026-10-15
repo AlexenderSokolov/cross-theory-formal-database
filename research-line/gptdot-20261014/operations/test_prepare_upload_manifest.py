@@ -77,6 +77,15 @@ class UploadManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'exactly one original'):
             prepare(self.root)
 
+    def test_archived_revision_is_not_a_canonical_original(self):
+        archived = self.task_path.parent / 'revisions/r001/task.json'
+        self.write(archived, self.task)
+        result = prepare(self.root)
+        paths = {f['path'] for f in result['files']}
+        self.assertEqual(result['selected_count'], 1)
+        self.assertIn(self.task_path.relative_to(self.root).as_posix(), paths)
+        self.assertNotIn(archived.relative_to(self.root).as_posix(), paths)
+
     def test_missing_whitelist_fails(self):
         del self.task['public_dependency_paths']
         self.write(self.task_path, self.task)

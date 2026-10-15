@@ -6,9 +6,13 @@
 
 ## 当前进度
 
-2026-10-15 03:18 UTC：20 个登记候选任务，来自 17 个原始作品。其中 15 道已有完整作者题证、实际编译与可读性检查，并完整保存到本线 SQLite；2 道暂缓，3 道排除。准备分支已交付 15 道，生产主库公开增量 0。冻结发布副本、缓存、文件和修订均不另计题数。
+2026-10-15 04:58 UTC：32 个当前候选任务，来自 29 个原始作品。其中 26 道完整作者题证已经实际编译、通过可读性检查并完整保存到本线 SQLite；3 道暂缓，3 道排除。准备分支已交付 15 道，第三批 11 道本地完成、尚未上传。生产主库本线公开增量 0。归档修订、冻结副本及未登记的预筛来源不计候选或新增。
 
-[已发布首批 INDEX](delivery/batch-001/INDEX.md) 包含 4 道；[已发布第二批 INDEX](delivery/batch-002/INDEX.md) 包含其余 11 道。各批次具有独立完整 SQLite、ITEMS 和 SELECTION，任务集合不重合。首批远端提交为 `1bc7a42971fb6705cfd04b937c393d569c4683b6`，已核实分支及固定提交入口；文件对象数不作为题目交付数。第二批远端提交为 `8f4a372766c903ac7ac967e944f5975ddd5f8a4c`，已核实分支及固定提交入口。共 15 道本地准备成品，均已交付准备分支。
+- [第一批 INDEX](delivery/batch-001/INDEX.md)：4 道，已发布提交 `1bc7a42971fb6705cfd04b937c393d569c4683b6`
+- [第二批 INDEX](delivery/batch-002/INDEX.md)：11 道，已发布提交 `8f4a372766c903ac7ac967e944f5975ddd5f8a4c`
+- [第三批 INDEX](delivery/batch-003/INDEX.md)：11 道，准备中，尚未发布
+
+各批有独立完整 SQLite、ITEMS 与 SELECTION；任务集合不重叠。公开状态回执提交 `ff2e62f092edc55c5f21aa69feefa7426a467425` 记录前两批累计 15 道。冻结清单中的 prepared_unpublished 是创建时状态，不能代替之后的 UPLOADED 回执或触发重复上传。
 
 ## 查重范围与继续位置
 
@@ -47,7 +51,7 @@
 
 ## 公开交付范围与许可
 
-以逐题明确白名单和 `operations/prepare_upload_manifest.py` 的实际输出选择文件，不整目录暂存。发布候选清单为 `delivery/batch-002/PUBLIC_UPLOAD_MANIFEST.json`；它记录当前选择的有效修订成品、完整 SQLite、索引、必要原件和许可，以及本线说明文件。清单不表示已经提交或上传；内容变化后须重新生成。
+以逐题明确白名单和 `operations/prepare_upload_manifest.py` 的实际输出选择文件，不整目录暂存。发布候选清单为 `delivery/batch-003/PUBLIC_UPLOAD_MANIFEST.json`；它记录当前选择的有效修订成品、完整 SQLite、索引、必要原件和许可，以及本线说明文件。清单不表示已经提交或上传；内容变化后须重新生成。
 
 - ICALP2025.145 仅公开正式会议版 CC BY 4.0 范围；arXiv 2411.09646v1/v2 的 nonexclusive 来源、HAL 材料及未明确许可的第三方样式不列入
 - ITP2025.9 会议论文为 CC BY 4.0，固定作者 Lean 代码为 Apache-2.0，分别保留署名与许可。外部标准 Lean/mathlib 依赖只保留固定版本引用，不重新打包
@@ -68,3 +72,11 @@ SQLite 保存完整题面、作者证明、必要上下文和成品 TeX，行状
 ## 最新已完成作品
 
 - LL-0006：Shuffle Tableaux, Littlewood–Richardson Coefficients, and Schur Log-Concavity，DOI 10.5802/alco.502，正式 CC BY 4.0 TeX。独立 Proposition 2.13 及 Lemmas 2.14–2.17 完整作者证明整体一题，7 页；不收缺少完整当前证明的另一个主定理 1.2。四个图形从同版正式 PDF 精确矢量提取。r003 修正编辑性前提引用为 Corollary 2.7，作者数学正文未改。
+
+## 第三批本地完整材料
+
+PM-0009 至 PM-0014 分别对应 arXiv2307.10461v4（双曲性）、2408.11645v3（K3 型循环核界）、2207.07623v3（perfectoid torsor 拓扑比较）、2302.09412v3（del Pezzo GW 对应）、2502.17236v3（descendant log-GW 与量子 broken lines）、2211.16207v5（norm 延拓判据）。LL-0007 为 DOI10.5802/ahl.276 的 Lemma6.2 完整小扩张构造；MD-0007 为 DOI10.5802/ahl.275 的自由 multi-Novikov 实现；MD-0008 为 DOI10.5802/jep.338 的 Proposition4.5 同时形式延拓。具体题干、完整作者核心、许可和可复现来源见逐题记录与第三批索引；未上传不计公开交付。
+
+ALCO505 只保留未登记的来源暂缓记录：正式作者多项式的两种给定表达有直接数值矛盾，未修改数学或计入候选。DA144978 的主证明所引 notebook 未随已得版本取得，同样不计完整产出。
+
+第三批另含 MD-0009（DOI10.5802/alco.495，Theorem1.1 完整第一证明）与 LL-0008（DOI10.5802/alco.500，校正后正式出版 Theorem4.3 及完整当前构造核心）。ALCO497/MD-0010 已登记为来源暂缓，未装配、编译或计可用；其最终证明中的原文歧义保留，没有自行解释修复。
