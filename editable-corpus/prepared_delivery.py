@@ -1171,7 +1171,11 @@ def adopt_material(job, output_root, reservations_path):
         state = load(target / "job-state.json")
         require(state.get("adopted_from") == str(job) and state.get("problem_id") == ident and
                 state.get("preparation_basis") == MATERIAL_BASIS, "existing adoption conflicts with source or reservation")
-        return dict(verify_job(target), job=str(target), resumed=True)
+        report = verify_job(target)
+        final_report = target / ("final-item-root-" + task["revision"] + ".json")
+        if not final_report.exists():
+            save(final_report, report)
+        return dict(report, job=str(target), resumed=True)
     # Copy the existing package and declared compile outputs; no rebuilding.
     manifest = load(package / "manifest.json")
     require(len(manifest["items"]) == 1, "one material per job required")

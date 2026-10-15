@@ -861,6 +861,28 @@ def use_public_base_cache(consumer_git_dir, base_git_dir, base_commit, candidate
     d.require(COMMIT.fullmatch(base_commit) and (cache / "objects").is_dir(), "public baseline object cache missing")
     d.require(git(["--git-dir", cache, "cat-file", "-t", base_commit]) == "commit",
               "frozen public baseline commit missing from cache")
+    # The caller chooses the previously reconciled public store. Reject a
+    # candidate store even when it is hidden behind another store's alternates.
+    pending, seen = [cache / "objects"], set()
+    while pending:
+        objects = pending.pop().resolve()
+        d.require(objects != candidate_git_dir / "objects", "baseline cache reaches candidate objects")
+        if objects in seen:
+            continue
+        seen.add(objects)
+        links = objects / "info/alternates"
+        if links.is_file():
+            for line in links.read_text(encoding="utf-8").splitlines():
+                if line:
+                    other = Path(line)
+                    pending.append(other if other.is_absolute() else objects / other)
+    candidate_commit = git(["--git-dir", candidate_git_dir, "rev-parse", "HEAD"])
+    try:
+        git(["--git-dir", cache, "cat-file", "-t", candidate_commit], env={"GIT_NO_LAZY_FETCH": "1"})
+    except ValueError:
+        pass
+    else:
+        raise ValueError("baseline cache already contains this candidate")
     alternate = consumer_git_dir / "objects/info/alternates"
     d.require((consumer_git_dir / "objects").is_dir() and not alternate.exists(), "fresh public consumer alternates required")
     alternate.parent.mkdir(parents=True, exist_ok=True)
@@ -1104,9 +1126,11 @@ def publish(folder, *, restore_only=False):
             git(["-C", consumer, "config", "core.repositoryformatversion", "1"])
             git(["-C", consumer, "config", "extensions.partialClone", "origin"])
             git(["-C", consumer, "config", "remote.origin.promisor", "true"])
-            git(["-C", consumer, "config", "remote.origin.partialclonefilter", "blob:none"])
             use_public_base_cache(consumer / ".git", spec["base_git_dir"], state["public_base_commit"], repo)
-            git(["-C", consumer, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", candidate])
+            # Advertise the cached public base and fetch the new objects in one
+            # normal pack, rather than one lazy network fetch per job asset.
+            git(["-C", consumer, "update-ref", "refs/corpus/public-base", state["public_base_commit"]])
+            git(["-C", consumer, "fetch", "--depth=1", "--no-tags", "origin", candidate])
             d.require(git(["-C", consumer, "rev-parse", "FETCH_HEAD"]) == candidate, "fresh public fetch did not return exact candidate")
             result = restore_release(consumer / ".git", candidate, folder / ("public-restore-" + str(attempt).zfill(3)), batch_id=state["batch_id"])
             d.require(result["material_count"] == state["material_count"], "public restored material count differs")
