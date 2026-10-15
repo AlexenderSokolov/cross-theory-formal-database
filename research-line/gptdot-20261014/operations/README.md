@@ -48,3 +48,10 @@
 - Exclude archived revisions from canonical task enumeration. Explicit new-batch selections prevent an in-progress earlier batch from being exported twice.
 - Freeze public whitelists before uploading. Reuse verified Git blobs, persist per-call results, and do not call a batch uploaded until the remote branch commit and entry point are verified.
 - If workers exit on a quota limit, record their unfinished artifacts and resume only supported work; do not claim that background production continues.
+
+
+## Published-material reading catalog
+
+Run `python operations/build_published_catalog.py` from this line root to rebuild `delivery/INDEX.md`, `delivery/published.sqlite3` and `delivery/CATALOG.json`. It consumes only fixed, verified `batch-*/UPLOADED.json` receipts and their complete original SQLite rows. It refuses duplicate stable task IDs, source/claim constraint conflicts, missing full text or product paths, and differing batch schemas. Original batch files are never rewritten.
+
+The new reading index has compact five-column rows and natural stable-ID sorting; display ordinals are not formal problem IDs or qualification counts. Existing operations only consume per-batch INDEX files, so the new catalog does not replace their contracts or the production INDEX. The aggregate preserves the batch `problems` schema and frozen material state; a separate `publication` table records preparation-branch commits. This derived database is not a production-schema migration or admission operation.
