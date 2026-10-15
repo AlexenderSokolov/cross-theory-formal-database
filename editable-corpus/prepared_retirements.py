@@ -151,8 +151,8 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     d.require(previous_catalog is None or isinstance(previous_catalog, dict) and
               previous_catalog.get("schema_version", 2) == 2 and isinstance(previous_catalog.get("items"), list),
               "previous catalog must be an existing items object with absent or supported schema version")
-    previous = copy.deepcopy(previous_catalog or {})
-    old_rows = {str(row["problem_id"]): row for row in previous.get("items", [])}
+    previous = {key: copy.deepcopy(value) for key, value in (previous_catalog or {}).items() if key != "items"}
+    old_rows = {str(row["problem_id"]): row for row in (previous_catalog or {}).get("items", [])}
     active = manifest["items"]
     ids = {str(row["problem_id"]) for row in active}
     d.require(len(ids) == len(active) and not ids & set(map(str, manifest.get("retired_problem_ids", []))),
@@ -160,18 +160,22 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     ordered = sorted(active, key=lambda row: str(row["problem_id"]))
     rows = []
     fields = ("title", "author", "work", "source_id", "source_url", "source_version", "item_path",
-              "compile_receipt", "license", "license_path", "primary", "contexts", "source_files",
-              "asset_dependencies", "review_state", "dedup_state", "review_protocol", "qualification_set_id")
+              "compile_receipt", "license", "license_path", "status", "claim_key",
+              "review_state", "dedup_state", "review_protocol", "qualification_set_id")
+    # Older generated catalogs may already contain these manifest payloads.
+    # Keep full material/locator/reason records in manifest, not in every directory row.
+    material_fields = {"tex_content", "tex_body", "source_files", "contexts", "proof_spans", "statement_spans",
+                       "asset_dependencies", "primary", "source_locator", "source_locator_json", "source_map",
+                       "statement", "proof", "source_text", "proof_text", "difficulty_reason", "published_difficulty_reason"}
     for number, source in enumerate(ordered, 1):
         ident = str(source["problem_id"])
-        row = copy.deepcopy(old_rows.get(ident, {}))
+        row = {key: copy.deepcopy(value) for key, value in old_rows.get(ident, {}).items() if key not in material_fields}
         row.update({key: copy.deepcopy(source[key]) for key in fields if key in source})
         row.update(problem_id=ident, display_index=number, H=source.get("difficulty_level"),
-                   difficulty_reason=source.get("difficulty_reason", ""), current_item_path=source.get("item_path"),
+                   current_item_path=source.get("item_path"),
                    version=source.get("source_version", ""))
         row.setdefault("published_title", source.get("title", ""))
         row.setdefault("published_H", source.get("difficulty_level"))
-        row.setdefault("published_difficulty_reason", source.get("difficulty_reason", ""))
         row.setdefault("qualification_status", "not_reassessed")
         row.setdefault("confirmed_H", None)
         row.setdefault("collection_state", "retained_material")
@@ -181,6 +185,10 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
             row.update(qualification_status=state, collection_state=state,
                        difficulty_state="recorded_current_difficulty" if state == "current" else "author_supplied_label",
                        current_difficulty_H=source.get("difficulty_level"))
+        if (source.get("difficulty_state") == "screened_H2_H3" and
+                d.nonempty(source.get("difficulty_assessed_by")) and source.get("difficulty_level") in ("H2", "H3") and
+                d.nonempty(source.get("difficulty_reason"))):
+            row.update(difficulty_state="screened_H2_H3", difficulty_assessed_by=source["difficulty_assessed_by"])
         rows.append(row)
     previous.update(schema_version=2, master_manifest="manifest.json", count=len(rows), items=rows,
                     published_difficulty_counts=dict(Counter(row.get("published_H") for row in rows)),
@@ -190,7 +198,7 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     corpus.mkdir(parents=True, exist_ok=True)
     d.save(corpus / "catalog.json", previous)
     columns = ("display_index", "problem_id", "title", "H", "qualification_status", "collection_state", "difficulty_state",
-               "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt")
+               "difficulty_assessed_by", "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt")
     with (corpus / "catalog.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()

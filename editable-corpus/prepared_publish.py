@@ -852,6 +852,22 @@ def restore_release(repo, commit, output, *, batch_id=None):
     return result
 
 
+def use_public_base_cache(consumer_git_dir, base_git_dir, base_commit, candidate_git_dir):
+    """Reuse only the frozen public baseline objects for a fresh public consumer."""
+    consumer_git_dir, cache, candidate_git_dir = map(lambda path: Path(path).resolve(),
+                                                    (consumer_git_dir, base_git_dir, candidate_git_dir))
+    d.require(cache != candidate_git_dir and cache != consumer_git_dir,
+              "public restore cache cannot be the candidate or consumer object store")
+    d.require(COMMIT.fullmatch(base_commit) and (cache / "objects").is_dir(), "public baseline object cache missing")
+    d.require(git(["--git-dir", cache, "cat-file", "-t", base_commit]) == "commit",
+              "frozen public baseline commit missing from cache")
+    alternate = consumer_git_dir / "objects/info/alternates"
+    d.require((consumer_git_dir / "objects").is_dir() and not alternate.exists(), "fresh public consumer alternates required")
+    alternate.parent.mkdir(parents=True, exist_ok=True)
+    alternate.write_text((cache / "objects").as_posix() + "\n", encoding="utf-8", newline="\n")
+    return str(cache / "objects")
+
+
 def remote_commit(repo, origin, branch):
     text = git(["--git-dir", repo, "ls-remote", origin, "refs/heads/" + branch])
     records = [line.split() for line in text.splitlines() if line.strip()]
@@ -1089,6 +1105,7 @@ def publish(folder, *, restore_only=False):
             git(["-C", consumer, "config", "extensions.partialClone", "origin"])
             git(["-C", consumer, "config", "remote.origin.promisor", "true"])
             git(["-C", consumer, "config", "remote.origin.partialclonefilter", "blob:none"])
+            use_public_base_cache(consumer / ".git", spec["base_git_dir"], state["public_base_commit"], repo)
             git(["-C", consumer, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", candidate])
             d.require(git(["-C", consumer, "rev-parse", "FETCH_HEAD"]) == candidate, "fresh public fetch did not return exact candidate")
             result = restore_release(consumer / ".git", candidate, folder / ("public-restore-" + str(attempt).zfill(3)), batch_id=state["batch_id"])
