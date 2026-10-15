@@ -2,9 +2,9 @@
 
 ## 当前交付与接续入口
 
-[第七批完整成品：25道](delivery/batch-007/INDEX.md)，已上传并核实提交`f031d842f54e81139937a5b0d15bc55b4fb67ac0`。本线累计174道净新增可用材料已上传；第八批另有25道已在Yupeng编译入库并完成当前可读性检查，NT061公式越界已在r003修复。正式生产主库增量仍为0。上传确认读取各批UPLOADED.json，现场进度读取STATUS.json。
+[第八批完整成品：25道](delivery/batch-008/INDEX.md)，已上传并核实提交`10da27bf3fa902086f064bda624ae0a26c4c9263`。本线累计199道净新增可用材料已上传。第九批已在Yupeng编译并入库25道，待上传；正式生产主库增量仍为0。上传确认读取各批UPLOADED.json，现场进度读取STATUS.json。
 
-第八批当前接续范围：通信CCC2021.24/arxiv2106.00287/ECCC TR21-004（junta-distance，CC067起）；几何CCC2021.23/arxiv2105.07517（coloring SoS，GA090起）；数论CCC2021.28/arxiv2011.09823（quantum minimum cut，NT063起）。以上实际身份均已完整旧库、准备表和两线刷新。此前CC065/066、GA089、NT062已主机编译入库；CCC2021.21=ToC2026v022a004第一线已用，避开。所有生产只在Yupeng、各lane独占材料、根独占jobs/数据库/上传；原逐项许可和不拆支撑/直接推论标准继续。
+第九批接续范围：通信CCC2020.12/arxiv1910.01251/ECCC TR19-140（CC078/079起）；几何CCC2020.11/ECCC TR20-014（GA099起，旧TR19-147撤回novelty claim只作版本历史，不用旧稿代当前正式proof）；数论CCC2020.8/arxiv2003.05152/期刊10.1017/fms.2022.100（NT068，按原声明配齐完整结构续证并逐项保留两许可）。当前21题SQLite有效条目、ITEMS与SELECTION一致，与199道上传清单无任务重叠。GA098的原打印参数疑点保留在task.source_rendering_notes，未自行数学修订；GA097保留作者density/padding说明。Goal active，三个GPT-6.1 Sol / medium代理只写各自lane，根负责jobs/编译/数据库/上传；全Yupeng生产、完整30000目标不变。
 
 几何组完成CCC2021.22后下一独占CCC2021.23/arxiv2105.07517/doi10.48550/arXiv.2105.07517（coloring SoS lower bound，GA090起）。完整旧库、准备记录及两线实际身份零命中；保留原multiple-color-class模型，主下界与承重归约合题，不把unique-color-class开放问题补成结论。
 
