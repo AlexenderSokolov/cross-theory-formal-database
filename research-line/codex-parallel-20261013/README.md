@@ -2,7 +2,7 @@
 
 Follow ../../PROJECT.md. All production runs on Yupeng. Three GPT-6.1 Sol / medium material workers: analysis-probability, combinatorics-logic, algebra-geometry. No author-proof certification, no review loop.
 
-This directory is task_root. Each task uses paths relative to this directory, with its lane prefix. No formal public ID allocation. Root assembles, compiles, builds the local corpus and uploads batches of about 25, then continues until user stops. Never edit DeepSeek state/queue/owner.
+This directory is task_root. Each task uses paths relative to this directory, with its lane prefix. No formal public ID allocation. Material workers assemble and compile their own isolated jobs, then hand over successful products. Root builds the local corpus and uploads batches of at most 25, continuing until user stops; root compiles its own newly selected tasks and reuses all successful products. Never edit DeepSeek state/queue/owner.
 
 reference/existing-claims.jsonl is a metadata lookup snapshot, not a production worklist. Compare only relevant neighbors before upload. Uploaded prepared materials do not increment the production published count.
 
@@ -85,3 +85,5 @@ batch-025 uploaded: 13 new author-proof materials; cumulative 25 batches, 602 ma
 batch-026 uploaded: 24 new author-proof materials; cumulative 26 batches, 626 materials / 622 net prepared. Commit 208730a696fd8c8a48fd5d19957353a0623ec9bf; production public increment 0. Continue next batch under the active native persistent goal.
 
 batch-027 uploaded: 25 new author-proof materials; cumulative 27 batches, 651 materials / 647 net prepared. Commit 4780d2bf2c1218ff32aae99892207fe280725f29; production public increment 0. Continue next batch under the active native persistent goal.
+
+batch-028 uploaded: 25 new author-proof materials; cumulative 28 batches, 676 materials / 672 net prepared. Commit 9c792e3ce90376645da5d61aee390d9f31510ab5; production public increment 0. Continue next batch under the active native persistent goal.
