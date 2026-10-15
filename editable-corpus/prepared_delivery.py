@@ -260,7 +260,16 @@ def validate_record(task, records, *, material_only=False):
         # slugified key was not needed and would have broken the \ref in the
         # delivered body, which uses the original key.  External-label layer
         # only, claim_key layer untouched, \newlabel accepts the comma.
-        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*!&^$,][A-Za-z0-9:_. \-/()>+=*!&^$,]*", str(reference.get("label", ""))), "invalid external label")
+        # 2026-10-15 17:4x merged widening (Chief consolidation order, one patch
+        # not three): the apostrophe, the open bracket and the close bracket
+        # join the same classes.  Evidence (three faces, all author-verbatim
+        # labels in the pinned sources, cards neither rewriting nor forging
+        # them): "eqn:Young's-rule" + "sec:Saliola'smap" (alco-412 pair) and
+        # "lem:det(X_0/[n])" (upper-interval-stab-rep).  Same shape as the
+        # earlier comma/star/etc. widenings: pure character-set increment,
+        # external-label layer only, claim_key layer untouched, \newlabel
+        # accepts all three, every pre-existing label keeps its verdict.
+        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*!&^$,'\[\]][A-Za-z0-9:_. \-/()>+=*!&^$,'\[\]]*", str(reference.get("label", ""))), "invalid external label")
         require(str(reference.get("label", "")).count("$") % 2 == 0, "unbalanced $ in external label")
         require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
