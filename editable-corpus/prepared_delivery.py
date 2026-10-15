@@ -918,8 +918,10 @@ def validate_database(path, expected_rows=None):
                         expected = row.get("policy", "legacy") if field == "validation_policy" else row.get(field)
                         require(a[field] == expected, "SQL revision metadata differs: " + field)
                     if row.get("qualification_set_id"):
-                        require(a["validation_policy"] == "legacy" and sources[row["source_id"]]["source_version"] == row["source_version"],
-                                "legacy qualification source/version/policy differs")
+                        whole_work = row.get("qualification_basis") == "whole_author_work_difficulty_screening"
+                        allowed_policies = ("legacy", POLICY) if whole_work else ("legacy",)
+                        require(a["validation_policy"] in allowed_policies and sources[row["source_id"]]["source_version"] == row["source_version"],
+                                "qualification source/version/policy differs")
                 if row.get("policy") == POLICY:
                     for field in SOURCE_COLUMNS:
                         require(sources[row["source_id"]][field] == row.get(field, ""), "SQL source metadata differs: " + field)

@@ -41,7 +41,7 @@ def git(argv, *, cwd=None, env=None, output=None):
         with Path(output).open("xb") as stream:
             result = subprocess.run(["git", *map(str, argv)], cwd=cwd, env=clean, stdout=stream,
                                     stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
-    d.require(result.returncode == 0, "Git command failed: " + result.stderr.strip())
+    d.require(result.returncode == 0, "Git command failed (" + str(result.returncode) + "): " + result.stderr.strip())
     return (result.stdout or "").strip()
 
 
@@ -453,8 +453,28 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
         return reviewed[path]
     def phase_manifest():
         with contextlib.closing(sqlite3.connect(master)) as db:
-            present = {str(row[0]) for row in db.execute("SELECT problem_id FROM problems")}
-        rows = [row for row in history["items"] if str(row["problem_id"]) in present]
+            db.row_factory = sqlite3.Row
+            available = {part[1] for part in db.execute("PRAGMA table_info(problems)")}
+            fields = ("difficulty_level", "difficulty_reason", "task_id", "revision", "claim_key",
+                      "review_state", "dedup_state", "publication_commit", "qualification_set_id", "review_protocol")
+            selected = [field if field in available else "NULL AS " + field for field in fields]
+            live = {str(row["problem_id"]): dict(row) for row in
+                    db.execute("SELECT problem_id," + ",".join(selected) + " FROM problems")}
+        present = set(live)
+        rows = []
+        for original in history["items"]:
+            ident = str(original["problem_id"])
+            if ident not in present:
+                continue
+            row = copy.deepcopy(original)
+            # Unassessed legacy rows can have useful manifest-only claim keys
+            # while their SQL compatibility columns are null. Only rewind
+            # fields on rows that actually participate in qualification replay.
+            if original.get("qualification_set_id"):
+                for field in fields:
+                    if field in row:
+                        row[field] = live[ident][field]
+            rows.append(row)
         d.require({str(row["problem_id"]) for row in rows} == present, "replay SQL IDs missing historical manifest metadata")
         return dict(history, items=rows, verified_count=len(rows))
     seen, delta_cursor, qualification_cursor = set(), 0, 0
@@ -898,6 +918,32 @@ def remote_commit(repo, origin, branch):
     return records[0][0]
 
 
+def prefetch_public_job_blobs(repo, commit, incoming):
+    """Fetch only the current batch's Git blobs together, including on Git 2.17."""
+    paths = ["editable-corpus/prepared-jobs/" + row["task_id"] + "/" + row["revision"] for row in incoming]
+    if not paths:
+        return {"objects_requested": 0, "fetch_batches": 0}
+    listing = git(["--git-dir", repo, "ls-tree", "-r", "-z", commit, "--", *paths],
+                  env={"GIT_LITERAL_PATHSPECS": "1"})
+    objects = set()
+    for entry in listing.split("\0"):
+        if not entry:
+            continue
+        header = entry.split("\t", 1)[0].split()
+        d.require(len(header) == 3, "unexpected Git tree entry")
+        if header[1] == "blob":
+            d.require(COMMIT.fullmatch(header[2]), "invalid Git blob object identifier")
+            objects.add(header[2])
+    ordered = sorted(objects)
+    batches = 0
+    for offset in range(0, len(ordered), 64):
+        # Explicit --filter is required by the server's Git 2.17 partial-clone
+        # client. Directly wanted blobs are still transferred by the server.
+        git(["--git-dir", repo, "fetch", "--filter=blob:none", "--no-tags", "origin", *ordered[offset:offset + 64]])
+        batches += 1
+    return {"objects_requested": len(ordered), "fetch_batches": batches}
+
+
 def finish_reconciled_marker(state, spec, folder):
     """Complete only this batch's final marker from existing verified receipts.
 
@@ -1126,12 +1172,12 @@ def publish(folder, *, restore_only=False):
             git(["-C", consumer, "config", "core.repositoryformatversion", "1"])
             git(["-C", consumer, "config", "extensions.partialClone", "origin"])
             git(["-C", consumer, "config", "remote.origin.promisor", "true"])
+            git(["-C", consumer, "config", "remote.origin.partialclonefilter", "blob:none"])
             use_public_base_cache(consumer / ".git", spec["base_git_dir"], state["public_base_commit"], repo)
-            # Advertise the cached public base and fetch the new objects in one
-            # normal pack, rather than one lazy network fetch per job asset.
-            git(["-C", consumer, "update-ref", "refs/corpus/public-base", state["public_base_commit"]])
-            git(["-C", consumer, "fetch", "--depth=1", "--no-tags", "origin", candidate])
+            git(["-C", consumer, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", candidate])
             d.require(git(["-C", consumer, "rev-parse", "FETCH_HEAD"]) == candidate, "fresh public fetch did not return exact candidate")
+            state["public_job_prefetch"] = prefetch_public_job_blobs(consumer / ".git", candidate, state["incoming"])
+            d.save(folder / "publication.json", state)
             result = restore_release(consumer / ".git", candidate, folder / ("public-restore-" + str(attempt).zfill(3)), batch_id=state["batch_id"])
             d.require(result["material_count"] == state["material_count"], "public restored material count differs")
             require_owner(spec["state_root"], spec["actor"])
