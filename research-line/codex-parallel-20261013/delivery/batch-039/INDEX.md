@@ -1,0 +1,13 @@
+# Codex主机并行生产：作者题证成品
+
+本地可用 5 道；上传情况另见批次记录。生产主库公开增量不由本索引推断。
+
+遵循仓库根PROJECT.md，不认证作者数学。SQLite为corpus.sqlite3，表problems保存题面、证明、上下文及成品TeX。路径相对于仓库根。
+
+| 题目 | 方向 | 级别 | 成品 |
+|---|---|---|---|
+| Quadratic-question Pauli self-testing games for synchronous strategies via spectral gap | analysis | H2 | [TeX](../../jobs/CP13-AP-pauli-synchronous-self-testing-question-reduction/r001/package-root-r001/items/CP13-AP-pauli-synchronous-self-testing-question-reduction_author_proof.tex) · [PDF](../../jobs/CP13-AP-pauli-synchronous-self-testing-question-reduction/r001/build-root-r001/CP13-AP-pauli-synchronous-self-testing-question-reduction/CP13-AP-pauli-synchronous-self-testing-question-reduction_author_proof.pdf) |
+| Any-order functional lower bounds for linear IPS and multilinear-formula IPS | logic | H3 | [TeX](../../jobs/CP13-CL-any-order-functional-linear-ips-lower-bounds/r002/package-root-r002/items/CP13-CL-any-order-functional-linear-ips-lower-bounds_author_proof.tex) · [PDF](../../jobs/CP13-CL-any-order-functional-linear-ips-lower-bounds/r002/build-root-r002/CP13-CL-any-order-functional-linear-ips-lower-bounds/CP13-CL-any-order-functional-linear-ips-lower-bounds_author_proof.pdf) |
+| Near-square-root Fourier dimension bound from Boolean Fourier sparsity | analysis | H2 | [TeX](../../jobs/CP13-CL-boolean-fourier-dimension-near-square-root-sparsity/r001/package-root-r001/items/CP13-CL-boolean-fourier-dimension-near-square-root-sparsity_author_proof.tex) · [PDF](../../jobs/CP13-CL-boolean-fourier-dimension-near-square-root-sparsity/r001/build-root-r001/CP13-CL-boolean-fourier-dimension-near-square-root-sparsity/CP13-CL-boolean-fourier-dimension-near-square-root-sparsity_author_proof.pdf) |
+| Many non-isomorphic Heisenberg quotients with identical proper subgroup and quotient profiles | algebra | H3 | [TeX](../../jobs/CP13-CL-heisenberg-quotients-identical-proper-subgroup-profiles/r001/package-root-r001/items/CP13-CL-heisenberg-quotients-identical-proper-subgroup-profiles_author_proof.tex) · [PDF](../../jobs/CP13-CL-heisenberg-quotients-identical-proper-subgroup-profiles/r001/build-root-r001/CP13-CL-heisenberg-quotients-identical-proper-subgroup-profiles/CP13-CL-heisenberg-quotients-identical-proper-subgroup-profiles_author_proof.pdf) |
+| Nonzero-multiple lower bounds yield any-order roABP IPS hardness | logic | H3 | [TeX](../../jobs/CP13-CL-nonzero-multiple-any-order-roabp-ips-lower-bound/r002/package-root-r002/items/CP13-CL-nonzero-multiple-any-order-roabp-ips-lower-bound_author_proof.tex) · [PDF](../../jobs/CP13-CL-nonzero-multiple-any-order-roabp-ips-lower-bound/r002/build-root-r002/CP13-CL-nonzero-multiple-any-order-roabp-ips-lower-bound/CP13-CL-nonzero-multiple-any-order-roabp-ips-lower-bound_author_proof.pdf) |
