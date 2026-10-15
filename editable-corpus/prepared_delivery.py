@@ -22,6 +22,9 @@ import prepared_focused as focused
 
 POLICY = "reviewed-revision-v2"
 MATERIAL_BASIS = "author_material_collection"
+NATIVE_FORMAT = "native_lean"
+NATIVE_ORIGIN = "author_native_lean"
+NATIVE_STATUS = "verified_native_author_proof"
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}\Z")
 REVISION = re.compile(r"r[0-9]{3,}\Z")
 TASK_FIELDS = (
@@ -72,6 +75,8 @@ def task_config(task):
     Root's approved task JSON separately binds the final formal problem ID.
     """
     result = {key: copy.deepcopy(task.get(key)) for key in CONFIG_FIELDS}
+    if task.get("material_format") == NATIVE_FORMAT:
+        result.update(material_format=NATIVE_FORMAT, native_material=copy.deepcopy(task.get("native_material")))
     result["selected_by"] = task.get("selected_by", task.get("selector_id"))
     if task.get("review_protocol") == focused.PROTOCOL:
         result.update({k: copy.deepcopy(task.get(k)) for k in focused.EXTRA_CONFIG})
@@ -179,7 +184,245 @@ def review_records(task, records):
     return records
 
 
+def validate_native_record(task, *, material_only=False):
+    require(task.get("material_format") == NATIVE_FORMAT, "native task format missing")
+    require(task.get("schema_version") == 2 and task.get("status") == "ready_for_assembly", "native task must be ready_for_assembly")
+    require(ID.fullmatch(str(task.get("task_id", ""))) and REVISION.fullmatch(str(task.get("revision", ""))), "native task/revision missing")
+    require(material_only or str(task.get("problem_id", "")).isdecimal(), "parent-assigned native problem_id required")
+    for key in ("source_id", "source_version", "claim_key", "title", "source_url", "difficulty_reason"):
+        require(nonempty(task.get(key)), "native task field missing: " + key)
+    require(task["source_version"].lower() != "latest" and task.get("difficulty_level") in ("H2", "H3"), "fixed native source/H required")
+    require(isinstance(task.get("authors"), list) and task["authors"] and all(nonempty(v) for v in task["authors"]), "native authors missing")
+    for key in ("statement_spans", "proof_spans", "context_spans"):
+        require(isinstance(task.get(key), list) and (task[key] or key == "context_spans"), "native statement/proof/context locators required")
+        for span in task[key]:
+            normalized_span(span)
+    dedup = task.get("dedup", {})
+    require(dedup.get("decision", dedup.get("conclusion")) in UNIQUE_DECISIONS and nonempty(dedup.get("scope")) and
+            any(isinstance(dedup.get(k), list) for k in ("compared", "compared_ids", "compared_claims")), "native finite semantic decision missing")
+    lic = task.get("license", {})
+    require(all(nonempty(lic.get(k)) for k in ("name", "evidence_path", "version_url")), "native rights observation missing")
+    native = task.get("native_material", {})
+    for key in ("root", "module_root", "toolchain", "toolchain_file", "build_status", "author_completion_status"):
+        require(nonempty(native.get(key)), "native material field missing: " + key)
+    require(native["author_completion_status"] == "complete_author_material_retained",
+            "native ready requires complete retained author proof material; keep incomplete source internally")
+    for key in ("files", "entry_files", "lock_files", "declarations"):
+        require(isinstance(native.get(key), list) and native[key], "native material list missing: " + key)
+    require(len(set(native["files"])) == len(native["files"]), "duplicate native file")
+    require(isinstance(native.get("external_imports"), list) and isinstance(native.get("external_dependencies"), list), "native external dependency references missing")
+    for dep in native["external_dependencies"]:
+        require(all(nonempty(dep.get(k)) for k in ("name", "url", "revision")) and dep["revision"].lower() != "latest", "external dependency must be pinned")
+    require(not native["external_imports"] or native["external_dependencies"], "external imports need pinned dependency references")
+    return task
+
+
+def lean_import_text(text):
+    """Expose import syntax outside nested/line comments and string literals."""
+    active, depth, quoted, escaped, line_comment = [], 0, False, False, False
+    index = 0
+    while index < len(text):
+        char, pair = text[index], text[index:index + 2]
+        if line_comment:
+            active.append("\n" if char == "\n" else " ")
+            line_comment = char != "\n"
+        elif depth:
+            if pair in ("/-", "-/"):
+                depth += 1 if pair == "/-" else -1
+                active.extend("  "); index += 1
+            else:
+                active.append("\n" if char == "\n" else " ")
+        elif quoted:
+            active.append("\n" if char == "\n" else " ")
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif pair in ("/-", "--"):
+            depth, line_comment = (1, False) if pair == "/-" else (0, True)
+            active.extend("  "); index += 1
+        elif char == '"':
+            quoted = True; active.append(" ")
+        else:
+            active.append(char)
+        index += 1
+    return "".join(active)
+
+
+def native_packet(root, task):
+    """Check declared author files/imports and locations; never certify mathematics."""
+    native = task["native_material"]
+    source = relative_path(root, native["root"])
+    require(source.is_dir(), "native source root missing")
+    files = {name: relative_path(source, name, existing=True) for name in native["files"]}
+    require(all(path.is_file() and not path.is_symlink() for path in files.values()), "native packet requires regular source files")
+    for name in native["entry_files"] + native["lock_files"] + [native["toolchain_file"]]:
+        require(name in files, "native entry/toolchain/lock not retained: " + name)
+    require(any(declaration.get("path") == native["entry_files"][0] for declaration in native["declarations"]),
+            "native primary entry must contain the actual principal declaration")
+    require(native["toolchain"] in files[native["toolchain_file"]].read_text(encoding="utf-8-sig"), "native toolchain reference differs")
+    locks = "\n".join(files[name].read_text(encoding="utf-8-sig") for name in native["lock_files"])
+    require(all(dep["revision"] in locks for dep in native["external_dependencies"]), "native external pin missing from retained lock files")
+    for guide in native.get("reading_guides", []):
+        require(guide.get("role") == "guide_only" and guide.get("path") in files, "native reading guide must be separately labelled and retained")
+    module_root = Path(native["module_root"])
+    require(not module_root.is_absolute() and ".." not in module_root.parts, "native module root must be relative")
+    for name, path in files.items():
+        if path.suffix != ".lean":
+            continue
+        # Remove Lean comments only to locate import declarations, not proofs.
+        text = lean_import_text(path.read_text(encoding="utf-8-sig"))
+        for line in text.splitlines():
+            line = line.strip()
+            if not line.startswith("import "):
+                continue
+            for module in line[7:].split():
+                local = (module_root / (module.replace(".", "/") + ".lean")).as_posix()
+                default = (module_root / module.replace(".", "/") / "default.lean").as_posix()
+                require(local in files or default in files or module in native["external_imports"], "native import not retained or externally referenced: " + module)
+    for key in ("statement_spans", "proof_spans", "context_spans"):
+        for span in task[key]:
+            s = normalized_span(span)
+            require(s["path"] in files, "native source span not retained: " + s["path"])
+            lines = files[s["path"]].read_text(encoding="utf-8-sig").splitlines()
+            require(s["end_line"] <= len(lines), "native source span exceeds file")
+            if key == "proof_spans":
+                require(any(line.strip() and not line.lstrip().startswith(("import ", "--")) for line in lines[s["start_line"]-1:s["end_line"]]), "native proof cannot be an import-only wrapper")
+    for declaration in native["declarations"]:
+        s = normalized_span(declaration)
+        require(nonempty(declaration.get("name")) and s["path"] in files, "native principal declaration missing")
+        lines = files[s["path"]].read_text(encoding="utf-8-sig").splitlines()
+        require(s["end_line"] <= len(lines) and declaration["name"] in "\n".join(lines[s["start_line"]-1:s["end_line"]]), "native principal declaration not at recorded location")
+    return source, files
+
+
+def validate_native_task(task, task_path, task_root, *, material_only=False):
+    task.setdefault("review_paths", [])
+    if material_only and task.get("problem_id") is None:
+        task["problem_id"] = task.get("local_material_id", task["task_id"])
+    validate_native_record(task, material_only=material_only)
+    source, files = native_packet(task_root, task)
+    license_path = relative_path(task_root, task["license"]["evidence_path"], existing=True)
+    return {"task": task, "task_path": task_path, "task_root": task_root, "native_root": source, "native_files": files,
+            "license_path": license_path, "license_evidence": load(license_path)}
+
+
+def assemble_native(checked, output_root):
+    task = copy.deepcopy(checked["task"])
+    job = Path(output_root).resolve() / task["task_id"] / task["revision"]
+    require(not job.exists() and not job.is_relative_to(checked["task_root"]), "fresh separate native output required")
+    package = job / ("package-root-" + task["revision"])
+    native = copy.deepcopy(task["native_material"])
+    native["root"] = "native-source"
+    source_files = []
+    for name, src in checked["native_files"].items():
+        dst = relative_path(package, "native-source/" + name)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        source_files.append({"path": "native-source/" + name, "original_path": name, "source_id": task["source_id"], "source_version": task["source_version"]})
+    task["native_material"] = native
+    task["license"]["evidence_path"] = "licenses/evidence.json"
+    task["preparation_basis"] = MATERIAL_BASIS
+    snapshot = "prepared-task.json"
+    save(package / snapshot, task)
+    save(package / "licenses/evidence.json", checked["license_evidence"])
+    notice = package / "licenses/NOTICE.txt"
+    notice.write_text("; ".join(task["authors"]) + "\n" + task["source_version"] + "\n" + task["source_url"] + "\n" + task["license"]["name"] + "\n", encoding="utf-8")
+    row = {key: copy.deepcopy(task[key]) for key in ("problem_id", "task_id", "revision", "source_id", "source_version", "source_url", "title", "authors", "claim_key", "difficulty_level", "difficulty_reason", "proof_spans")}
+    row.update(policy=POLICY, material_format=NATIVE_FORMAT, native_material=native, author="; ".join(task["authors"]),
+               work=task.get("source_title", task.get("work", task["source_id"])), retrieved_at=task.get("retrieved_at", ""),
+               primary=task["statement_spans"], contexts=task["context_spans"], item_path="native-source/" + native["entry_files"][0],
+               compile_receipt=None, license=task["license"]["name"], license_path="licenses/NOTICE.txt", license_evidence_path="licenses/evidence.json",
+               asset_dependencies=[], source_files=source_files, origin_class=NATIVE_ORIGIN, status=NATIVE_STATUS,
+               review_state=MATERIAL_BASIS, preparation_basis=MATERIAL_BASIS, dedup_state="unique_within_reviewed_scope", publication_commit=None, tex_sha256=None)
+    save(package / "manifest.json", {"schema_version": 2, "policy": POLICY, "verified_count": 1, "items": [row]})
+    state = {"schema_version": 2, "policy": POLICY, **binding(task), "material_format": NATIVE_FORMAT,
+             "preparation_basis": MATERIAL_BASIS, "status": "material_ready", "package": package.name, "task_snapshot": snapshot}
+    save(job / "job-state.json", state)
+    create_database(package, [row], package / "corpus.sqlite")
+    return dict(verify_native_job(job, state, require_ready=False), job=str(job))
+
+
+def verify_native_job(job, state, *, require_ready=True):
+    require(state.get("policy") == POLICY and state.get("preparation_basis") == MATERIAL_BASIS, "native material policy mismatch")
+    package = relative_path(job, state["package"])
+    require(package.is_dir(), "native package directory missing")
+    task = load(relative_path(package, state["task_snapshot"], existing=True))
+    validate_native_record(task, material_only=True)
+    manifest = load(package / "manifest.json")
+    require(len(manifest["items"]) == manifest.get("verified_count") == 1, "one native author proof group required")
+    row = manifest["items"][0]
+    require(binding(task) == binding(row) == binding(state), "native job/task/item identity mismatch")
+    require(row.get("origin_class") == NATIVE_ORIGIN and row.get("status") == NATIVE_STATUS and row.get("material_format") == NATIVE_FORMAT,
+            "native author proof origin/status mismatch")
+    require(row["native_material"] == task["native_material"] and row["primary"] == task["statement_spans"] and row["proof_spans"] == task["proof_spans"] and row["contexts"] == task["context_spans"], "native source locations differ")
+    require(row["difficulty_level"] == task["difficulty_level"] and row["difficulty_reason"] == task["difficulty_reason"] and row["authors"] == task["authors"], "native H/author metadata mismatch")
+    require(row["author"] == "; ".join(task["authors"]) and all(row[key] == task[key] for key in ("title", "source_url")) and
+            row.get("preparation_basis") == row.get("review_state") == MATERIAL_BASIS and row.get("dedup_state") == "unique_within_reviewed_scope",
+            "native source/current material metadata mismatch")
+    native_packet(package, task)
+    expected_sources = {"native-source/" + name for name in task["native_material"]["files"]}
+    require({source["path"] for source in row["source_files"]} == expected_sources and
+            all(source["source_id"] == task["source_id"] and source["source_version"] == task["source_version"] for source in row["source_files"]),
+            "native copied source manifest differs")
+    require(row["item_path"] == task["native_material"]["root"] + "/" + task["native_material"]["entry_files"][0] and row.get("compile_receipt") is None,
+            "native primary entry/TeX receipt mismatch")
+    evidence = load(relative_path(package, row["license_evidence_path"], existing=True))
+    require(evidence == load(relative_path(package, task["license"]["evidence_path"], existing=True)), "native rights binding mismatch")
+    for key in ("source_id", "source_version"):
+        require(key not in evidence or evidence[key] == task[key], "native rights source/version mismatch")
+    relative_path(package, row["license_path"], existing=True)
+    sql = validate_database(package / state.get("material_database", "corpus.sqlite"), [row])
+    return {"schema_version": 2, "policy": POLICY, **binding(task), "material_format": NATIVE_FORMAT,
+            "preparation_basis": MATERIAL_BASIS, "status": "verified_local_prepared_job", "editable_qualified_count": 1,
+            "package_item_count": 1, "errors": [], "sql": sql, "public_redistribution_supported": evidence.get("status") == "supported" and evidence.get("redistribution_allowed") is not False,
+            "build_status": row["native_material"]["build_status"], "qualification_basis": MATERIAL_BASIS}
+
+
+def adopt_native_material(job, output_root, reservations_path):
+    verify_job(job, require_ready=False)
+    original = load(job / "job-state.json")
+    package = job / original["package"]
+    task = load(package / original["task_snapshot"])
+    fields = ("task_id", "revision", "source_id", "source_version", "claim_key")
+    matches = [entry for entry in load(reservations_path)["entries"] if all(entry.get(key) == task[key] for key in fields)]
+    require(len(matches) == 1 and str(matches[0]["problem_id"]).isdecimal(), "one matching formal native ID reservation required")
+    ident = matches[0]["problem_id"]
+    target = Path(output_root).resolve() / task["task_id"] / task["revision"]
+    require(not target.is_relative_to(job) and not job.is_relative_to(target), "native adoption must preserve source job")
+    if target.exists():
+        state = load(target / "job-state.json")
+        require(state.get("adopted_from") == str(job) and state.get("problem_id") == ident, "existing native adoption conflicts")
+        prior_task = load(target / state["package"] / state["task_snapshot"])
+        require(task_config(prior_task) == task_config(task), "native adoption task metadata changed")
+        report = verify_job(target)
+        final = target / ("final-item-root-" + task["revision"] + ".json")
+        if not final.exists():
+            save(final, report)
+        return dict(report, job=str(target), resumed=True)
+    shutil.copytree(job, target)
+    state = dict(original, problem_id=ident, adopted_from=str(job), original_material_binding=binding(task))
+    task["problem_id"] = ident
+    manifest = load(package / "manifest.json")
+    row = manifest["items"][0]
+    row["problem_id"] = ident
+    out = target / state["package"]
+    save(target / "job-state.json", state)
+    save(out / state["task_snapshot"], task)
+    save(out / "manifest.json", manifest)
+    state["material_database"] = "adopted-corpus.sqlite"
+    save(target / "job-state.json", state)
+    create_database(out, [row], out / state["material_database"])
+    report = verify_job(target)
+    save(target / ("final-item-root-" + task["revision"] + ".json"), report)
+    return dict(report, job=str(target), resumed=False)
+
+
 def validate_record(task, records, *, material_only=False):
+    if task.get("material_format") == NATIVE_FORMAT:
+        return validate_native_record(task, material_only=material_only)
     require(isinstance(task, dict) and task.get("schema_version") == 2, "task schema_version must be 2")
     require(material_only or task.get("review_protocol") in (None, focused.PROTOCOL), "unknown review protocol")
     require(all(k in task for k in TASK_FIELDS), "task fields missing: " + ", ".join(k for k in TASK_FIELDS if k not in task))
@@ -304,6 +547,8 @@ def validate_task(task_path, task_root, *, material_only=False):
     task_path = Path(task_path).resolve()
     require(task_path.is_relative_to(task_root), "task JSON must be inside task-root")
     task = load(task_path)
+    if task.get("material_format") == NATIVE_FORMAT:
+        return validate_native_task(task, task_path, task_root, material_only=material_only)
     if material_only:
         task.setdefault("review_paths", [])
         task.setdefault("proof_roadmap", [])
@@ -366,6 +611,8 @@ def active_tex(text):
 def assemble(task_path, task_root, output_root, *, compile_now=True, material_only=False, refresh=False):
     checked = validate_task(task_path, task_root, material_only=material_only)
     task = checked["task"]
+    if task.get("material_format") == NATIVE_FORMAT:
+        return assemble_native(checked, output_root)
     root = Path(output_root).resolve()
     require(root != checked["task_root"], "output-root must be separate from the input root")
     job = root / task["task_id"] / task["revision"]
@@ -671,6 +918,8 @@ def engine_log_errors(text):
 
 
 def compile_job(job, *, resume=False):
+    require(load(Path(job) / "job-state.json").get("material_format") != NATIVE_FORMAT,
+            "native Lean retains authored toolchain/build status; compile-job is the TeX compiler")
     job = Path(job).resolve()
     state = load(job / "job-state.json")
     require(state["policy"] == POLICY and (state["status"] == "assembled" or (resume and state["status"] == "needs_codex")), "job is not an assembled revision or failed build")
@@ -781,17 +1030,21 @@ def problem_schema(table="problems"):
 problem_id TEXT PRIMARY KEY, title TEXT NOT NULL,
 difficulty_level TEXT NOT NULL CHECK(difficulty_level IN ('H1','H2','H3')),
 difficulty_reason TEXT NOT NULL, source_id TEXT NOT NULL REFERENCES sources(source_id),
-source_locator_json TEXT NOT NULL, tex_path TEXT NOT NULL UNIQUE, tex_content TEXT NOT NULL,
-tex_sha256 TEXT, origin_class TEXT NOT NULL CHECK(origin_class IN ('human_authored_native_tex','human_authored_proof_assistant_transcription','human_authored_checked_published_transcription')),
-status TEXT NOT NULL CHECK(status='verified_editable_tex'), compile_receipt_path TEXT NOT NULL,
+source_locator_json TEXT NOT NULL, tex_path TEXT UNIQUE, tex_content TEXT,
+tex_sha256 TEXT, origin_class TEXT NOT NULL CHECK(origin_class IN ('human_authored_native_tex','human_authored_proof_assistant_transcription','human_authored_checked_published_transcription','author_native_lean')),
+status TEXT NOT NULL CHECK(status IN ('verified_editable_tex','verified_native_author_proof')), compile_receipt_path TEXT,
 task_id TEXT, revision TEXT, validation_policy TEXT DEFAULT 'legacy', claim_key TEXT,
-review_state TEXT, dedup_state TEXT, publication_commit TEXT, qualification_set_id TEXT, review_protocol TEXT)"""
+review_state TEXT, dedup_state TEXT, publication_commit TEXT, qualification_set_id TEXT, review_protocol TEXT,
+CHECK ((origin_class='author_native_lean' AND status='verified_native_author_proof' AND tex_path IS NULL AND tex_content IS NULL AND compile_receipt_path IS NULL)
+OR (origin_class!='author_native_lean' AND status='verified_editable_tex' AND tex_path IS NOT NULL AND tex_content IS NOT NULL AND compile_receipt_path IS NOT NULL)))"""
 
 
 def locator(row):
     result = {"primary": row.get("primary", []), "contexts": row.get("contexts", [])}
     if row.get("policy") == POLICY:
         result["proof_spans"] = row.get("proof_spans", [])
+    if row.get("material_format") == NATIVE_FORMAT:
+        result["native_material"] = copy.deepcopy(row["native_material"])
     return result
 
 
@@ -819,16 +1072,17 @@ def create_database(package, rows, destination):
             sources = {}
             for row in rows:
                 require(row.get("policy") == POLICY and row.get("tex_sha256") is None, "new rows use v2 with NULL legacy digest")
-                require(row.get("status") == "verified_editable_tex", "database requires completed local QA")
+                native = row.get("material_format") == NATIVE_FORMAT
+                require(row.get("status") == (NATIVE_STATUS if native else "verified_editable_tex"), "database requires completed local material")
                 source = tuple(row.get(k, "") for k in SOURCE_COLUMNS)
                 if row["source_id"] in sources:
                     require(source == sources[row["source_id"]], "conflicting metadata for the same fixed source")
                 else:
                     db.execute("INSERT INTO sources VALUES (?,?,?,?,?,?,?,?)", source)
                     sources[row["source_id"]] = source
-                text = relative_path(package, row["item_path"], existing=True).read_text(encoding="utf-8")
+                text = None if native else relative_path(package, row["item_path"], existing=True).read_text(encoding="utf-8")
                 values = (row["problem_id"], row["title"], row["difficulty_level"], row["difficulty_reason"], row["source_id"],
-                          json.dumps(locator(row), ensure_ascii=False), row["item_path"], text, None, row["origin_class"],
+                          json.dumps(locator(row), ensure_ascii=False), None if native else row["item_path"], text, None, row["origin_class"],
                           row["status"], row["compile_receipt"], row["task_id"], row["revision"], POLICY, row["claim_key"],
                           row["review_state"], row["dedup_state"], row.get("publication_commit"), None, row.get("review_protocol"))
                 db.execute("INSERT INTO problems VALUES (" + ",".join("?" for _ in values) + ")", values)
@@ -853,23 +1107,32 @@ def migrate_database(source, output):
         src.backup(dst)
         info = {row[1]: row for row in dst.execute("PRAGMA table_info(problems)")}
         require(set(LEGACY_COLUMNS) <= set(info), "unsupported legacy problem schema")
-        require(not (set(info) - set(LEGACY_COLUMNS) - set(ADDED_COLUMNS)), "preserve unknown problem columns; migration requires review")
         dst.execute("PRAGMA foreign_keys=OFF")
         with dst:
-            if info["tex_sha256"][3]:
+            original_schema = dst.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='problems'").fetchone()[0]
+            if info["tex_sha256"][3] or NATIVE_ORIGIN not in original_schema or info["tex_content"][3]:
                 extra_sql = [row[0] for row in dst.execute(
                     "SELECT sql FROM sqlite_master WHERE tbl_name='problems' AND type IN ('index','trigger') AND sql IS NOT NULL")]
-                dst.execute(problem_schema("problems_v2_migration"))
+                # Transform the existing definition, retaining custom columns,
+                # defaults, table constraints, indexes and triggers verbatim.
+                upgraded = "CREATE TABLE problems_v2_migration " + original_schema[original_schema.index("("):]
+                for name in ("tex_path", "tex_content", "compile_receipt_path", "tex_sha256"):
+                    identifier = r'(?<![A-Za-z0-9_])(?:"' + name + r'"|' + name + r')(?![A-Za-z0-9_])'
+                    upgraded = re.sub(r'(' + identifier + r'\s+\w+)\s+NOT\s+NULL', r'\1', upgraded, flags=re.I)
+                upgraded = re.sub(r"(?<![A-Za-z0-9_])(origin_class\s+IN\s*\()", r"\1'author_native_lean',", upgraded, flags=re.I)
+                upgraded = re.sub(r"(?<![A-Za-z0-9_])status\s*=\s*'verified_editable_tex'", "status IN ('verified_editable_tex','verified_native_author_proof')", upgraded, flags=re.I)
+                end = upgraded.rfind(")")
+                upgraded = upgraded[:end] + ", CHECK ((origin_class='author_native_lean' AND status='verified_native_author_proof' AND tex_path IS NULL AND tex_content IS NULL AND compile_receipt_path IS NULL) OR (origin_class!='author_native_lean' AND tex_path IS NOT NULL AND tex_content IS NOT NULL AND compile_receipt_path IS NOT NULL))" + upgraded[end:]
+                dst.execute(upgraded)
                 columns = ",".join(info)
                 dst.execute("INSERT INTO problems_v2_migration (" + columns + ") SELECT " + columns + " FROM problems")
                 dst.execute("DROP TABLE problems")
                 dst.execute("ALTER TABLE problems_v2_migration RENAME TO problems")
                 for sql in extra_sql:
                     dst.execute(sql)
-            else:
-                for name, definition in ADDED_COLUMNS.items():
-                    if name not in info:
-                        dst.execute("ALTER TABLE problems ADD COLUMN " + name + " " + definition)
+            for name, definition in ADDED_COLUMNS.items():
+                if name not in info:
+                    dst.execute("ALTER TABLE problems ADD COLUMN " + name + " " + definition)
             dst.execute("PRAGMA user_version=2")
         dst.execute("PRAGMA foreign_keys=ON")
     finally:
@@ -892,7 +1155,11 @@ def validate_database(path, expected_rows=None):
         require(info["tex_sha256"][3] == 0, "historical tex_sha256 must be nullable")
         require(db.execute("SELECT count(*) FROM problems WHERE validation_policy=? AND tex_sha256 IS NOT NULL", (POLICY,)).fetchone()[0] == 0,
                 "new revision-v2 rows must not invent a digest")
-        require(db.execute("SELECT count(*) FROM problems WHERE length(tex_content)=0").fetchone()[0] == 0, "empty stored TeX")
+        require(db.execute("SELECT count(*) FROM problems WHERE origin_class!='author_native_lean' AND (tex_content IS NULL OR length(tex_content)=0)").fetchone()[0] == 0, "empty stored TeX")
+        require(db.execute("SELECT count(*) FROM problems WHERE origin_class='author_native_lean' AND (status!='verified_native_author_proof' OR tex_content IS NOT NULL OR tex_path IS NOT NULL OR compile_receipt_path IS NOT NULL)").fetchone()[0] == 0,
+                "native Lean must not masquerade as TeX")
+        for native in db.execute("SELECT source_locator_json FROM problems WHERE origin_class='author_native_lean'"):
+            require(isinstance(json.loads(native[0]).get("native_material"), dict), "native SQL material locator missing")
         require(not db.execute("SELECT claim_key FROM problems WHERE review_state IN ('current','author_material_collection') AND claim_key IS NOT NULL GROUP BY claim_key HAVING count(*)>1").fetchall(),
                 "duplicate claim identity in current qualified rows")
         actual_count = db.execute("SELECT count(*) FROM problems").fetchone()[0]
@@ -911,7 +1178,8 @@ def validate_database(path, expected_rows=None):
                           "difficulty_reason": "difficulty_reason", "source_id": "source_id", "tex_path": "item_path",
                           "origin_class": "origin_class", "status": "status", "compile_receipt_path": "compile_receipt"}
                 for column, key in fields.items():
-                    require(a[column] == row[key], "SQL metadata differs: " + column)
+                    wanted = None if row.get("material_format") == NATIVE_FORMAT and column in ("tex_path", "compile_receipt_path") else row[key]
+                    require(a[column] == wanted, "SQL metadata differs: " + column)
                 require(locator_metadata(json.loads(a["source_locator_json"])) == locator_metadata(locator(row)), "SQL source locators differ")
                 if row.get("policy") == POLICY or row.get("qualification_set_id"):
                     for field in ADDED_COLUMNS:
@@ -926,16 +1194,16 @@ def validate_database(path, expected_rows=None):
                     for field in SOURCE_COLUMNS:
                         require(sources[row["source_id"]][field] == row.get(field, ""), "SQL source metadata differs: " + field)
         q = db.execute("""SELECT count(DISTINCT claim_key) FROM problems
-            WHERE difficulty_level IN ('H2','H3') AND status='verified_editable_tex'
+            WHERE difficulty_level IN ('H2','H3') AND status IN ('verified_editable_tex','verified_native_author_proof')
             AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope'
             AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0""").fetchone()[0]
         prepared_q = db.execute("""SELECT count(DISTINCT claim_key) FROM problems
-            WHERE validation_policy=? AND difficulty_level IN ('H2','H3') AND status='verified_editable_tex'
+            WHERE validation_policy=? AND difficulty_level IN ('H2','H3') AND status IN ('verified_editable_tex','verified_native_author_proof')
             AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope'
             AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0""", (POLICY,)).fetchone()[0]
         group_expr = "COALESCE(review_protocol, validation_policy, 'legacy')" if "review_protocol" in info else "COALESCE(validation_policy, 'legacy')"
         group_expr = "CASE WHEN review_state='author_material_collection' THEN 'author_material_collection' ELSE " + group_expr + " END"
-        groups = dict(db.execute("SELECT " + group_expr + ", count(DISTINCT claim_key) FROM problems WHERE difficulty_level IN ('H2','H3') AND status='verified_editable_tex' AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope' AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0 GROUP BY " + group_expr).fetchall())
+        groups = dict(db.execute("SELECT " + group_expr + ", count(DISTINCT claim_key) FROM problems WHERE difficulty_level IN ('H2','H3') AND status IN ('verified_editable_tex','verified_native_author_proof') AND review_state IN ('current','author_material_collection') AND dedup_state='unique_within_reviewed_scope' AND claim_key IS NOT NULL AND publication_commit IS NOT NULL AND length(publication_commit)>0 GROUP BY " + group_expr).fetchall())
         return {"qualified_published_by_basis": groups, "qualified_published_by_review_protocol": groups, "problem_count": actual_count, "source_count": db.execute("SELECT count(*) FROM sources").fetchone()[0],
                 "integrity": "ok", "foreign_key_errors": [], "metadata_projection_consistent": expected_rows is not None,
                 "qualified_current_published_count": q, "qualified_prepared_published_count": prepared_q, "policy": POLICY}
@@ -1051,6 +1319,8 @@ def form_equivalent(left, right, evidence_path=None):
 def verify_job(job, *, require_ready=True):
     job = Path(job).resolve()
     state = load(job / "job-state.json")
+    if state.get("material_format") == NATIVE_FORMAT:
+        return verify_native_job(job, state, require_ready=require_ready)
     require(state.get("policy") == POLICY, "unsupported job policy")
     package = relative_path(job, state["package"])
     manifest = load(relative_path(package, "manifest.json", existing=True))
@@ -1155,6 +1425,8 @@ def adopt_material(job, output_root, reservations_path):
     """
     job, output_root = Path(job).resolve(), Path(output_root).resolve()
     original = load(job / "job-state.json")
+    if original.get("material_format") == NATIVE_FORMAT:
+        return adopt_native_material(job, output_root, reservations_path)
     require(original.get("policy") == POLICY and original.get("status") in
             ("compiled_pending_qa", "built", "material_ready"), "existing successful compiled job required")
     package = relative_path(job, original["package"])

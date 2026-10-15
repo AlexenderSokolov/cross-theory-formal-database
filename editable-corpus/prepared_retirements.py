@@ -161,7 +161,7 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     rows = []
     fields = ("title", "author", "work", "source_id", "source_url", "source_version", "item_path",
               "compile_receipt", "license", "license_path", "status", "claim_key",
-              "review_state", "dedup_state", "review_protocol", "qualification_set_id")
+              "review_state", "dedup_state", "review_protocol", "qualification_set_id", "material_format", "origin_class")
     # Older generated catalogs may already contain these manifest payloads.
     # Keep full material/locator/reason records in manifest, not in every directory row.
     material_fields = {"tex_content", "tex_body", "source_files", "contexts", "proof_spans", "statement_spans",
@@ -174,6 +174,10 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
         row.update(problem_id=ident, display_index=number, H=source.get("difficulty_level"),
                    current_item_path=source.get("item_path"),
                    version=source.get("source_version", ""))
+        if source.get("material_format") == d.NATIVE_FORMAT:
+            row.update(native_toolchain=source["native_material"]["toolchain"],
+                       native_build_status=source["native_material"]["build_status"],
+                       native_author_completion_status=source["native_material"]["author_completion_status"])
         row.setdefault("published_title", source.get("title", ""))
         row.setdefault("published_H", source.get("difficulty_level"))
         row.setdefault("qualification_status", "not_reassessed")
@@ -198,7 +202,7 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     corpus.mkdir(parents=True, exist_ok=True)
     d.save(corpus / "catalog.json", previous)
     columns = ("display_index", "problem_id", "title", "H", "qualification_status", "collection_state", "difficulty_state",
-               "difficulty_assessed_by", "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt")
+               "difficulty_assessed_by", "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt", "material_format", "origin_class", "native_build_status")
     with (corpus / "catalog.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
@@ -206,14 +210,15 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     def cell(value):
         return str(value or "").replace("|", "\\|").replace("\n", " ").replace("\r", " ")
     lines = ["# 当前材料索引", "", f"当前材料：{len(rows)}。展示序号连续，稳定题号保持不变。", "",
-             "| 序号 | 稳定题号 | 题名 | 难度标签 | 收集状态 | 难度状态 | 可编辑 TeX | 来源 |",
+             "| 序号 | 稳定题号 | 题名 | 难度标签 | 收集状态 | 难度状态 | 原生材料 | 来源 |",
              "|---|---|---|---|---|---|---|---|"]
     for row in rows:
         item = row.get("item_path", "")
         url = row.get("source_url", "")
+        label = "Lean" if row.get("material_format") == d.NATIVE_FORMAT else "TeX"
         values = [row["display_index"], row["problem_id"], row.get("title"), row.get("H"),
                   row["collection_state"], row["difficulty_state"],
-                  f"[TeX]({item})" if item else "", f"[作者来源]({url})" if url else row.get("source_id", "")]
+                  f"[{label}]({item})" if item else "", f"[作者来源]({url})" if url else row.get("source_id", "")]
         lines.append("| " + " | ".join(cell(value) for value in values) + " |")
     (corpus / "INDEX.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return previous

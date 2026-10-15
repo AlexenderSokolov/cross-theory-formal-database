@@ -210,6 +210,8 @@ def select_jobs(spec, qualification_records=None):
         for path in paths:
             job = Path(path).resolve()
             verified = d.verify_job(job)
+            if verified.get("material_format") == d.NATIVE_FORMAT:
+                d.require(verified.get("public_redistribution_supported") is True, "native public redistribution licence remains on hold; retain internal material")
             ident = verified["problem_id"]
             d.require(verified.get("preparation_basis") == d.MATERIAL_BASIS, "material publication requires explicitly adopted material")
             d.require(ident not in seen and verified["claim_key"] not in claims and ident.isdecimal() and
@@ -327,16 +329,20 @@ def public_job(job, corpus, task):
              "final-item-root-" + task["revision"] + ".json"}
     if state.get("preparation_basis") == d.MATERIAL_BASIS:
         paths.discard("PAGE_QA-root-" + task["revision"] + ".json")
+    native = state.get("material_format") == d.NATIVE_FORMAT
+    if native:
+        d.require(d.verify_job(job).get("public_redistribution_supported") is True, "native public redistribution licence remains on hold")
     # Package consists only of declared source/asset/evidence/SQL outputs created
     # by prepared_delivery; no runtime cache or unrelated parent tree is copied.
     for path in package.rglob("*"):
         d.require(not path.is_symlink(), "symlink in job package")
         if path.is_file():
             paths.add(path.relative_to(job).as_posix())
-    receipt = d.load(package / row["compile_receipt"])
-    paths.add(state["receipt_root"] + "/" + task["problem_id"] + ".json")
-    paths.add(receipt["pdf_path"])
-    if state.get("preparation_basis") != d.MATERIAL_BASIS:
+    receipt = None if native else d.load(package / row["compile_receipt"])
+    if not native:
+        paths.add(state["receipt_root"] + "/" + task["problem_id"] + ".json")
+        paths.add(receipt["pdf_path"])
+    if not native and state.get("preparation_basis") != d.MATERIAL_BASIS:
         paths.update(receipt["rendered_pages"])
         paths.add(receipt["compiler_log_path"])
         for path in (job / receipt["pdf_path"]).parent.iterdir():
@@ -355,7 +361,9 @@ def exported_row(row, relative, state):
     prefix = (relative / state["package"]).as_posix() + "/"
     exported = copy.deepcopy(row)
     for key in ("item_path", "compile_receipt", "license_path", "license_evidence_path"):
-        exported[key] = prefix + row[key]
+        exported[key] = prefix + row[key] if row.get(key) is not None else None
+    if row.get("material_format") == d.NATIVE_FORMAT:
+        exported["native_material"]["root"] = prefix + row["native_material"]["root"]
     for key in ("asset_dependencies", "source_files"):
         for asset in exported[key]:
             asset["path"] = prefix + asset["path"]
@@ -866,6 +874,10 @@ def restore_release(repo, commit, output, *, batch_id=None):
             report = d.verify_job(output / "editable-corpus" / job, require_ready=False)
             state = d.load(output / "editable-corpus" / job / "job-state.json")
             row = d.load(output / "editable-corpus" / job / state["package"] / "manifest.json")["items"][0]
+            if row.get("material_format") == d.NATIVE_FORMAT:
+                d.require(report.get("public_redistribution_supported") is True, "restored native public licence unsupported")
+                reports.append(report)
+                continue
             receipt = d.load(output / "editable-corpus" / job / state["package"] / row["compile_receipt"])
             pdf = output / "editable-corpus" / job / receipt["pdf_path"]
             # Poppler on Windows does not accept deep file names/cwd. Its
