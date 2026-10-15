@@ -366,6 +366,20 @@ def assemble(task_path, task_root, output_root, *, compile_now=True, material_on
     protected += [asset["source"] for asset in checked["assets"]]
     require(not any(job.is_relative_to(p.parent) for p in protected), "job output would write inside an input directory")
     require(not job.exists() or (refresh and load(job / "job-state.json")["status"] == "needs_codex"), "existing successful job is preserved; only failed jobs can be refreshed")
+    if refresh and job.exists():
+        # Crash-run residue cleanup (PD window 2026-10-15, CONTROL 8.8.168
+        # GAP-1): a crashed run (status needs_codex, the only refreshable
+        # state) leaves revision-scoped roots behind, and compile_job then
+        # re-raises Errno 17 on its build/receipts/qa mkdir (exist_ok only
+        # on resume) - the L60111 class.  The refreshed revision recomposes
+        # every artifact, so the stale roots (build/receipts/qa/package;
+        # the task snapshot tree lives inside package-root) are removed
+        # wholesale.  job-state.json is kept, and a successful job can
+        # never reach this branch (require above).
+        for prefix in ("package-root-", "build-root-", "receipts-root-", "qa-root-"):
+            stale = job / (prefix + task["revision"])
+            if stale.exists():
+                shutil.rmtree(stale)
     job.mkdir(parents=True, exist_ok=refresh)
     revision, ident = task["revision"], task["problem_id"]
     package = job / ("package-root-" + revision)
@@ -557,6 +571,37 @@ def run_tool(argv, log, *, cwd=None, env=None, timeout=300):
     return result.stdout
 
 
+# TeX echoes the offending box's content on the lines following an
+# Overfull/Underfull report and terminates that dump with a blank line; the
+# dump is unbounded (nested boxes, long paragraphs), so the former fixed
+# three-line continuation budget misclassified later dump lines that start
+# with "!" as errors (L60114, lane-p1 L40423).  The scan now skips the whole
+# dump segment up to its blank-line terminator, capped only as a guard
+# against a pathological log whose dump never ends; a real error later in
+# the log is scanned once the cap expires.  Deliberately NOT a keyword
+# allowlist: real errors such as "! Display math should end with $$." or
+# "! Too many }'s." carry no allowlisted keyword and would be missed.
+BOX_DUMP_SCAN_LIMIT = 500
+
+
+def engine_log_errors(text):
+    errors = []
+    box_dump_lines = 0
+    for line in text.splitlines():
+        if re.match(r"^(?:Overfull|Underfull)\s+\\[hv]box", line):
+            box_dump_lines = BOX_DUMP_SCAN_LIMIT
+            continue
+        if box_dump_lines:
+            box_dump_lines -= 1
+            if line.strip() == "":
+                box_dump_lines = 0
+            continue
+        if re.search(
+            r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\\(s\\) may have changed|Rerun to get|^!", line, re.I):
+            errors.append(line)
+    return errors
+
+
 def compile_job(job, *, resume=False):
     job = Path(job).resolve()
     state = load(job / "job-state.json")
@@ -606,26 +651,10 @@ def compile_job(job, *, resume=False):
                      build / f"xelatex-{passes + 1}.stdout", cwd=tex.parent, env=env)
             receipt["engine_runs"] += 1
             text = final_log.read_text(encoding="utf-8", errors="replace")
-        # Ticket (lane-p1 L40423 dualizing-finite false positive): TeX prints the offending box's
-        # content on the LINES FOLLOWING an Overfull/Underfull report, and those continuation lines
-        # can begin with "!".  Skip at most three such continuation lines (stop at a blank line) so a
-        # leading "!" is still an error everywhere else.  Deliberately NOT a keyword allowlist: real
-        # errors such as "! Display math should end with $$." or "! Too many }'s." carry no
-        # allowlisted keyword and would be missed.
-        errors = []
-        box_report_lines = 0
-        for line in text.splitlines():
-            if re.match(r"^(?:Overfull|Underfull)\s+\\[hv]box", line):
-                box_report_lines = 3
-                continue
-            if box_report_lines:
-                box_report_lines -= 1
-                if line.strip() == "":
-                    box_report_lines = 0
-                continue
-            if re.search(
-                r"undefined references|undefined citations|(?:Reference|Citation) .+ undefined|Missing character:|multiply.defined labels|Label\\(s\\) may have changed|Rerun to get|^!", line, re.I):
-                errors.append(line)
+        # Box-dump handling lives in engine_log_errors (PD window 2026-10-15
+        # GAP-2, CONTROL 8.8.168): the former fixed three-line skip budget
+        # misread longer dumps (L60114, lane-p1 L40423).
+        errors = engine_log_errors(text)
         require(not errors, "final engine log has unresolved errors: " + "; ".join(errors[:4]))
         fls = build / (tex.stem + ".fls")
         require(fls.is_file(), "TeX recorder output missing")
