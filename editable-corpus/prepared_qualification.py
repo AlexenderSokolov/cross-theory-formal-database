@@ -217,8 +217,11 @@ def apply_screening(master, manifest, record):
             actual = db.execute("SELECT p.*,s.source_version FROM problems p JOIN sources s USING(source_id) WHERE p.problem_id=?",
                                 (row["problem_id"],)).fetchone()
             d.require(actual is not None, "screening SQL material missing")
-            for key in ("task_id", "revision", "source_id", "source_version", "claim_key"):
+            for key in ("task_id", "revision", "source_id", "source_version"):
                 d.require(actual[key] == row[key], "screening SQL existing metadata mismatch: " + key)
+            d.require(actual["claim_key"] == row["claim_key"] or
+                      (actual["validation_policy"] == "legacy" and actual["claim_key"] is None),
+                      "screening SQL existing metadata mismatch: claim_key")
             d.require(row["publication_commit"] is None or actual["publication_commit"] == row["publication_commit"],
                       "screening SQL publication metadata mismatch")
             d.require(metadata(d.json.loads(actual["source_locator_json"]).get("primary")) == metadata(row["counted_primary"]),

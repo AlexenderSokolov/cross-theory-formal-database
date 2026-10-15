@@ -263,17 +263,44 @@ def check_approved_task(entry, whitelist_path, job, task):
               "worker task configuration differs from root-approved task snapshot")
 
 
+def borrowed_object_stores(objects):
+    """List inherited stores oldest first, so Git never has to follow a deep chain."""
+    stores, seen = [], set()
+    pending = [(Path(objects).resolve(), False)]
+    while pending:
+        store, expanded = pending.pop()
+        if expanded:
+            stores.append(store)
+            continue
+        if store in seen:
+            continue
+        seen.add(store)
+        d.require(store.is_dir(), "inherited Git object store missing: " + str(store))
+        pending.append((store, True))
+        alternates = store / "info/alternates"
+        if alternates.is_file():
+            inherited = []
+            for line in alternates.read_text(encoding="utf-8").splitlines():
+                if not line:
+                    continue
+                path = Path(line)
+                inherited.append((path if path.is_absolute() else store / path).resolve())
+            pending.extend((path, False) for path in reversed(inherited))
+    return stores
+
+
 def isolated_git(repo, work, base, branch, origin):
     repo, work = Path(repo).resolve(), Path(work).resolve()
     d.require(COMMIT.fullmatch(base), "explicit full public Git commit required")
-    d.require(git(["--git-dir", repo, "cat-file", "-t", base]) == "commit", "public base commit unavailable")
     objects = repo / "objects"
     d.require(objects.is_dir() and not work.exists(), "fresh isolated publication directory required")
+    stores = borrowed_object_stores(objects)
     git(["init", str(work)])
     gitdir = work / ".git"
     if os.name == "nt":
         git(["-C", work, "config", "core.longpaths", "true"])
-    (gitdir / "objects/info/alternates").write_text(objects.as_posix() + "\n", encoding="utf-8", newline="\n")
+    (gitdir / "objects/info/alternates").write_text("".join(store.as_posix() + "\n" for store in stores), encoding="utf-8", newline="\n")
+    d.require(git(["--git-dir", gitdir, "cat-file", "-t", base]) == "commit", "public base commit unavailable")
     # Alternates share objects, but Git's shallow-history boundary is per repo.
     # Preserve that metadata so revision walks do not request absent ancestors.
     if (repo / "shallow").is_file():
