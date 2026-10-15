@@ -933,7 +933,7 @@ def use_public_base_cache(consumer_git_dir, base_git_dir, base_commit, candidate
     alternate = consumer_git_dir / "objects/info/alternates"
     d.require((consumer_git_dir / "objects").is_dir() and not alternate.exists(), "fresh public consumer alternates required")
     alternate.parent.mkdir(parents=True, exist_ok=True)
-    alternate.write_text((cache / "objects").as_posix() + "\n", encoding="utf-8", newline="\n")
+    alternate.write_text("".join(store.as_posix() + "\n" for store in borrowed_object_stores(cache / "objects")), encoding="utf-8", newline="\n")
     return str(cache / "objects")
 
 
