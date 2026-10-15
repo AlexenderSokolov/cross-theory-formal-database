@@ -87,3 +87,5 @@ batch-026 uploaded: 24 new author-proof materials; cumulative 26 batches, 626 ma
 batch-027 uploaded: 25 new author-proof materials; cumulative 27 batches, 651 materials / 647 net prepared. Commit 4780d2bf2c1218ff32aae99892207fe280725f29; production public increment 0. Continue next batch under the active native persistent goal.
 
 batch-028 uploaded: 25 new author-proof materials; cumulative 28 batches, 676 materials / 672 net prepared. Commit 9c792e3ce90376645da5d61aee390d9f31510ab5; production public increment 0. Continue next batch under the active native persistent goal.
+
+batch-029 uploaded: 24 new author-proof materials; cumulative 29 batches, 700 materials / 696 net prepared. Commit b3d865374d5e8ddd59c8afb61516fc3a31c6caf4; production public increment 0. Continue next batch under the active native persistent goal.
