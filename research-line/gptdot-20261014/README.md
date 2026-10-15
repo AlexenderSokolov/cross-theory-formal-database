@@ -6,13 +6,14 @@
 
 ## 当前进度
 
-2026-10-15 04:58 UTC：32 个当前候选任务，来自 29 个原始作品。其中 26 道完整作者题证已经实际编译、通过可读性检查并完整保存到本线 SQLite；3 道暂缓，3 道排除。准备分支已交付 15 道，第三批 11 道本地完成、尚未上传。生产主库本线公开增量 0。归档修订、冻结副本及未登记的预筛来源不计候选或新增。
+2026-10-15 11:15 UTC：33 个当前候选任务，来自 29 个原始作品。27 道完整作者题证已实际编译、通过可读性检查、完整保存到本线 SQLite，并全部提交准备分支；3 道暂缓、3 道排除。生产主库本线公开增量 0，最终全局唯一资格仍未确认。子智能体因预览额度耗尽退出，当前没有并行生产后台；已保留未完成来源工作供接续。
 
 - [第一批 INDEX](delivery/batch-001/INDEX.md)：4 道，已发布提交 `1bc7a42971fb6705cfd04b937c393d569c4683b6`
 - [第二批 INDEX](delivery/batch-002/INDEX.md)：11 道，已发布提交 `8f4a372766c903ac7ac967e944f5975ddd5f8a4c`
-- [第三批 INDEX](delivery/batch-003/INDEX.md)：11 道，准备中，尚未发布
+- [第三批 INDEX](delivery/batch-003/INDEX.md)：11 道，已发布提交 `8efb535cec0cba19b39b61611533201cf50a254b`
+- [第四批 INDEX](delivery/batch-004/INDEX.md)：1 道，LL-0009 r002，已发布提交 `2147e1a62e14a7a06b57437e4eb77bd35c7ede2b`
 
-各批有独立完整 SQLite、ITEMS 与 SELECTION；任务集合不重叠。公开状态回执提交 `ff2e62f092edc55c5f21aa69feefa7426a467425` 记录前两批累计 15 道。冻结清单中的 prepared_unpublished 是创建时状态，不能代替之后的 UPLOADED 回执或触发重复上传。
+各批有独立完整 SQLite、ITEMS 与 SELECTION；任务集合不重叠。前两批累计 15 道；第三、第四批增加 12 道，总计 27 道。各批 UPLOADED.json 记录固定内容提交及实核依据。冻结清单中的 prepared_unpublished 是创建时状态，不能代替之后的 UPLOADED 回执或触发重复上传。
 
 ## 查重范围与继续位置
 

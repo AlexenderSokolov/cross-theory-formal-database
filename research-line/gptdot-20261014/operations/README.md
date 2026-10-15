@@ -37,3 +37,14 @@
 新增私有官方依赖 listofitems 1.65、stmaryrd 2.02a-tmp-CAR 和 accents 1.4。stmaryrd 原始 TFM/官方 Type1 与映射均保留；私有 dvipdfmx 配置同时保留既有 mathabx，补充官方 stmaryrd、txfonts 与 txr3 映射，以解决缺失系统 pdftex.map 造成的 rtxptmri 物理字体映射。后者已通过先失败后成功的独立单符号测试；没有用不同符号替代原文。
 
 失败引擎中断后若 aux/out/toc 不完整，先在本线私有缓存保存失败中间件，再仅对失败作业续跑；不重新编译未变成功材料。统计当前候选时，递归扫描三个来源组的 task.json，但排除 revisions/.work/private.work，并要求 task_id 唯一；源目录有单题和多题两种层级，不能用固定一层路径遗漏多题来源。
+
+
+## Reusable collection lessons (2026-10-15)
+
+- Parallel workers own disjoint source/task directories; root alone freezes publication batches and updates the preparation branch. Claim discovery, author extraction and PDF presentation checks can run independently. Never start another production controller.
+- A compiled product is not a delivered or globally unique production problem. Track candidate, compiled/readable, SQLite, preparation-branch commit and main admission separately.
+- Preserve original author mathematics. Section-local macro definitions can occur far below the document preamble: LL0009 needed original lines 1879–1889. Recover them verbatim and make a new revision rather than substituting symbols.
+- Preserve successful unchanged builds. Private TeX dependencies and font maps are reusable; a runtime fix is not a reason to recompile the whole corpus.
+- Exclude archived revisions from canonical task enumeration. Explicit new-batch selections prevent an in-progress earlier batch from being exported twice.
+- Freeze public whitelists before uploading. Reuse verified Git blobs, persist per-call results, and do not call a batch uploaded until the remote branch commit and entry point are verified.
+- If workers exit on a quota limit, record their unfinished artifacts and resume only supported work; do not claim that background production continues.
