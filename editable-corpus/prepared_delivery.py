@@ -244,7 +244,23 @@ def validate_record(task, records, *, material_only=False):
         # 2026-10-14 CONTROL (bg) merge ruling (Chief-approved): "*" joins
         # the same classes in one edit (label "eq:PgLambdaT*Mcoord");
         # tri-char single regression run, no second window.
-        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*!&^$][A-Za-z0-9:_. \-/()>+=*!&^$]*", str(reference.get("label", ""))), "invalid external label")
+        # 2026-10-14 CONTROL (bh) expansion (Chief-approved, lane-s12 jep.153
+        # evidence pack): "!" and "&" join the same classes in one edit --
+        # external-label layer only, claim_key layer untouched; unparks
+        # L32301 ("thm:biv_A1minus&Wittcoh") and L32303 ("rem:f_! constructibles").
+        # 2026-10-14 CONTROL (bi) fifth expansion (Chief-approved): "^" joins
+        # the same classes; evidence = lane-x4 full-corpus scan of 32513
+        # external refs, single hit "prop:Ex^*! pro-etale" (L32304), zero
+        # collateral; external-label layer only, claim_key layer untouched.
+        # 2026-10-15 CONTROL 2d01901b ruling (duty manager, lane-s12 jep.241
+        # evidence): the comma joins the same classes.  Evidence = the three
+        # parked lane-s12 cards; the one truly failing label was
+        # "theo-specialcaseSL(n,R)" -- the comma was the only character outside
+        # the charset (spaces and leading dashes were already allowed), so a
+        # slugified key was not needed and would have broken the \ref in the
+        # delivered body, which uses the original key.  External-label layer
+        # only, claim_key layer untouched, \newlabel accepts the comma.
+        require(re.fullmatch(r"[A-Za-z0-9:_.\-/()>+=*!&^$,][A-Za-z0-9:_. \-/()>+=*!&^$,]*", str(reference.get("label", ""))), "invalid external label")
         require(str(reference.get("label", "")).count("$") % 2 == 0, "unbalanced $ in external label")
         require(str(reference.get("kind", "")).lower() in ("lemma", "theorem", "proposition", "corollary", "definition", "equation", "section", "remark", "exercise") + (("reference",) if material_only else ()),
                 "external reference kind required")
