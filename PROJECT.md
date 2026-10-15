@@ -4,6 +4,8 @@
 
 用户明确硬约束（2026-10-13）：禁止在本机编译。所有正文编译、最小文档测试、装配、提取和SQLite生产均只在Yupeng主机执行；本机仅SSH控制、GitHub认证中转及查看主机已生成成品。
 
+本线三个材料上下文为produce_communication、produce_geometry_v2、produce_number_theory_v2，均GPT-6.1 Sol / medium；具体当前精确论文及成品数统一读取本线README.md与STATUS.json。模型容量故障只更换同配置材料上下文，不修改共享Goal或停止其他可执行来源。
+
 本线在Yupeng工作树operations/codex-work-01a1332f及分支codex/corpus-01a1332f-20261013生产。材料根research-line/codex-01a1332f-20261013；三个GPT-6.1 Sol / medium材料代理分别负责communication-complexity、geometry-algorithms、number-theory，只写各自目录。根代理装配、编译、SQLite建库、每批约25道上传并继续，直到用户要求停止或总目标达到。其他产线、DeepSeek目录、queue/owner/reservations只读，不占正式题号。下方统一准则继续适用，其他产线入口仅作继承参考。
 
 # 当前并行生产授权（2026-10-13）

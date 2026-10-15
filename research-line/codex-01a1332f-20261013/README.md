@@ -2,21 +2,19 @@
 
 ## 当前交付与接续入口
 
-[第八批完整成品：25道](delivery/batch-008/INDEX.md)，已上传并核实提交`10da27bf3fa902086f064bda624ae0a26c4c9263`。本线累计199道净新增可用材料已上传。第九批已在Yupeng编译并入库25道，待上传；正式生产主库增量仍为0。上传确认读取各批UPLOADED.json，现场进度读取STATUS.json。
+[第九批完整成品：25道](delivery/batch-009/INDEX.md)，已上传并核实提交 `077993e36dcb2a8b1a016a6c0a54ec4a8b7e7ab0`。本线累计 **224道净新增可用材料**已编译、入库、上传；正式生产主库增量仍为0。各批上传确认见UPLOADED.json，现场进度见STATUS.json。
 
-第九批接续范围：通信CCC2020.12/arxiv1910.01251/ECCC TR19-140（CC078/079起）；几何CCC2020.11/ECCC TR20-014（GA099起，旧TR19-147撤回novelty claim只作版本历史，不用旧稿代当前正式proof）；数论CCC2020.8/arxiv2003.05152/期刊10.1017/fms.2022.100（NT068，按原声明配齐完整结构续证并逐项保留两许可）。当前21题SQLite有效条目、ITEMS与SELECTION一致，与199道上传清单无任务重叠。GA098的原打印参数疑点保留在task.source_rendering_notes，未自行数学修订；GA097保留作者density/padding说明。Goal active，三个GPT-6.1 Sol / medium代理只写各自lane，根负责jobs/编译/数据库/上传；全Yupeng生产、完整30000目标不变。
+持久Goal保持active，持续推进项目30000道合格唯一题总目标，25道仅为交付节点。全部取材、提取、装配、编译和建库仅在Yupeng；禁止本机编译。
 
-几何组完成CCC2021.22后下一独占CCC2021.23/arxiv2105.07517/doi10.48550/arXiv.2105.07517（coloring SoS lower bound，GA090起）。完整旧库、准备记录及两线实际身份零命中；保留原multiple-color-class模型，主下界与承重归约合题，不把unique-color-class开放问题补成结论。
+第十批25道已全部完成Yupeng实际编译、成品检查和SQLite入库，正在上传前最终刷新；累计249道已编译入库、224道已上传。第十一批接续：通信组produce_communication独占CCC2020.34（CC088起）；几何组produce_geometry_v2独占CCC2020.35（GA108起）；数论组produce_number_theory_v2独占CCC2020.36（NT078起，身份查询待终态）。三个GPT-6.1 Sol / medium材料代理只写各自lane，根负责jobs/编译/数据库/上传。完整30000目标保持active，所有编译仅Yupeng。
 
-数论组完成CCC2021.27后下一独占CCC2021.28/arxiv2011.09823/doi10.48550/arXiv.2011.09823（quantum minimum cut，NT063起）。完整旧库、准备记录及两线实际身份零命中；保留matrix/array与权重参数模型，上界同主题合题，独立下界仅按实际完整H2主证选取。
+第九批跨版本许可、同论文近邻区别和原打印疑点见交付INDEX末尾Source and version notes；作者原文保留，未作数学修补。
 
-通信组CC065/066完成后下一独占CCC2021.24/arxiv2106.00287/doi10.48550/arXiv.2106.00287/ECCC TR21-004（junta-distance tolerant testing，CC067起）。完整旧库、准备记录及两线实际身份零命中；保留relaxed/nonrelaxed模型和参数，同主题与承重证明合题，不拆算法支撑与参数变体。
+下一候选CCC2020.18/ToC2022.v018a019/ECCC TR19-067的核心分离结果已在旧库problem966收录，本线跳过，不计新增。 CCC2020.20/ToC2023.v019a004已由第一线占用/交付，本线跳过。
 
-几何组GA090完成后下一独占CCC2021.29/arxiv2002.11594/doi10.48550/arXiv.2002.11594（highest-weight-vector evaluation，GA091起）。完整旧库、准备记录及两线实际身份零命中；保留编码、field与条件性假设，算法同主题合题，只有独立完整主证明的硬度或结构结果另取，不拆参数/支撑。
+CCC2020.28/arxiv1912.00534/期刊10.46298/theoretics.25.9/ECCC TR19-174已有第二线两条明确任务及batch012交付，跳过本源。GA104的Hollender同分类有限近邻身份已查无命中，保留并发归属，不另计同结论第二份证明。
 
-通信组CC067完成后下一独占CCC2021.30/arxiv2012.03415/doi10.48550/arXiv.2012.03415（adversary-bound query-to-communication lifting，CC068起）。完整旧库、准备记录及两线实际身份零命中；保留constant gadget/partial function/round/条件性隐私假设，只按实际独立完整主机制选题。
-
-数论组NT063/064完成后下一独占CCC2021.31/ECCC TR21-030（constant-round communication hardness，NT065起）。完整旧库、准备记录及两线实际身份零命中；保留totalBoolean矩阵输入和round/approximation模型，同主题完整证明与承重round elimination合题，不拆支撑。
+CCC2020.29实际取材缺口：正式uniformSENS→ALOGTIME及相关PSPACE/padding路线只有sketch、完整续证指向full version；arxivv5 nonexclusive、ACM403且仅查到copyright-policy，暂不用于补公开续证。只收作者另行完整证明的nonuniform NC1 projection与Theorem6 wreath-product ∀LEAF端点原声明，不把uniform题面改弱后冒充同题。
 
 下方为来源分配和交付的历史记录，旧阶段计数不代表当前进度。
 
