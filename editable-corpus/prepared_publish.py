@@ -21,10 +21,11 @@ import time
 import prepared_focused as focused
 import prepared_delivery as d
 import prepared_qualification as qualification
+import prepared_retirements as retirements
 
 FIRST_ID, LAST_ID = 900000000, 900999999
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
-CONSUMER_HELPERS = ("prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py")
+CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py")
 
 
 def git(argv, *, cwd=None, env=None, output=None):
@@ -148,6 +149,15 @@ def reserve(spec):
         d.require(master.is_file(), "current master database missing")
         with contextlib.closing(sqlite3.connect(master.as_uri() + "?mode=ro", uri=True)) as db:
             used = {str(r[0]) for r in db.execute("SELECT problem_id FROM problems")}
+        package = d.load(spec["queue_path"]).get("base", {}).get("package")
+        candidates = ([Path(spec["manifest_path"])] if spec.get("manifest_path") else
+                      ([Path(package) / "manifest.json"] if package else []) +
+                      [master.parent / "editable-corpus/manifest.json", master.parent / "manifest.json"])
+        if spec.get("manifest_path"):
+            d.require(candidates[0].is_file(), "explicit current manifest missing")
+        for manifest_path in candidates:
+            if manifest_path.is_file():
+                used.update(map(str, d.load(manifest_path).get("retired_problem_ids", [])))
         used |= problem_ids(d.load(spec["queue_path"])) | problem_ids(d.load(spec["flow_path"]))
         path = Path(spec["reservations_path"])
         record = d.load(path) if path.exists() else {"schema_version": 2, "policy": d.POLICY, "entries": []}
@@ -184,7 +194,10 @@ def select_qualifications(spec):
 
 
 def select_jobs(spec, qualification_records=None):
-    paths = spec["job_paths"]
+    retired = retirements.select(spec)
+    paths = spec.get("job_paths", [])
+    if retired:
+        return []
     records = select_qualifications(spec) if qualification_records is None else qualification_records
     if paths == []:
         d.require(bool(records), "empty jobs require a nonempty approved existing-qualification set")
@@ -373,12 +386,15 @@ def apply_delta(master, delta):
 
 
 def validate_restore_batch(descriptor, batch_id):
+    retirements.validate_frontiers(descriptor)
     if batch_id is None:  # Explicit standalone all-assets restoration.
         return
     job_batches = {entry["batch_id"] for entry in descriptor.get("deltas", [])}
     qualification_batches = {entry["batch_id"] for entry in descriptor.get("qualification_records", []) if entry.get("batch_id")}
-    d.require(batch_id in job_batches | qualification_batches, "requested restore batch is not present in descriptor")
-    d.require(not (batch_id in job_batches and batch_id in qualification_batches), "requested restore batch has ambiguous delivery types")
+    retirement_batches = {entry["batch_id"] for entry in descriptor.get("retirement_records", [])}
+    d.require(batch_id in job_batches | qualification_batches | retirement_batches, "requested restore batch is not present in descriptor")
+    d.require(sum(batch_id in batches for batches in (job_batches, qualification_batches, retirement_batches)) == 1,
+              "requested restore batch has ambiguous delivery types")
     pending_jobs = {entry["batch_id"] for entry in descriptor.get("deltas", []) if not entry.get("published_commit")}
     d.require(pending_jobs <= {batch_id}, "requested restore batch would skip an unpublished new delta")
 
@@ -417,14 +433,17 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
     with gzip.open(compressed, "rb") as source, base_db.open("xb") as target:
         shutil.copyfileobj(source, target)
     d.migrate_database(base_db, master)
-    seen = set()
-    for delta in descriptor["deltas"]:
-        d.require(delta["batch_id"] not in seen, "duplicate database delta")
-        seen.add(delta["batch_id"])
-        path = d.relative_path(destination, delta["path"])
-        git_file(repo, commit, corpus_prefix + "/" + delta["path"], path)
-        d.validate_database(path)
-        apply_delta(master, path)
+    retirement_records, retirement_batches = [], set()
+    for entry in descriptor.get("retirement_records", []):
+        d.require(entry["batch_id"] not in retirement_batches, "duplicate retirement batch")
+        retirement_batches.add(entry["batch_id"])
+        d.relative_path(destination, entry["path"])
+        record = git_json(repo, commit, corpus_prefix + "/" + entry["path"])
+        retirements.check_entry(entry, record)
+        d.save(destination / corpus_prefix / entry["path"], record)
+        retirement_records.append(record)
+    final_manifest = manifest
+    history = retirements.historical_manifest(manifest, retirement_records) if retirement_records else manifest
     qualification_ids, qualification_updates, reviewed = set(), [], {}
     def published_review(path):
         if path not in reviewed:
@@ -432,17 +451,49 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
             reviewed[path] = git_json(repo, commit, path)
             d.save(destination / path, reviewed[path])
         return reviewed[path]
-    for entry in descriptor.get("qualification_records", []):
-        d.require(entry["qualification_set_id"] not in qualification_ids, "duplicate published qualification set ID")
-        qualification_ids.add(entry["qualification_set_id"])
-        d.relative_path(destination, entry["path"])
-        record = git_json(repo, commit, corpus_prefix + "/" + entry["path"])
-        d.require(record["qualification_set_id"] == entry["qualification_set_id"], "qualification descriptor/record ID conflict")
-        d.save(destination / corpus_prefix / entry["path"], record)
-        qualification_updates.append(qualification.apply(master, manifest, record, published_review))
+    def phase_manifest():
+        with contextlib.closing(sqlite3.connect(master)) as db:
+            present = {str(row[0]) for row in db.execute("SELECT problem_id FROM problems")}
+        rows = [row for row in history["items"] if str(row["problem_id"]) in present]
+        d.require({str(row["problem_id"]) for row in rows} == present, "replay SQL IDs missing historical manifest metadata")
+        return dict(history, items=rows, verified_count=len(rows))
+    seen, delta_cursor, qualification_cursor = set(), 0, 0
+    retirement_updates = []
+    def advance(delta_end, qualification_end):
+        nonlocal delta_cursor, qualification_cursor
+        for delta in descriptor["deltas"][delta_cursor:delta_end]:
+            d.require(delta["batch_id"] not in seen, "duplicate database delta")
+            seen.add(delta["batch_id"])
+            path = d.relative_path(destination, delta["path"])
+            git_file(repo, commit, corpus_prefix + "/" + delta["path"], path)
+            d.validate_database(path)
+            apply_delta(master, path)
+        delta_cursor = delta_end
+        current = phase_manifest()
+        for entry in descriptor.get("qualification_records", [])[qualification_cursor:qualification_end]:
+            d.require(entry["qualification_set_id"] not in qualification_ids, "duplicate published qualification set ID")
+            qualification_ids.add(entry["qualification_set_id"])
+            d.relative_path(destination, entry["path"])
+            record = git_json(repo, commit, corpus_prefix + "/" + entry["path"])
+            d.require(record["qualification_set_id"] == entry["qualification_set_id"], "qualification descriptor/record ID conflict")
+            d.save(destination / corpus_prefix / entry["path"], record)
+            qualification_updates.append(qualification.apply(master, current, record, published_review))
+        qualification_cursor = qualification_end
+        return current
+    for entry, record in zip(descriptor.get("retirement_records", []), retirement_records):
+        manifest = advance(entry["after_delta_count"], entry["after_qualification_count"])
+        retirement_updates.append(retirements.apply(master, manifest, record))
+        history["retired_problem_ids"] = manifest["retired_problem_ids"]
+    manifest = advance(len(descriptor["deltas"]), len(descriptor.get("qualification_records", [])))
+    if retirement_records:
+        d.require(manifest["items"] == final_manifest["items"] and
+                  manifest["retired_problem_ids"] == sorted(map(str, final_manifest.get("retired_problem_ids", []))),
+                  "restored retirement projection differs from public manifest")
     sql = d.validate_database(master, manifest["items"])
     d.require(sql["problem_count"] == manifest["verified_count"], "restored material count differs from manifest")
-    return {"database": str(master), "manifest": manifest, "descriptor": descriptor, "sql": sql, "qualification_updates": qualification_updates}
+    d.require(descriptor.get("material_count", sql["problem_count"]) == sql["problem_count"], "restored material count differs from descriptor")
+    return {"database": str(master), "manifest": manifest, "descriptor": descriptor, "sql": sql,
+            "qualification_updates": qualification_updates, "retirement_updates": retirement_updates}
 
 
 def stage_explicit(worktree, pathspec, *, style=None):
@@ -492,10 +543,16 @@ def commit_staged(folder, state):
     return {k: v for k, v in state.items() if k != "spec"}
 
 
+def public_catalog(repo, commit):
+    names = git(["--git-dir", repo, "ls-tree", "--name-only", commit + ":editable-corpus"]).splitlines()
+    return git_json(repo, commit, "editable-corpus/catalog.json") if "catalog.json" in names else None
+
+
 def prepare(spec):
     """Prepare a local candidate commit only. Root separately calls publish."""
     with control(spec, publication=True):
         q = idle_queue(spec)
+        retired = retirements.select(spec)
         qualifications = select_qualifications(spec)
         jobs = select_jobs(spec, qualifications)
         batch = spec["batch_id"]
@@ -514,7 +571,7 @@ def prepare(spec):
             corpus = folder / "worktree/editable-corpus"
             corpus.mkdir(parents=True)
             manifest, descriptor = baseline["manifest"], baseline["descriptor"]
-            ids = {str(r["problem_id"]) for r in manifest["items"]}
+            ids = {str(r["problem_id"]) for r in manifest["items"]} | set(map(str, manifest.get("retired_problem_ids", [])))
             claims = {r["claim_key"] for r in manifest["items"] if r.get("claim_key")}
             rows, assets = [], []
             for job, task in jobs:
@@ -553,7 +610,20 @@ def prepare(spec):
                 d.save(corpus / path, record)
                 entries.append({"qualification_set_id": sid, "path": path, "batch_id": batch})
                 new_paths.append(path)
+            if retired:
+                record = retirements.record(batch, retired, manifest)
+                entry = retirements.descriptor_entry(record, after_delta_count=len(descriptor["deltas"]),
+                                                     after_qualification_count=len(descriptor.get("qualification_records", [])))
+                d.require(not any(old["batch_id"] == batch for old in descriptor.get("retirement_records", [])),
+                          "retirement batch already published")
+                retirements.apply(baseline["database"], manifest, record)
+                d.save(corpus / entry["path"], record)
+                descriptor.setdefault("retirement_records", []).append(entry)
+                new_paths.append(entry["path"])
+            retirements.write_active_indexes(corpus, manifest, public_catalog(repo, spec["public_base_commit"]))
+            new_paths.extend(retirements.ACTIVE_INDEX_FILES)
             descriptor["material_count"] = len(manifest["items"])
+            validate_restore_batch(descriptor, batch)
             d.save(corpus / "manifest.json", manifest)
             d.save(corpus / "prepared-database.json", descriptor)
             sql = d.validate_database(baseline["database"], manifest["items"])
@@ -564,7 +634,7 @@ def prepare(spec):
             pathspec = folder / "stage-paths.txt"
             pathspec.write_text("\0".join("editable-corpus/" + p for p in files) + "\0", encoding="utf-8")
             state.update(stage="ready_to_stage", prepare_checkpoint="ready_to_stage", stage_paths=pathspec.name,
-                         material_count=len(manifest["items"]), increment=len(rows), sql=sql, git_dir=str(repo))
+                         material_count=len(manifest["items"]), increment=len(rows) - len(retired), sql=sql, git_dir=str(repo))
             d.save(folder / "publication.json", state)
             return commit_staged(folder, state)
         except Exception as exc:
@@ -589,6 +659,7 @@ def resume_prepare(folder, *, approve_existing_stage=False):
         checkpoint = state.get("prepare_checkpoint") == "ready_to_stage"
         d.require(checkpoint or approve_existing_stage, "older preparation needs explicit --approve-existing-stage")
         q = idle_queue(spec)
+        retired = retirements.select(spec)
         qualifications = select_qualifications(spec)
         jobs = select_jobs(spec, qualifications)
         d.require(state["incoming"] == [d.binding(t) for _, t in jobs], "prepared recovery incoming whitelist/revision conflict")
@@ -634,14 +705,29 @@ def resume_prepare(folder, *, approve_existing_stage=False):
             qualification_paths.append(path)
             qualification.project_rows(qualification.reviewed_rows(baseline, record, lambda path: git_json(repo, base, path)), record)
         d.require(descriptor.get("qualification_records", []) == expected_entries, "prepared qualification sequence differs")
+        retirement_paths = []
+        expected_retirements = copy.deepcopy(prior_descriptor.get("retirement_records", []))
+        retired_ids = {row["problem_id"] for row in retired}
+        if retired:
+            record = retirements.record(state["batch_id"], retired, baseline)
+            entry = retirements.descriptor_entry(record, after_delta_count=len(expected_prior),
+                                                 after_qualification_count=len(expected_entries))
+            d.require(d.load(corpus / entry["path"]) == record, "prepared retirement differs from root specification")
+            expected_retirements.append(entry)
+            retirement_paths.append(entry["path"])
+            retirements.project(baseline, record)
+        d.require(descriptor.get("retirement_records", []) == expected_retirements, "prepared retirement sequence differs")
+        d.require(manifest.get("retired_problem_ids", []) == baseline.get("retired_problem_ids", []), "prepared retired ID tombstones differ")
         by_id = {r["problem_id"]: r for r in manifest["items"]}
-        d.require(len(by_id) == len(manifest["items"]) and set(by_id) == {r["problem_id"] for r in base_rows} | set(incoming_ids),
+        d.require(len(by_id) == len(manifest["items"]) and set(by_id) == ({r["problem_id"] for r in base_rows} | set(incoming_ids)) - retired_ids,
                   "prepared recovery material ID set conflict")
-        expected_count = len(base_rows) + len(jobs)
+        expected_count = len(base_rows) + len(jobs) - len(retired)
         d.require(manifest["verified_count"] == descriptor["material_count"] == len(by_id) == expected_count,
                   "prepared recovery material count conflict")
         fields = ("title", "difficulty_level", "difficulty_reason", "source_id", "item_path", "origin_class", "status", "compile_receipt")
         for row in base_rows:
+            if row["problem_id"] in retired_ids:
+                continue
             actual = by_id[row["problem_id"]]
             d.require(all(actual.get(k) == row.get(k) for k in fields) and
                       d.locator_metadata(d.locator(actual)) == d.locator_metadata(d.locator(row)),
@@ -666,19 +752,22 @@ def resume_prepare(folder, *, approve_existing_stage=False):
         if jobs:
             d.validate_database(d.relative_path(corpus, delta["path"], existing=True), rows)
         sql = d.validate_database(folder / "base-restore/corpus.sqlite", manifest["items"])
-        new_files = delta["artifact_paths"] + [delta["path"]] if jobs else qualification_paths
+        new_files = delta["artifact_paths"] + [delta["path"]] if jobs else qualification_paths + retirement_paths
         expected_files = ["editable-corpus/" + name for name in new_files +
                           ["manifest.json", "prepared-database.json", *CONSUMER_HELPERS]]
         d.require(not jobs or all(any(name.startswith(job + "/") for job in job_paths) for name in delta["artifact_paths"]),
                   "prepared delta declares an asset outside incoming jobs")
         stage_path = folder / "stage-paths.txt"
         declared = stage_path.read_text(encoding="utf-8").split("\0")
-        d.require(declared and declared[-1] == "" and len(declared) - 1 == len(set(expected_files)) and
-                  set(declared[:-1]) == set(expected_files), "prepared explicit stage path set conflict")
+        index_files = ["editable-corpus/" + name for name in retirements.ACTIVE_INDEX_FILES]
+        declared_set = set(declared[:-1])
+        d.require(declared and declared[-1] == "" and len(declared) - 1 == len(declared_set) and
+                  declared_set in (set(expected_files), set(expected_files) | set(index_files)),
+                  "prepared explicit stage path set conflict")
         for name in expected_files:
             d.relative_path(work, name, existing=True)
         if checkpoint:
-            d.require(state["material_count"] == expected_count and state["increment"] == len(jobs) and
+            d.require(state["material_count"] == expected_count and state["increment"] == len(jobs) - len(retired) and
                       state["sql"]["problem_count"] == sql["problem_count"], "saved stage checkpoint/count conflict")
         history = folder / "preparation-recovery"
         number = int(state.get("prepare_resume_attempts", 0)) + 1
@@ -686,13 +775,20 @@ def resume_prepare(folder, *, approve_existing_stage=False):
         d.require(not snapshot.exists(), "recovery evidence directory already exists")
         snapshot.mkdir(parents=True)
         d.save(snapshot / "prior-publication.json", state)
+        for name in retirements.ACTIVE_INDEX_FILES:
+            if (corpus / name).is_file():
+                shutil.copyfile(corpus / name, snapshot / name)
+        retirements.write_active_indexes(corpus, manifest, public_catalog(repo, base))
+        expected_files.extend(index_files)
+        stage_path.write_text("\0".join(expected_files) + "\0", encoding="utf-8")
         # Update just the declared consumer helpers, retaining their old copies;
         # mathematical packages, assets and existing databases are untouched.
         for name in CONSUMER_HELPERS:
-            shutil.copyfile(corpus / name, snapshot / name)
+            if (corpus / name).exists():
+                shutil.copyfile(corpus / name, snapshot / name)
             shutil.copyfile(Path(__file__).with_name(name), corpus / name)
         state.update(stage="ready_to_stage", prepare_checkpoint="ready_to_stage", stage_paths=stage_path.name,
-                     material_count=expected_count, increment=len(jobs), sql=sql, git_dir=str(repo),
+                     material_count=expected_count, increment=len(jobs) - len(retired), sql=sql, git_dir=str(repo),
                      prepare_resume_attempts=number, existing_stage_approved=bool(approve_existing_stage), resumed_at=d.utc_now())
         if "error" in state:
             state["previous_prepare_error"] = state.pop("error")
@@ -709,13 +805,17 @@ def restore_release(repo, commit, output, *, batch_id=None):
     restored = restore_database(repo, commit, output, batch_id=batch_id)
     output = Path(output).resolve()
     reports = []
+    retained_ids = {str(row["problem_id"]) for row in restored["manifest"]["items"]}
     for delta in restored["descriptor"]["deltas"]:
         if batch_id is not None and delta["batch_id"] != batch_id:
             continue
+        retained_jobs = [job for ident, job in zip(delta["problem_ids"], delta["job_paths"]) if str(ident) in retained_ids]
         for name in delta["artifact_paths"]:
+            if not any(name.startswith(job + "/") for job in retained_jobs):
+                continue
             dst = d.relative_path(output, "editable-corpus/" + name)
             git_file(repo, commit, "editable-corpus/" + name, dst)
-        for job in delta["job_paths"]:
+        for job in retained_jobs:
             report = d.verify_job(output / "editable-corpus" / job, require_ready=False)
             state = d.load(output / "editable-corpus" / job / "job-state.json")
             row = d.load(output / "editable-corpus" / job / state["package"] / "manifest.json")["items"][0]
@@ -745,7 +845,8 @@ def restore_release(repo, commit, output, *, batch_id=None):
               "material_count": restored["sql"]["problem_count"], "restored_prepared_jobs": len(reports),
               "asset_restore_scope": "all_prepared_jobs" if batch_id is None else "current_batch_only", "asset_batch_id": batch_id,
               "database": restored["database"], "sql": final_sql, "jobs": reports,
-              "existing_qualification_updates": restored.get("qualification_updates", [])}
+              "existing_qualification_updates": restored.get("qualification_updates", []),
+              "retirement_updates": restored.get("retirement_updates", [])}
     d.save(output / "RESTORE_RESULT.json", result)
     d.save(output / "editable-corpus/manifest.json", restored["manifest"])
     return result
@@ -851,6 +952,7 @@ def begin_relay(folder):
                   "relay controller material boundary changed")
         if q["base"].get("verified_corpus_commit"):
             d.require(q["base"]["verified_corpus_commit"] in (base, candidate), "relay queue public commit conflict")
+        retired = retirements.select(spec)
         qualifications = select_qualifications(spec)
         jobs = select_jobs(spec, qualifications)
         d.require(state["incoming"] == [d.binding(task) for _, task in jobs], "relay incoming whitelist/revision conflict")
@@ -866,6 +968,13 @@ def begin_relay(folder):
             delta = descriptor["deltas"][-1]
             d.require(delta["batch_id"] == state["batch_id"] and delta["problem_ids"] == [task["problem_id"] for _, task in jobs],
                       "relay committed delta identity conflict")
+        if retired:
+            entries = [entry for entry in descriptor.get("retirement_records", []) if entry["batch_id"] == state["batch_id"]]
+            d.require(len(entries) == 1, "relay retirement descriptor missing or repeated")
+            record = git_json(repo, candidate, "editable-corpus/" + entries[0]["path"])
+            retirements.check_entry(entries[0], record)
+            d.require(record["retirements"] == retired, "relay retirement differs from root specification")
+        validate_restore_batch(descriptor, state["batch_id"])
         for record in qualifications:
             matches = [entry for entry in descriptor.get("qualification_records", []) if entry["qualification_set_id"] == record["qualification_set_id"]]
             d.require(len(matches) == 1 and matches[0].get("batch_id") == state["batch_id"], "relay qualification descriptor conflict")
