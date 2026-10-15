@@ -6,14 +6,16 @@
 
 ## 当前进度
 
-2026-10-15 11:15 UTC：33 个当前候选任务，来自 29 个原始作品。27 道完整作者题证已实际编译、通过可读性检查、完整保存到本线 SQLite，并全部提交准备分支；3 道暂缓、3 道排除。生产主库本线公开增量 0，最终全局唯一资格仍未确认。子智能体因预览额度耗尽退出，当前没有并行生产后台；已保留未完成来源工作供接续。
+2026-10-15 11:33 UTC：35 个当前候选任务，来自 31 个原始作品。29 道完整作者题证已实际编译、通过可读性检查、完整保存到本线 SQLite，并全部提交准备分支；3 道暂缓、3 道排除。生产主库本线公开增量 0，最终全局唯一资格仍未确认。子智能体因预览额度耗尽退出，目前没有并行生产后台。
 
 - [第一批 INDEX](delivery/batch-001/INDEX.md)：4 道，已发布提交 `1bc7a42971fb6705cfd04b937c393d569c4683b6`
 - [第二批 INDEX](delivery/batch-002/INDEX.md)：11 道，已发布提交 `8f4a372766c903ac7ac967e944f5975ddd5f8a4c`
 - [第三批 INDEX](delivery/batch-003/INDEX.md)：11 道，已发布提交 `8efb535cec0cba19b39b61611533201cf50a254b`
 - [第四批 INDEX](delivery/batch-004/INDEX.md)：1 道，LL-0009 r002，已发布提交 `2147e1a62e14a7a06b57437e4eb77bd35c7ede2b`
+- [第五批 INDEX](delivery/batch-005/INDEX.md)：1 道，LL-0010 r003，已发布提交 `5d666e6d545d1f24365828d4b970213d88d4c59e`
+- [第六批 INDEX](delivery/batch-006/INDEX.md)：1 道，MD-0011 r001，已发布提交 `6b3bec4f7db93725bf4fe90e0276e78f1354ae5f`
 
-各批有独立完整 SQLite、ITEMS 与 SELECTION；任务集合不重叠。前两批累计 15 道；第三、第四批增加 12 道，总计 27 道。各批 UPLOADED.json 记录固定内容提交及实核依据。冻结清单中的 prepared_unpublished 是创建时状态，不能代替之后的 UPLOADED 回执或触发重复上传。
+各批有独立完整 SQLite、ITEMS 与 SELECTION；任务集合不重叠。前两批累计 15 道；第三至第六批增加 14 道，总计 29 道。各批 UPLOADED.json 记录固定内容提交及实核依据。冻结清单中的 prepared_unpublished 是创建时状态，不能代替之后的 UPLOADED 回执或触发重复上传。
 
 ## 查重范围与继续位置
 
