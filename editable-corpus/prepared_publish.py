@@ -679,8 +679,10 @@ def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover
             work_key = entry["material"]["work_ref"]["work_key"]
             work, names = shared.publish_work(entry["material_work_registry"], work_key, corpus)
             assets.extend(names)
-            d.require(work["source_id"] == entry["expected"]["source_id"] and
-                      work["source_version"] == entry["expected"]["source_version"],
+            expected_source = (entry["expected"]["source_id"], entry["expected"]["source_version"])
+            canonical_source = (work["source_id"], work["source_version"])
+            d.require(expected_source == canonical_source or
+                      list(expected_source) in (work.get("source_aliases") or []),
                       "associated public work differs from the canonical fixed source")
             reader_path = entry["material"]["reader_path"]
             if not d.relative_path(corpus, reader_path).is_file():
@@ -1609,6 +1611,20 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
                 git_file(repo, commit, 'editable-corpus/' + public_root + '/' + name,
                          d.relative_path(corpus, public_root + '/' + name))
             work['root'] = str(d.relative_path(corpus, public_root))
+        index_name = work.get('structure_index')
+        if index_name and work.get('state') == 'published':
+            index_path = d.relative_path(corpus, public_root + '/' + index_name)
+            old_index = old.get('structure_index') if old else None
+            if (old_index and index_name in old.get('files', []) and
+                    old.get('index_version') == work.get('index_version')):
+                candidate = Path(old_index)
+                if not candidate.is_absolute():
+                    candidate = shared.inside(shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl'), candidate)
+                if candidate.is_file():
+                    index_path = candidate
+            if not index_path.is_file():
+                git_file(repo, commit, 'editable-corpus/' + public_root + '/' + index_name, index_path)
+            work['structure_index'] = str(index_path)
     shared.write_registry(registry, records)
     shared.project_registry(restored['database'], records)
     for row in rows:
