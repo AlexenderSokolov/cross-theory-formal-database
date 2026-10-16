@@ -23,10 +23,11 @@ import prepared_delivery as d
 import prepared_qualification as qualification
 import prepared_retirements as retirements
 import prepared_material_updates as material_updates
+import shared_works as shared
 
 FIRST_ID, LAST_ID = 900000000, 900999999
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
-CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py", "prepared_material_updates.py")
+CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py", "prepared_material_updates.py", "shared_works.py")
 
 
 def git(argv, *, cwd=None, env=None, output=None):
@@ -205,7 +206,7 @@ def select_jobs(spec, qualification_records=None):
         return []
     d.require(not records, "publish new jobs and existing-qualification updates in separate bounded batches")
     if spec.get("preparation_basis") == d.MATERIAL_BASIS:
-        d.require(isinstance(paths, list) and 1 <= len(paths) <= 200, "a publication batch must contain 1..200 explicit jobs")
+        d.require(isinstance(paths, list) and 1 <= len(paths) <= 25, "a publication batch must contain 1..25 explicit jobs")
         reservations = d.load(spec["reservations_path"])["entries"]
         jobs, seen, claims = [], set(), set()
         for path in paths:
@@ -228,7 +229,7 @@ def select_jobs(spec, qualification_records=None):
     allowed = white.get("entries", [])
     d.require(allowed and len({r["task_id"] for r in allowed}) == len(allowed), "whitelist must be finite with unique tasks")
     paths = spec["job_paths"]
-    d.require(isinstance(paths, list) and 1 <= len(paths) <= 200, "a publication batch must contain 1..200 explicit jobs")
+    d.require(isinstance(paths, list) and 1 <= len(paths) <= 25, "a publication batch must contain 1..25 explicit jobs")
     reservations = d.load(spec["reservations_path"])["entries"]
     jobs, seen, tasks = [], set(), []
     for path in paths:
@@ -322,6 +323,8 @@ def isolated_git(repo, work, base, branch, origin):
 def public_job(job, corpus, task, *, copy_files=True):
     """Copy only one reviewed job's declared deliverables into its own namespace."""
     state = d.load(job / "job-state.json")
+    if state.get('work_ref'):
+        return public_reference_job(job, corpus, task, copy_files=copy_files)
     package = job / state["package"]
     row = d.load(package / "manifest.json")["items"][0]
     relative = Path("prepared-jobs") / task["task_id"] / task["revision"]
@@ -378,35 +381,52 @@ def normalize_source_rows(rows, baseline, reconciliations=()):
     # sources has one row per fixed source. Multiple claims keep their own
     # evidence paths while the common source-level NOTICE points to the first.
     known = {row["source_id"]: row for row in baseline}
+    fields = ("author", "work", "source_url", "source_version", "license")
+
+    def matched_reconciliation(row, source_records, canonical=None):
+        task_metadata = {key: row[key] for key in fields}
+        matches = [entry for entry in source_records if entry.get("task_metadata") == task_metadata]
+        d.require(len(matches) == 1, "same-source metadata conflict needs one exact task reconciliation")
+        entry = matches[0]
+        material = row.get("preparation_basis") == d.MATERIAL_BASIS
+        recorder = entry.get("recorded_by", entry.get("approved_by")) if material else entry.get("approved_by")
+        d.require(d.nonempty(recorder) and d.nonempty(entry.get("reason")),
+                  "source reconciliation needs the recorder and a reason" if material else
+                  "source reconciliation needs an explicit root decision")
+        public = entry.get("public_metadata")
+        if canonical is None:
+            d.require(isinstance(public, dict) and set(public) == set(fields) and
+                      all(d.nonempty(public[key]) for key in fields), "new-source canonical citation needs all five fields")
+            canonical = public
+        d.require(public == canonical and all(record.get("public_metadata") == canonical for record in source_records),
+                  "source reconciliation does not match the canonical fixed-version metadata")
+        return entry
+
     for row in rows:
         old = known.get(row["source_id"])
-        if old:
-            fields = ("author", "work", "source_url", "source_version", "license")
-            if any(row[key] != old[key] for key in fields):
-                matches = [entry for entry in reconciliations if entry.get("source_id") == row["source_id"]]
-                material = row.get("preparation_basis") == d.MATERIAL_BASIS
-                d.require(len(matches) == 1, "same-source metadata conflict needs an explicit reconciliation")
-                entry = matches[0]
-                recorder = entry.get("recorded_by", entry.get("approved_by")) if material else entry.get("approved_by")
-                d.require(d.nonempty(recorder) and d.nonempty(entry.get("reason")),
-                          "source reconciliation needs the recorder and a reason" if material else
-                          "source reconciliation needs an explicit root decision")
-                d.require(entry.get("task_metadata") == {key: row[key] for key in fields} and
-                          entry.get("public_metadata") == {key: old[key] for key in fields},
-                          "source reconciliation does not match the actual fixed-version metadata")
-                # Preserve the reviewed task identity inside its immutable job;
-                # the shared sources table retains the existing public spelling.
-                row["reviewed_task_source_metadata"] = {key: row[key] for key in fields}
-                row["source_metadata_reconciliation"] = entry
-                for key in fields:
-                    row[key] = old[key]
-            row["license_path"], row["retrieved_at"] = old["license_path"], old.get("retrieved_at", "")
-        else:
+        source_records = [entry for entry in reconciliations if entry.get("source_id") == row["source_id"]]
+        entry = None
+        if old is None and source_records:
+            entry = matched_reconciliation(row, source_records)
+            # The root's explicit project citation, not the first module's
+            # authors, initializes this batch's shared fixed-source record.
+            old = dict(row, **entry["public_metadata"])
+            known[row["source_id"]] = old
+        elif old is None:
             known[row["source_id"]] = row
+            continue
+        if entry is None and any(row[key] != old[key] for key in fields):
+            entry = matched_reconciliation(row, source_records, {key: old[key] for key in fields})
+        if entry is not None:
+            row["reviewed_task_source_metadata"] = {key: row[key] for key in fields}
+            row["source_metadata_reconciliation"] = entry
+            for key in fields:
+                row[key] = old[key]
+        row["license_path"], row["retrieved_at"] = old["license_path"], old.get("retrieved_at", "")
 
 
 def apply_delta(master, delta):
-    with sqlite3.connect(master) as db:
+    with contextlib.closing(sqlite3.connect(master)) as db, db:
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("ATTACH DATABASE ? AS incoming", (str(delta),))
         # Compare source metadata only; stored author mathematics is inserted,
@@ -437,7 +457,7 @@ def validate_restore_batch(descriptor, batch_id):
     d.require(pending_jobs <= {batch_id}, "requested restore batch would skip an unpublished new delta")
 
 
-def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpus", batch_id=None):
+def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpus", batch_id=None, baseline=None):
     """Read all inputs from one actual Git commit, never from local job roots."""
     repo, destination = Path(repo).resolve(), Path(destination).resolve()
     d.require(COMMIT.fullmatch(commit) and not destination.exists(), "restore needs a full commit and fresh destination")
@@ -456,6 +476,9 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
             "format": old["format"], "parts": [{"index": p["index"], "path": p["path"]} for p in old["parts"]]}, "deltas": []}
     d.require(descriptor.get("policy") == d.POLICY, "unsupported restoration policy")
     validate_restore_batch(descriptor, batch_id)
+    if baseline is not None:
+        return restore_incremental_database(repo, commit, destination, manifest, descriptor, baseline,
+                                            corpus_prefix=corpus_prefix, batch_id=batch_id)
     parts = descriptor["base"]["parts"]
     d.require([p["index"] for p in parts] == list(range(len(parts))) and parts, "base parts must have explicit contiguous order")
     d.require(descriptor["base"]["format"] == "ordered gzip-compressed SQLite parts", "unsupported base SQLite delivery")
@@ -681,10 +704,21 @@ def prepare(spec):
         d.save(folder / "publication.json", state)
         try:
             repo = isolated_git(spec["base_git_dir"], folder / "worktree", spec["public_base_commit"], spec["branch"], spec["origin_url"])
-            baseline = restore_database(repo, spec["public_base_commit"], folder / "base-restore")
+            confirmed = confirmed_baseline(spec, q, repo)
+            if confirmed is None:
+                baseline = restore_database(repo, spec["public_base_commit"], folder / "base-restore")
+            else:
+                baseline = dict(confirmed)
+                baseline['database'] = str(folder / 'incremental-base' / 'corpus.sqlite')
+                d.migrate_database(confirmed['database'], baseline['database'])
             d.require(baseline["sql"]["problem_count"] == q["base"]["remote_main_count"], "public baseline differs from current controller material count")
             corpus = folder / "worktree/editable-corpus"
             corpus.mkdir(parents=True)
+            if confirmed and Path(confirmed['package'], 'work-registry.jsonl').is_file():
+                records = shared.read_registry(Path(confirmed['package']) / 'work-registry.jsonl')
+                for record in records.values():
+                    record['root'] = record.pop('public_root', record['root'])
+                shared.write_registry(corpus / 'work-registry.jsonl', records)
             manifest, descriptor = baseline["manifest"], baseline["descriptor"]
             ids = {str(r["problem_id"]) for r in manifest["items"]} | set(map(str, manifest.get("retired_problem_ids", [])))
             claims = {r["claim_key"] for r in manifest["items"] if r.get("claim_key")}
@@ -728,6 +762,19 @@ def prepare(spec):
                 update_assets, replacement_rows = [], []
                 if record["record_type"] == material_updates.RECORD_TYPE:
                     record, update_assets, replacement_rows = resolve_material_update(record, manifest, corpus, folder, spec)
+                if record['record_type'] == shared.MIGRATION_TYPE:
+                    d.require(spec.get('work_registry_path'), 'migration requires an explicit prepared work registry')
+                    records = shared.read_registry(spec['work_registry_path'])
+                    previous_works = shared.read_registry(corpus / 'work-registry.jsonl')
+                    for key, work in records.items():
+                        if key in previous_works:
+                            continue
+                        work = copy.deepcopy(work)
+                        work.update(root=None, structure_index=None,
+                                    state='unresolved' if work.get('state') == 'unresolved' else 'not_published')
+                        work.pop('asset_sources', None)
+                        previous_works[key] = work
+                    shared.write_registry(corpus / 'work-registry.jsonl', previous_works)
                 qualification.apply(baseline["database"], manifest, record,
                                     lambda path: git_json(repo, spec["public_base_commit"], path),
                                     lambda path: d.relative_path(folder / "worktree", path, existing=True))
@@ -756,13 +803,22 @@ def prepare(spec):
             validate_restore_batch(descriptor, batch)
             d.save(corpus / "manifest.json", manifest)
             d.save(corpus / "prepared-database.json", descriptor)
-            sql = d.validate_database(baseline["database"], manifest["items"])
+            if (corpus / 'work-registry.jsonl').exists():
+                shared.project_registry(baseline['database'], shared.read_registry(corpus / 'work-registry.jsonl'))
+            sql = d.validate_database(baseline["database"], manifest["items"],
+                                      publication_annotations=publication_annotations(confirmed) if confirmed else None)
             # Consumers receive the same no-fingerprint tools used here.
             for name in CONSUMER_HELPERS:
                 shutil.copyfile(Path(__file__).with_name(name), corpus / name)
             files = assets + new_paths + ["manifest.json", "prepared-database.json", *CONSUMER_HELPERS]
+            if (corpus / 'work-registry.jsonl').exists():
+                descriptor['work_registry'] = 'work-registry.jsonl'
+                d.save(corpus / 'prepared-database.json', descriptor)
+                files.append('work-registry.jsonl')
             pathspec = folder / "stage-paths.txt"
             pathspec.write_text("\0".join("editable-corpus/" + p for p in files) + "\0", encoding="utf-8")
+            state['shared_work_paths'] = sorted({'editable-corpus/' + '/'.join(name.split('/')[:3]) for name in assets
+                                                if name.startswith(('tex/works/', 'lean/works/'))})
             state.update(stage="ready_to_stage", prepare_checkpoint="ready_to_stage", stage_paths=pathspec.name,
                          material_count=len(manifest["items"]), increment=len(rows) - len(retired), sql=sql, git_dir=str(repo))
             d.save(folder / "publication.json", state)
@@ -946,16 +1002,19 @@ def resume_prepare(folder, *, approve_existing_stage=False):
             raise
 
 
-def restore_release(repo, commit, output, *, batch_id=None):
-    restored = restore_database(repo, commit, output, batch_id=batch_id)
+def restore_release(repo, commit, output, *, batch_id=None, baseline=None):
+    restored = restore_database(repo, commit, output, batch_id=batch_id, baseline=baseline)
     output = Path(output).resolve()
     reports = []
     retained_ids = {str(row["problem_id"]) for row in restored["manifest"]["items"]}
     active = {row["problem_id"]: row for row in restored["manifest"]["items"]}
+    restore_shared_assets(repo, commit, output, restored, batch_id=batch_id, baseline=baseline)
     releases = restored["descriptor"]["deltas"] + [entry for entry in restored["descriptor"].get("qualification_records", []) if entry.get("job_paths")]
     maintenance_jobs = {}
     for entry in restored["descriptor"].get("qualification_records", []):
         if entry.get("job_paths"):
+            if batch_id is not None and entry['batch_id'] != batch_id:
+                continue
             record = d.load(output / "editable-corpus" / entry["path"])
             for change in record["updates"]:
                 if change["kind"] == "material_revision":
@@ -971,6 +1030,11 @@ def restore_release(repo, commit, output, *, batch_id=None):
             dst = d.relative_path(output, "editable-corpus/" + name)
             git_file(repo, commit, "editable-corpus/" + name, dst)
         for job in retained_jobs:
+            shared_state = d.load(output / 'editable-corpus' / job / 'job-state.json')
+            if shared_state.get('work_ref'):
+                reports.append(d.verify_reference_job(output / 'editable-corpus' / job, shared_state,
+                                                     registry=output / 'editable-corpus/work-registry.jsonl'))
+                continue
             report = d.verify_job(output / "editable-corpus" / job, require_ready=False)
             state = d.load(output / "editable-corpus" / job / "job-state.json")
             row = d.load(output / "editable-corpus" / job / state["package"] / "manifest.json")["items"][0]
@@ -995,8 +1059,10 @@ def restore_release(repo, commit, output, *, batch_id=None):
             reports.append(report)
     # The receipt's exact commit becomes the SQL publication state only after
     # all Git-sourced assets/metadata above have actually restored successfully.
-    with sqlite3.connect(restored["database"]) as db:
+    with contextlib.closing(sqlite3.connect(restored["database"])) as db, db:
         for delta in releases:
+            if baseline is not None and batch_id is not None and delta['batch_id'] != batch_id:
+                continue
             for ident in delta["problem_ids"]:
                 if str(ident) not in retained_ids or active[str(ident)].get("prepared_job", delta["job_paths"][delta["problem_ids"].index(ident)]) != delta["job_paths"][delta["problem_ids"].index(ident)]:
                     continue
@@ -1011,6 +1077,9 @@ def restore_release(repo, commit, output, *, batch_id=None):
               "database": restored["database"], "sql": final_sql, "jobs": reports,
               "existing_qualification_updates": restored.get("qualification_updates", []),
               "retirement_updates": restored.get("retirement_updates", [])}
+    d.save(output / 'editable-corpus/manifest.json', restored['manifest'])
+    d.save(output / 'editable-corpus/prepared-database.json', restored['descriptor'])
+    result['manifest_path'] = str(output / 'editable-corpus/manifest.json')
     d.save(output / "RESTORE_RESULT.json", result)
     d.save(output / "editable-corpus/manifest.json", restored["manifest"])
     return result
@@ -1062,9 +1131,9 @@ def remote_commit(repo, origin, branch):
     return records[0][0]
 
 
-def prefetch_public_job_blobs(repo, commit, incoming):
+def prefetch_public_job_blobs(repo, commit, incoming, *, shared_paths=()):
     """Fetch only the current batch's Git blobs together, including on Git 2.17."""
-    paths = ["editable-corpus/prepared-jobs/" + row["task_id"] + "/" + row["revision"] for row in incoming]
+    paths = ["editable-corpus/prepared-jobs/" + row["task_id"] + "/" + row["revision"] for row in incoming] + list(shared_paths)
     if not paths:
         return {"objects_requested": 0, "fetch_batches": 0}
     listing = git(["--git-dir", repo, "ls-tree", "-r", "-z", commit, "--", *paths],
@@ -1323,9 +1392,11 @@ def publish(folder, *, restore_only=False):
             use_public_base_cache(consumer / ".git", spec["base_git_dir"], state["public_base_commit"], repo)
             git(["-C", consumer, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", candidate])
             d.require(git(["-C", consumer, "rev-parse", "FETCH_HEAD"]) == candidate, "fresh public fetch did not return exact candidate")
-            state["public_job_prefetch"] = prefetch_public_job_blobs(consumer / ".git", candidate, state["incoming"] + state.get("replacement_incoming", []))
+            state["public_job_prefetch"] = prefetch_public_job_blobs(consumer / ".git", candidate, state["incoming"] + state.get("replacement_incoming", []),
+                                                                   shared_paths=state.get('shared_work_paths', []))
             d.save(folder / "publication.json", state)
-            result = restore_release(consumer / ".git", candidate, folder / ("public-restore-" + str(attempt).zfill(3)), batch_id=state["batch_id"])
+            result = restore_release(consumer / ".git", candidate, folder / ("public-restore-" + str(attempt).zfill(3)), batch_id=state["batch_id"],
+                                     baseline=confirmed_baseline(spec, q, consumer / '.git'))
             d.require(result["material_count"] == state["material_count"], "public restored material count differs")
             require_owner(spec["state_root"], spec["actor"])
             q = d.load(spec["queue_path"])
@@ -1365,6 +1436,187 @@ def publish(folder, *, restore_only=False):
             raise
 
 
+def confirmed_baseline(spec, queue, repo):
+    """Use the writer's confirmed DB/package, never infer it from a directory."""
+    base = queue['base']
+    if not base.get('verified_corpus_commit'):
+        return None  # Legacy/bootstrap restoration remains explicit and compatible.
+    d.require(base['verified_corpus_commit'] == spec['public_base_commit'], 'confirmed public baseline moved')
+    database = Path(base['master_database']).resolve()
+    package = Path(base['package']).resolve()
+    d.require(database == Path(spec['master_db']).resolve() and database.is_file() and package.is_dir(),
+              'confirmed master/package differs from explicit spec')
+    manifest = d.load(package / 'manifest.json')
+    d.require(manifest['verified_count'] == len(manifest['items']) == base['remote_main_count'], 'confirmed manifest count differs')
+    descriptor_path = package / 'prepared-database.json'
+    if descriptor_path.exists():
+        descriptor = d.load(descriptor_path)
+    else:
+        descriptor = git_json(repo, spec['public_base_commit'], 'editable-corpus/prepared-database.json')
+    return dict(database=str(database), package=str(package), manifest=manifest, descriptor=descriptor,
+                verified_corpus_commit=base['verified_corpus_commit'],
+                sql={'problem_count': base['remote_main_count']})
+
+
+def publication_annotations(baseline):
+    return {str(ident): (entry.get('published_commit') or baseline['verified_corpus_commit'])
+            for entry in baseline['descriptor'].get('deltas', []) +
+                         [r for r in baseline['descriptor'].get('qualification_records', []) if r.get('job_paths')]
+            for ident in entry.get('problem_ids', [])}
+
+
+def public_reference_job(job, corpus, task, *, copy_files=True):
+    state = d.load(job / 'job-state.json')
+    package = job / state['package']
+    row = copy.deepcopy(d.load(package / 'manifest.json')['items'][0])
+    work_key = row['work_ref']['work_key']
+    d.require(copy_files, 'shared material replacement requires an explicit prepared reference output')
+    source_work = shared.read_registry(state['work_registry'])[work_key]
+    work, assets = shared.publish_work(state['work_registry'], work_key, corpus)
+    license_source = (Path(source_work.get('asset_sources', {})[work['license_path']]) if work.get('license_path') in source_work.get('asset_sources', {})
+                      else shared.inside(shared.work_root(source_work, state['work_registry']), work['license_path'])) if work.get('license_path') else None
+    d.require(license_source is not None and license_source.is_file(),
+              'shared public work licence file missing')
+    relative = Path('prepared-jobs') / task['task_id'] / task['revision']
+    paths = ['job-state.json'] + [p.relative_to(job).as_posix() for p in package.rglob('*') if p.is_file()]
+    for name in paths:
+        source = d.relative_path(job, name, existing=True)
+        d.require(not source.is_symlink(), 'reference job cannot contain a symlink')
+        target = d.relative_path(corpus, (relative / name).as_posix())
+        target.parent.mkdir(parents=True, exist_ok=True)
+        d.require(not target.exists(), 'fresh public reference job required')
+        shutil.copyfile(source, target)
+    public_state = dict(state, work_registry=None)
+    d.save(corpus / relative / 'job-state.json', public_state)
+    row['prepared_job'] = relative.as_posix()
+    row['license_path'] = work['root'] + '/' + work['license_path']
+    d.save(d.relative_path(corpus, row['item_path']), row)
+    return row, assets + [(relative / name).as_posix() for name in paths] + [row['item_path']]
+
+
+def restore_incremental_database(repo, commit, destination, manifest, descriptor, baseline, *, corpus_prefix, batch_id):
+    """Read this commit's new deltas into a confirmed-schema DB copy."""
+    previous = baseline['descriptor']
+    d.require(d.locator_metadata(descriptor['base']) == d.locator_metadata(previous['base']), 'incremental database base changed')
+    def normalized(records):
+        records = copy.deepcopy(records)
+        for record in records:
+            if 'published_commit' in record and not record['published_commit']:
+                record['published_commit'] = baseline['verified_corpus_commit']
+        return records
+    for key in ('deltas', 'qualification_records', 'retirement_records'):
+        old, new = previous.get(key, []), descriptor.get(key, [])
+        d.require(len(new) >= len(old) and d.locator_metadata(new[:len(old)]) == d.locator_metadata(normalized(old)),
+                  'incremental history prefix changed: ' + key)
+    master = destination / 'corpus.sqlite'
+    d.migrate_database(baseline['database'], master)
+    current = copy.deepcopy(baseline['manifest'])
+    existing_ids = {row['problem_id'] for row in current['items']}
+    incoming = []
+    for delta in descriptor['deltas'][len(previous['deltas']):]:
+        d.require(batch_id is None or delta['batch_id'] == batch_id, 'unconfirmed intermediate batch requires recovery')
+        local = d.relative_path(destination, delta['path'])
+        git_file(repo, commit, corpus_prefix + '/' + delta['path'], local)
+        apply_delta(master, local)
+        incoming.extend(delta['problem_ids'])
+    current['items'].extend(copy.deepcopy(row) for row in manifest['items'] if row['problem_id'] in set(incoming) and row['problem_id'] not in existing_ids)
+    current['verified_count'] = len(current['items'])
+    qualifications, retired = [], []
+    def published_payload(path):
+        local = d.relative_path(destination, path)
+        if not local.exists():
+            git_file(repo, commit, path, local)
+        return local
+    for entry in descriptor.get('qualification_records', [])[len(previous.get('qualification_records', [])):]:
+        record = git_json(repo, commit, corpus_prefix + '/' + entry['path'])
+        qualifications.append(qualification.apply(master, current, record,
+            lambda path: git_json(repo, commit, path), published_payload))
+        d.save(destination / corpus_prefix / entry['path'], record)
+    for entry in descriptor.get('retirement_records', [])[len(previous.get('retirement_records', [])):]:
+        record = git_json(repo, commit, corpus_prefix + '/' + entry['path'])
+        retirements.check_entry(entry, record)
+        retired.append(retirements.apply(master, current, record))
+        d.save(destination / corpus_prefix / entry['path'], record)
+    d.require({row['problem_id'] for row in current['items']} == {row['problem_id'] for row in manifest['items']},
+              'incremental active ID set differs from public manifest')
+    # Unknown root/row fields are supplied by the authoritative public manifest.
+    sql = d.validate_database(master, manifest['items'], publication_annotations=publication_annotations(baseline))
+    d.require(sql['problem_count'] == descriptor['material_count'] == manifest['verified_count'], 'incremental count differs')
+    return dict(database=str(master), manifest=manifest, descriptor=descriptor, sql=sql,
+                qualification_updates=qualifications, retirement_updates=retired)
+
+
+def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline):
+    descriptor = restored['descriptor']
+    if not descriptor.get('work_registry'):
+        return
+    corpus = output / 'editable-corpus'
+    registry = corpus / descriptor['work_registry']
+    git_file(repo, commit, 'editable-corpus/' + descriptor['work_registry'], registry)
+    records = shared.read_registry(registry)
+    previous = shared.read_registry(Path(baseline['package']) / 'work-registry.jsonl') if baseline else {}
+    selected_ids = None
+    if batch_id is not None:
+        selected_ids = {ident for delta in descriptor['deltas'] if delta['batch_id'] == batch_id for ident in delta['problem_ids']}
+    rows = [row for row in restored['manifest']['items'] if row.get('status') == shared.STATUS and
+            (selected_ids is None or row['problem_id'] in selected_ids)]
+    needed = {row['work_ref']['work_key'] for row in rows}
+    for key, work in records.items():
+        public_root = work['root']
+        work['public_root'] = public_root
+        old = previous.get(key)
+        if old:
+            d.require(all(old[k] == work[k] for k in shared.IDENTITY), 'shared asset version changed in incremental restore')
+        if (old and old.get('state') == 'published' and isinstance(old.get('root'), str) and
+                shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl').is_dir()):
+            work['root'] = str(shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl'))
+        elif key in needed:
+            d.require(work.get('state') == 'published' and isinstance(public_root, str) and bool(work.get('files')),
+                      'needed shared work has no public complete asset root')
+            for name in work['files']:
+                git_file(repo, commit, 'editable-corpus/' + public_root + '/' + name,
+                         d.relative_path(corpus, public_root + '/' + name))
+            work['root'] = str(d.relative_path(corpus, public_root))
+    shared.write_registry(registry, records)
+    shared.project_registry(restored['database'], records)
+    for row in rows:
+        git_file(repo, commit, 'editable-corpus/' + row['item_path'], d.relative_path(corpus, row['item_path']))
+
+
+def stage_shared_migration(spec, output, *, registry=None):
+    """Build a separate metadata projection; do not switch the writer or publish."""
+    output = Path(output).resolve()
+    d.require(not output.exists(), 'fresh migration output required; preserve previous projection')
+    baseline = confirmed_baseline(spec, d.load(spec['queue_path']), spec['base_git_dir'])
+    d.require(baseline is not None, 'migration requires a previously confirmed public baseline')
+    original = baseline['manifest']
+    manifest, records = shared.migrate_manifest(original, shared.read_registry(registry) if registry else {})
+    corpus = output / 'corpus'
+    corpus.mkdir(parents=True)
+    database = corpus / 'catalog.sqlite'
+    d.migrate_database(baseline['database'], database)
+    record = shared.migration_record(original, manifest, basis_public_commit=spec['public_base_commit'],
+                                     set_id='shared-work-layout-001', approved_by=spec['actor']['owner'])
+    shared.apply_migration(database, manifest, record)
+    shared.write_registry(corpus / 'work-registry.jsonl', records)
+    shared.project_registry(database, records)
+    d.save(corpus / 'manifest.json', manifest)
+    d.save(output / 'migration-record.json', record)
+    for path in ('tex/works', 'tex/entries', 'lean/works', 'lean/entries', 'context'):
+        (corpus / path).mkdir(parents=True, exist_ok=True)
+    retirements.write_active_indexes(corpus, manifest, public_catalog(spec['base_git_dir'], spec['public_base_commit']))
+    sql = d.validate_database(database, manifest['items'], publication_annotations=publication_annotations(baseline))
+    result = dict(status='staged_not_activated', public_base_commit=spec['public_base_commit'],
+                  material_count=len(manifest['items']), material_increment=0, database=str(database),
+                  qualification_scope='Inherited SQL review-state projection only; metadata migration performs no new difficulty qualification',
+                  manifest=str(corpus / 'manifest.json'), work_registry=str(corpus / 'work-registry.jsonl'),
+                  migration_record=str(output / 'migration-record.json'),
+                  unresolved_source_identities=sum(row.get('state') == 'unresolved' for row in records.values()),
+                  preserved_retired_ids=len(manifest.get('retired_problem_ids', [])), sql=sql)
+    d.save(output / 'MIGRATION_RESULT.json', result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -1383,9 +1635,15 @@ def main():
     scope = p.add_mutually_exclusive_group(required=True)
     scope.add_argument("--batch-id")
     scope.add_argument("--all-prepared-assets", action="store_true")
+    p = sub.add_parser('migrate-shared')
+    p.add_argument('--spec', type=Path, required=True)
+    p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--registry', type=Path)
     args = parser.parse_args()
     try:
-        if args.action in ("reserve", "prepare"):
+        if args.action == 'migrate-shared':
+            result = stage_shared_migration(d.load(args.spec), args.output, registry=args.registry)
+        elif args.action in ("reserve", "prepare"):
             result = (reserve if args.action == "reserve" else prepare)(d.load(args.spec))
         elif args.action == "resume-prepare":
             result = resume_prepare(args.batch, approve_existing_stage=args.approve_existing_stage)

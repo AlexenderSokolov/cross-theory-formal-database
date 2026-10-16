@@ -20,6 +20,8 @@ CHECKS = ("complete_counted_statement_and_original_proof", "necessary_local_core
 
 
 def validate_record(record):
+    if record.get('record_type') == d.shared.MIGRATION_TYPE:
+        return d.shared.validate_migration_record(record)
     if record.get("record_type") == material_updates.RECORD_TYPE:
         return material_updates.validate_record(record)
     if record.get("record_type") == SCREENING_RECORD_TYPE:
@@ -138,6 +140,8 @@ def project_rows(prepared, record):
 
 def apply(master, manifest, record, read_review, read_file=None):
     """Update qualification metadata only; repeated identical application is idempotent."""
+    if record.get('record_type') == d.shared.MIGRATION_TYPE:
+        return d.shared.apply_migration(master, manifest, record)
     if record.get("record_type") == material_updates.RECORD_TYPE:
         return material_updates.apply(master, manifest, record, read_review, read_file)
     if record.get("record_type") == SCREENING_RECORD_TYPE:
@@ -186,8 +190,22 @@ def validate_screening_record(record):
                   "screening counted primary invalid")
         material, reuse, dedup = (row.get(key, {}) for key in ("author_material", "material_reuse", "semantic_dedup"))
         d.require(material.get("complete") is True and d.nonempty(material.get("basis")), "complete author material basis missing")
-        d.require(reuse.get("confirmed") is True and all(d.nonempty(reuse.get(key)) for key in ("compile_receipt", "pdf", "basis")) and
-                  type(reuse.get("pages_viewed")) is int and reuse["pages_viewed"] > 0, "existing compile/actual page reuse basis missing")
+        d.require(reuse.get('confirmed') is True and d.nonempty(reuse.get('basis')), 'existing material reuse basis missing')
+        if row.get('material_format') == d.NATIVE_FORMAT:
+            environment = reuse.get('native_environment', {})
+            d.require(d.nonempty(environment.get('toolchain_file')) and isinstance(environment.get('lock_files'), list) and
+                      d.nonempty(reuse.get('run_state')), 'retained native environment/run state missing')
+            if reuse['run_state'] in ('kernel_verified', 'passed'):
+                d.require(d.nonempty(reuse.get('run_evidence')), 'actual native execution evidence missing')
+        elif row.get('work_ref'):
+            evidence = reuse.get('readable_evidence', {})
+            d.require(d.nonempty(row['work_ref'].get('work_key')) and d.nonempty(evidence.get('basis')) and
+                      evidence.get('kind') in ('author_pdf', 'existing_reader', 'source_view'),
+                      'shared TeX readability evidence missing')
+        else:
+            d.require(all(d.nonempty(reuse.get(key)) for key in ('compile_receipt', 'pdf')) and
+                      type(reuse.get('pages_viewed')) is int and reuse['pages_viewed'] > 0,
+                      'existing compile/actual page reuse basis missing')
         compared = dedup.get("compared_problem_ids")
         d.require(d.nonempty(dedup.get("scope")) and isinstance(compared, list) and compared and
                   all(d.nonempty(value) for value in compared) and len(set(compared)) == len(compared) and
