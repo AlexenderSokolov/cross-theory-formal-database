@@ -343,19 +343,44 @@ def project_registry(database, records):
 
 
 def publish_work(registry, work_key, corpus):
-    """Copy one registered complete work on first publication, then reference it."""
+    """Publish one work, carrying its existing index without rescanning originals."""
     work = copy.deepcopy(read_registry(registry)[work_key])
     require(work.get('public_redistribution_supported') is True, 'work public licence remains on hold')
     public_registry = Path(corpus) / 'work-registry.jsonl'
     existing = read_registry(public_registry).get(work_key)
     if existing and existing.get('state') not in ('unresolved', 'not_published'):
         require(all(existing[k] == work[k] for k in IDENTITY), 'public work identity conflict')
-        return existing, []
-    source = work_root(work, registry)
+        if existing.get('structure_index') or not work.get('structure_index'):
+            return existing, []
+    index_name = 'metadata/structure-index.json'
+    index_source = work.get('structure_index')
+    if index_source:
+        index_source = Path(index_source)
+        if not index_source.is_absolute():
+            index_source = inside(work_root(work, registry), index_source)
+        require(index_source.is_file(), 'declared existing structure index missing')
     relative = ('lean' if work['material_format'] == 'native_lean' else 'tex') + '/works/' + quote(work_key, safe='')
+    if existing and existing.get('state') not in ('unresolved', 'not_published'):
+        relative = existing.get('public_root') or relative
+        dst = inside(corpus, relative + '/' + index_name)
+        require(not dst.exists(), 'public index output already exists without registration')
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(index_source, dst)
+        updated = copy.deepcopy(existing)
+        updated['structure_index'] = index_name
+        updated['files'] = list(dict.fromkeys(list(updated.get('files', [])) + [index_name]))
+        records = read_registry(public_registry)
+        records[work_key] = updated
+        write_registry(public_registry, records)
+        return updated, [relative + '/' + index_name]
+    source = work_root(work, registry)
     assets = []
-    asset_sources = work.get('asset_sources', {})
-    for name in list(work['files']) + list(asset_sources):
+    asset_sources = dict(work.get('asset_sources', {}))
+    if index_source:
+        asset_sources.setdefault(index_name, str(index_source))
+        require(Path(asset_sources[index_name]).resolve() == index_source.resolve(),
+                'declared index asset differs from the registered structure index')
+    for name in dict.fromkeys(list(work['files']) + list(asset_sources)):
         dst = inside(corpus, relative + '/' + name)
         require(not dst.exists(), 'public work output already exists without registration')
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -363,7 +388,7 @@ def publish_work(registry, work_key, corpus):
         assets.append(relative + '/' + name)
     work['files'] = list(dict.fromkeys(list(work['files']) + list(asset_sources)))
     work.pop('asset_sources', None)
-    work.update(root=relative, structure_index=None, state='published')
+    work.update(root=relative, structure_index=index_name if index_source else None, state='published')
     records = read_registry(public_registry)
     records[work_key] = work
     write_registry(public_registry, records)
