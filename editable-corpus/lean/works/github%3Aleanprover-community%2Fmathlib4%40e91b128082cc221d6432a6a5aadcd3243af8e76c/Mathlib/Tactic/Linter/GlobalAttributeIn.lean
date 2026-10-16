@@ -1,0 +1,78 @@
+/-
+Copyright (c) 2024 Michael Rothgang. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Michael Rothgang, Damiano Testa
+-/
+module
+
+public import Mathlib.Init
+
+/-!
+# Linter for `attribute [...] in` declarations
+
+Linter for global attributes created via `attribute [...] in` declarations.
+
+The syntax `attribute [instance] instName in` can be used to accidentally create a global instance.
+This is **not** obvious from reading the code, and in fact happened twice during the port,
+hence, we lint against it.
+
+*Example*: before this was discovered, `Mathlib/Topology/Category/TopCat/Basic.lean`
+contained the following code:
+```
+attribute [instance] HasForget.instFunLike in
+instance (X Y : TopCat.{u}) : CoeFun (X ⟶ Y) fun _ => X → Y where
+  coe f := f
+```
+Despite the `in`, this makes `HasForget.instFunLike` a global instance.
+
+This seems to apply to all attributes. For example:
+```lean
+theorem what : False := sorry
+
+attribute [simp] what in
+#guard true
+
+-- the `simp` attribute persists
+example : False := by simp  -- `simp` finds `what`
+
+theorem who {x y : Nat} : x = y := sorry
+
+attribute [ext] who in
+#guard true
+
+-- the `ext` attribute persists
+example {x y : Nat} : x = y := by ext
+```
+Therefore, we lint against this pattern on all instances.
+
+For *removing* attributes, the `in` works as expected.
+```lean
+/--
+error: failed to synthesize
+  Add Nat
+-/
+
+#guard_msgs in
+attribute [-instance] instAddNat in
+#synth Add Nat
+
+-- the `instance` persists
+/-- info: instAddNat -/
+#guard_msgs in
+#synth Add Nat
+
+@[simp]
+theorem what : False := sorry
+
+/-- error: simp made no progress -/
+#guard_msgs in
+attribute [-simp] what in
+example : False := by simp
+
+-- the `simp` attribute persists
+#guard_msgs in
+example : False := by simp
+```
+-/
+
+deprecated_module "This linter was upstreamed to Lean core in April 2026" (since := "2026-10-05")
