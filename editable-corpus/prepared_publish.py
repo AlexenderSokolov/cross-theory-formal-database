@@ -1580,6 +1580,10 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
     rows = [row for row in restored['manifest']['items'] if row.get('status') == shared.STATUS and
             (selected_ids is None or row['problem_id'] in selected_ids)]
     needed = {row['work_ref']['work_key'] for row in rows}
+    needed.update(material['work_ref']['work_key']
+                  for row in restored['manifest']['items']
+                  for material in row.get('materials', [])
+                  if material.get('work_ref', {}).get('work_key'))
     for key, work in records.items():
         public_root = work['root']
         work['public_root'] = public_root
