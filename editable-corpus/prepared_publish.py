@@ -738,6 +738,14 @@ def prepare(spec):
                 records = shared.read_registry(Path(confirmed['package']) / 'work-registry.jsonl')
                 for record in records.values():
                     record['root'] = record.pop('public_root', record['root'])
+                    index_ref = record.get('structure_index')
+                    if index_ref and Path(index_ref).is_absolute():
+                        marker = '/' + record['root'].strip('/') + '/'
+                        index_ref = Path(index_ref).as_posix()
+                        d.require(marker in index_ref, 'runtime index is outside the public work layout')
+                        index_name = index_ref.rsplit(marker, 1)[1]
+                        d.require(index_name in record.get('files', []), 'runtime index is outside the published inventory')
+                        record['structure_index'] = index_name
                 shared.write_registry(corpus / 'work-registry.jsonl', records)
             manifest, descriptor = baseline["manifest"], baseline["descriptor"]
             ids = {str(r["problem_id"]) for r in manifest["items"]} | set(map(str, manifest.get("retired_problem_ids", [])))
@@ -1613,6 +1621,12 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
             work['root'] = str(d.relative_path(corpus, public_root))
         index_name = work.get('structure_index')
         if index_name and work.get('state') == 'published':
+            if Path(index_name).is_absolute():
+                marker = '/' + public_root.strip('/') + '/'
+                index_ref = Path(index_name).as_posix()
+                d.require(marker in index_ref, 'historical index is outside the public work layout')
+                index_name = index_ref.rsplit(marker, 1)[1]
+                d.require(index_name in work.get('files', []), 'historical index is outside the published inventory')
             index_path = d.relative_path(corpus, public_root + '/' + index_name)
             old_index = old.get('structure_index') if old else None
             if (old_index and index_name in old.get('files', []) and
