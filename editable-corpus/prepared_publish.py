@@ -1525,7 +1525,7 @@ def restore_incremental_database(repo, commit, destination, manifest, descriptor
         return records
     for key in ('deltas', 'qualification_records', 'retirement_records'):
         old, new = previous.get(key, []), descriptor.get(key, [])
-        d.require(len(new) >= len(old) and d.locator_metadata(new[:len(old)]) == d.locator_metadata(normalized(old)),
+        d.require(len(new) >= len(old) and d.locator_metadata(normalized(new[:len(old)])) == d.locator_metadata(normalized(old)),
                   'incremental history prefix changed: ' + key)
     master = destination / 'corpus.sqlite'
     d.migrate_database(baseline['database'], master)
