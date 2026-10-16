@@ -30,7 +30,7 @@ def associated_materials(entry):
               material.get("relation") in ("alternate_proof", "alternate_author_presentation"),
               "explicit same-problem author material required")
     ref = material.get("work_ref", {})
-    d.require(d.nonempty(ref.get("work_key")) and ref.get("source_version") == entry["expected"]["source_version"] and
+    d.require(d.nonempty(ref.get("work_key")) and d.nonempty(ref.get("source_version")) and
               all(isinstance(material.get(key), list) and material[key] for key in
                   ("statement_spans", "proof_spans", "context_spans")), "associated fixed-work spans required")
     reader = material.get("reader_path", "")

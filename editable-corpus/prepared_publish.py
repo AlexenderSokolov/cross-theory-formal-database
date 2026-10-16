@@ -675,15 +675,26 @@ def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover
         receipt = d.load(package / d.load(package / "manifest.json")["items"][0]["compile_receipt"])
         return row, receipt, d.load(entry["replacement_qa_path"])
     for entry in approved["updates"]:
-        if entry["kind"] == "material_association" and not recover:
+        if entry["kind"] == "material_association":
             work_key = entry["material"]["work_ref"]["work_key"]
-            work, names = shared.publish_work(entry["material_work_registry"], work_key, corpus)
-            assets.extend(names)
+            if recover:
+                work = shared.read_registry(corpus / "work-registry.jsonl").get(work_key)
+                d.require(work is not None, "associated registered public work missing")
+            else:
+                work, names = shared.publish_work(entry["material_work_registry"], work_key, corpus)
+                assets.extend(names)
             expected_source = (entry["expected"]["source_id"], entry["expected"]["source_version"])
             canonical_source = (work["source_id"], work["source_version"])
-            d.require(expected_source == canonical_source or
-                      list(expected_source) in (work.get("source_aliases") or []),
-                      "associated public work differs from the canonical fixed source")
+            material_version = entry["material"]["work_ref"]["source_version"]
+            # A separately fixed author version need not rewrite an old citation.
+            # Previously published citation aliases remain readable as declared.
+            d.require(material_version == work["source_version"] or
+                      (material_version == expected_source[1] and
+                       (expected_source == canonical_source or
+                        list(expected_source) in (work.get("source_aliases") or []))),
+                      "associated material version differs from its registered fixed work")
+            if recover:
+                continue
             reader_path = entry["material"]["reader_path"]
             if not d.relative_path(corpus, reader_path).is_file():
                 # Reused works stay in the confirmed baseline, outside this delta checkout.
