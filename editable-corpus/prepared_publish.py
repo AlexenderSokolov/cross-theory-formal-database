@@ -682,7 +682,16 @@ def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover
             d.require(work["source_id"] == entry["expected"]["source_id"] and
                       work["source_version"] == entry["expected"]["source_version"],
                       "associated public work differs from the canonical fixed source")
-            d.relative_path(corpus, entry["material"]["reader_path"], existing=True)
+            reader_path = entry["material"]["reader_path"]
+            if not d.relative_path(corpus, reader_path).is_file():
+                # Reused works stay in the confirmed baseline, outside this delta checkout.
+                baseline_registry = Path(d.load(spec["queue_path"])["base"]["package"]) / "work-registry.jsonl"
+                baseline_work = shared.read_registry(baseline_registry).get(work_key)
+                d.require(baseline_work and all(baseline_work[k] == work[k] for k in
+                          ("work_key", "source_id", "source_version", "material_format")),
+                          "associated reader differs from the confirmed baseline work")
+                relative_reader = Path(reader_path).relative_to(baseline_work["public_root"])
+                d.relative_path(shared.work_root(baseline_work, baseline_registry), relative_reader.as_posix(), existing=True)
     record = material_updates.build_record(approved, manifest, replacement)
     if replacements:
         delta = "material-updates/" + approved["qualification_set_id"] + ".sqlite"
