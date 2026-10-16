@@ -1392,8 +1392,18 @@ def publish(folder, *, restore_only=False):
             use_public_base_cache(consumer / ".git", spec["base_git_dir"], state["public_base_commit"], repo)
             git(["-C", consumer, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", "origin", candidate])
             d.require(git(["-C", consumer, "rev-parse", "FETCH_HEAD"]) == candidate, "fresh public fetch did not return exact candidate")
-            state["public_job_prefetch"] = prefetch_public_job_blobs(consumer / ".git", candidate, state["incoming"] + state.get("replacement_incoming", []),
-                                                                   shared_paths=state.get('shared_work_paths', []))
+            relay = state.get("relay_bundle", {})
+            if relay.get("candidate_commit") == candidate and relay.get("public_base_commit") == state["public_base_commit"]:
+                # The exact commit has already been fetched from public origin.
+                # Reuse its relay pack instead of refetching thousands of blobs
+                # through Git 2.17's shallow/promisor path.
+                bundle = d.relative_path(folder, relay["path"], existing=True)
+                git(["-C", consumer, "bundle", "unbundle", bundle])
+                state["public_job_prefetch"] = {"objects_requested": 0, "fetch_batches": 0,
+                                                "reused_public_relay_bundle": relay["path"]}
+            else:
+                state["public_job_prefetch"] = prefetch_public_job_blobs(consumer / ".git", candidate, state["incoming"] + state.get("replacement_incoming", []),
+                                                                       shared_paths=state.get('shared_work_paths', []))
             d.save(folder / "publication.json", state)
             result = restore_release(consumer / ".git", candidate, folder / ("public-restore-" + str(attempt).zfill(3)), batch_id=state["batch_id"],
                                      baseline=confirmed_baseline(spec, q, consumer / '.git'))
