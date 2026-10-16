@@ -9,6 +9,7 @@ import re
 import sqlite3
 
 import prepared_delivery as d
+import prepared_material_updates as material_updates
 
 RECORD_TYPE = "applicable_public_qualification_reuse"
 SCREENING_RECORD_TYPE = "whole_author_work_difficulty_screening"
@@ -19,6 +20,8 @@ CHECKS = ("complete_counted_statement_and_original_proof", "necessary_local_core
 
 
 def validate_record(record):
+    if record.get("record_type") == material_updates.RECORD_TYPE:
+        return material_updates.validate_record(record)
     if record.get("record_type") == SCREENING_RECORD_TYPE:
         return validate_screening_record(record)
     d.require(record.get("review_protocol") is None, "historical qualification cannot adopt focused protocol")
@@ -106,6 +109,8 @@ def validate_review(row, manifest_row, review):
 
 def reviewed_rows(manifest, record, read_review):
     validate_record(record)
+    if record["record_type"] == material_updates.RECORD_TYPE:
+        return material_updates.reviewed_rows(manifest, record)
     if record["record_type"] == SCREENING_RECORD_TYPE:
         return screened_rows(manifest, record)
     by_id = {row["problem_id"]: row for row in manifest["items"]}
@@ -121,6 +126,8 @@ def reviewed_rows(manifest, record, read_review):
 
 
 def project_rows(prepared, record):
+    if record["record_type"] == material_updates.RECORD_TYPE:
+        return material_updates.project_rows(prepared, record)
     for row, original in prepared:
         original.update({key: copy.deepcopy(row[key] if key != "qualification_set_id" else record[key]) for key in QUAL_COLUMNS})
         original["qualification_basis"] = record["record_type"]
@@ -129,8 +136,10 @@ def project_rows(prepared, record):
                             difficulty_state="screened_H2_H3", difficulty_assessed_by=copy.deepcopy(row["assessed_by"]))
 
 
-def apply(master, manifest, record, read_review):
+def apply(master, manifest, record, read_review, read_file=None):
     """Update qualification metadata only; repeated identical application is idempotent."""
+    if record.get("record_type") == material_updates.RECORD_TYPE:
+        return material_updates.apply(master, manifest, record, read_review, read_file)
     if record.get("record_type") == SCREENING_RECORD_TYPE:
         return apply_screening(master, manifest, record)
     prepared = reviewed_rows(manifest, record, read_review)

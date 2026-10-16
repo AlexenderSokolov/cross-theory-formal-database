@@ -159,7 +159,7 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
               "active indexes require unique non-retired manifest IDs")
     ordered = sorted(active, key=lambda row: str(row["problem_id"]))
     rows = []
-    fields = ("title", "author", "work", "source_id", "source_url", "source_version", "item_path",
+    fields = ("title", "author", "authors", "work", "source_id", "source_url", "source_version", "item_path",
               "compile_receipt", "license", "license_path", "status", "claim_key",
               "review_state", "dedup_state", "review_protocol", "qualification_set_id", "material_format", "origin_class")
     # Older generated catalogs may already contain these manifest payloads.
