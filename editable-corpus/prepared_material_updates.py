@@ -21,6 +21,28 @@ def snapshot(row):
     return {key: copy.deepcopy(row.get(key)) for key in CAS_FIELDS}
 
 
+def associated_materials(entry):
+    materials = copy.deepcopy(entry.get("expected_materials") or [])
+    d.require(isinstance(materials, list), "existing associated materials must be a list")
+    material = entry.get("material", {})
+    d.require(isinstance(material, dict) and d.nonempty(material.get("material_key")) and
+              material.get("same_problem_as") == entry["problem_id"] and
+              material.get("relation") in ("alternate_proof", "alternate_author_presentation"),
+              "explicit same-problem author material required")
+    ref = material.get("work_ref", {})
+    d.require(d.nonempty(ref.get("work_key")) and ref.get("source_version") == entry["expected"]["source_version"] and
+              all(isinstance(material.get(key), list) and material[key] for key in
+                  ("statement_spans", "proof_spans", "context_spans")), "associated fixed-work spans required")
+    reader = material.get("reader_path", "")
+    d.require(d.nonempty(reader) and not Path(reader).is_absolute() and ".." not in Path(reader).parts,
+              "associated public reader path required")
+    matching = [item for item in materials if item.get("material_key") == material["material_key"]]
+    d.require(not matching or matching == [material], "associated material key already has different metadata")
+    if not matching:
+        materials.append(copy.deepcopy(material))
+    return materials
+
+
 def validate_record(value):
     d.require(value.get("schema_version") == 2 and value.get("record_type") == RECORD_TYPE and
               value.get("material_increment") == 0 and value.get("status") == "approved_metadata_projection_pending_public_delivery",
@@ -34,12 +56,19 @@ def validate_record(value):
         ident = entry.get("problem_id")
         d.require(isinstance(ident, str) and ident.isdecimal() and ident not in ids, "unique exact stable ID required")
         ids.add(ident)
-        d.require(entry.get("kind") in ("authors_only", "material_revision") and d.nonempty(entry.get("reason")) and
+        d.require(entry.get("kind") in ("authors_only", "material_revision", "material_association") and d.nonempty(entry.get("reason")) and
                   isinstance(entry.get("expected"), dict) and set(entry["expected"]) == set(CAS_FIELDS), "maintenance kind/expected metadata/reason missing")
         if entry["kind"] == "authors_only":
             authors = entry.get("authors")
             d.require(isinstance(authors, list) and authors and all(d.nonempty(author) for author in authors) and
                       "; ".join(authors) == entry["expected"]["author"], "authors correction must match the already correct scalar author")
+        elif entry["kind"] == "material_association":
+            d.require("expected_materials" in entry, "association requires the previous material list")
+            materials = associated_materials(entry)
+            if "changes" in entry:
+                d.require(set(entry["changes"]) <= {"materials"} and
+                          entry["changes"].get("materials", entry["expected_materials"]) == materials,
+                          "association must only append the declared author material")
         else:
             binding = entry.get("replacement_binding", {})
             d.require(set(binding) == set(BINDING_FIELDS) and all(binding.get(key) == entry["expected"].get(key) for key in BINDING_FIELDS if key != "revision") and
@@ -69,6 +98,9 @@ def checked_row(manifest, entry, *, projected=False):
     if projected:
         expected.update({key: value for key, value in entry["changes"].items() if key in CAS_FIELDS})
     d.require(snapshot(rows[0]) == expected, "maintenance expected old/current metadata differs")
+    if entry["kind"] == "material_association":
+        expected_materials = entry["changes"].get("materials", entry["expected_materials"]) if projected else entry["expected_materials"]
+        d.require(rows[0].get("materials") == expected_materials, "associated material list changed")
     return rows[0]
 
 
@@ -88,6 +120,9 @@ def build_record(approved, manifest, replacement):
         old = checked_row(manifest, entry)
         if entry["kind"] == "authors_only":
             changes = {"authors": entry["authors"]}
+        elif entry["kind"] == "material_association":
+            changes = {"materials": associated_materials(entry)}
+            entry.pop("material_work_registry", None)
         else:
             row, receipt, qa = replacement(entry)
             d.require(all(row.get(key) == entry["replacement_binding"][key] for key in BINDING_FIELDS) and row["problem_id"] == entry["problem_id"], "replacement copied job binding differs")
@@ -116,10 +151,14 @@ def reviewed_rows(manifest, record):
     prepared = []
     for entry in record["updates"]:
         d.require(isinstance(entry.get("changes"), dict) and isinstance(entry.get("old_values"), dict), "published maintenance projection missing")
-        allowed = {"authors"} if entry["kind"] == "authors_only" else set(MATERIAL_FIELDS) | {"difficulty_state", "difficulty_assessed_by", "material_update_id"}
+        allowed = ({"authors"} if entry["kind"] == "authors_only" else {"materials"} if entry["kind"] == "material_association"
+                   else set(MATERIAL_FIELDS) | {"difficulty_state", "difficulty_assessed_by", "material_update_id"})
         d.require(set(entry["changes"]) <= allowed and set(entry["old_values"]) == set(entry["changes"]), "maintenance changes exceed the explicit field scope")
         if entry["kind"] == "authors_only":
             d.require(entry["changes"].get("authors", entry["expected"]["authors"]) == entry["authors"], "published authors correction differs")
+        elif entry["kind"] == "material_association":
+            d.require(entry["changes"].get("materials", entry["expected_materials"]) == associated_materials(entry),
+                      "published associated material differs")
         else:
             row = entry["replacement_row"]
             d.require(row["problem_id"] == entry["problem_id"] and all(row.get(key) == entry["replacement_binding"][key] for key in BINDING_FIELDS) and
@@ -177,6 +216,12 @@ def apply(master, manifest, record, read_review, read_file):
             d.require(d.locator_metadata(d.json.loads(actual["source_locator_json"])) == d.locator_metadata(d.locator(old)), "maintenance SQL counted locations differ")
             if entry["kind"] == "authors_only":
                 continue
+            if entry["kind"] == "material_association":
+                locator = d.json.loads(actual["source_locator_json"])
+                locator["materials"] = copy.deepcopy(entry["changes"].get("materials", old.get("materials")))
+                db.execute("UPDATE problems SET source_locator_json=? WHERE problem_id=?",
+                           (d.json.dumps(locator, ensure_ascii=False), entry["problem_id"]))
+                continue
             incoming = db.execute("SELECT * FROM replacement.problems WHERE problem_id=?", (entry["problem_id"],)).fetchone()
             d.require(incoming is not None and all(incoming[key] == entry["replacement_binding"][key] for key in BINDING_FIELDS if key != "source_version"), "replacement SQL row binding mismatch")
             receipt = entry["compile_metadata"]
@@ -196,7 +241,7 @@ def approval_metadata(record):
     result = copy.deepcopy(record)
     result.pop("replacement_delta", None)
     for entry in result["updates"]:
-        for key in ("replacement_job", "replacement_qa_path", "replacement_row", "visual_qa", "compile_metadata", "changes", "old_values", "old_missing_fields"):
+        for key in ("replacement_job", "replacement_qa_path", "replacement_row", "visual_qa", "compile_metadata", "changes", "old_values", "old_missing_fields", "material_work_registry"):
             entry.pop(key, None)
     return result
 

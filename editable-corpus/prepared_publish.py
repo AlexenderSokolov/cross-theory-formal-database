@@ -674,6 +674,15 @@ def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover
         replacements.append(row)
         receipt = d.load(package / d.load(package / "manifest.json")["items"][0]["compile_receipt"])
         return row, receipt, d.load(entry["replacement_qa_path"])
+    for entry in approved["updates"]:
+        if entry["kind"] == "material_association" and not recover:
+            work_key = entry["material"]["work_ref"]["work_key"]
+            work, names = shared.publish_work(entry["material_work_registry"], work_key, corpus)
+            assets.extend(names)
+            d.require(work["source_id"] == entry["expected"]["source_id"] and
+                      work["source_version"] == entry["expected"]["source_version"],
+                      "associated public work differs from the canonical fixed source")
+            d.relative_path(corpus, entry["material"]["reader_path"], existing=True)
     record = material_updates.build_record(approved, manifest, replacement)
     if replacements:
         delta = "material-updates/" + approved["qualification_set_id"] + ".sqlite"
