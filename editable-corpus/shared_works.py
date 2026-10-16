@@ -350,6 +350,18 @@ def publish_work(registry, work_key, corpus):
     existing = read_registry(public_registry).get(work_key)
     if existing and existing.get('state') not in ('unresolved', 'not_published'):
         require(all(existing[k] == work[k] for k in IDENTITY), 'public work identity conflict')
+        aliases = copy.deepcopy(existing.get('source_aliases') or [])
+        for alias in work.get('source_aliases') or []:
+            require(isinstance(alias, list) and len(alias) == 2 and
+                    all(isinstance(value, str) and value for value in alias),
+                    'explicit fixed source alias pair required')
+            if alias not in aliases:
+                aliases.append(copy.deepcopy(alias))
+        if aliases != (existing.get('source_aliases') or []):
+            existing = dict(existing, source_aliases=aliases)
+            records = read_registry(public_registry)
+            records[work_key] = existing
+            write_registry(public_registry, records)
         if existing.get('structure_index') or not work.get('structure_index'):
             return existing, []
     index_name = 'metadata/structure-index.json'
