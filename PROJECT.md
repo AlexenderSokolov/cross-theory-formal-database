@@ -5,7 +5,7 @@
 ## 入口与位置
 
 - 日常执行：[LOCAL_CONTROLLER_HANDOFF.md](LOCAL_CONTROLLER_HANDOFF.md)。
-- 当前主库、待交付包、来源块与历史清理候选：[产物索引](handoff/yupeng/ARTIFACTS_CURRENT.md)。计数以索引指向的queue和公开恢复结果为准，不在本文维护另一套数字。
+- 主库、待交付包、来源块与历史清理候选的位置/保留快照：[产物索引（2026-10-05）](handoff/yupeng/ARTIFACTS_CURRENT.md)。现行位置与计数以queue和实际公开恢复结果为准，不从快照推断今天的状态，也不在本文维护另一套数字。
 - 题证标准：[human-proof-corpus skill](corpus-work/.agents/skills/human-proof-corpus/SKILL.md)。
 - 本地负责SSH与GitHub认证中转；计算与数据在Yupeng `/disks/sata1/yupeng/human-proof-corpus`。仓库为其`repo/`，Python为`runtime/python/bin/python`，分支`corpus-progress-20261001`。
 - GitHub仓库`AlexenderSokolov/cross-theory-formal-database`为公开；用户已授权本项目正常提交发布，逐组件来源许可仍须匹配。
