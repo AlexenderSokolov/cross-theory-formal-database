@@ -1,5 +1,7 @@
 # 题库总清单 / Corpus index
 
+> 历史快照：本清单及 catalog.json/catalog.csv 只覆盖当时的 6,759 条材料，不代表最新 manifest 的全量范围或当前科学资格。全量材料阅读统一使用 [MATERIAL_INDEX.md](MATERIAL_INDEX.md)，连续展示序号与稳定 ID 独立。
+
 - 生成时间：2026-10-08T08:21:49+0800
 - 条目数：**6759**
 - 权威 master：`/disks/sata1/yupeng/human-proof-corpus/operations/corpusctl/batches/batch-6642-6759-r002/merge/package/manifest.json`
