@@ -595,7 +595,7 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
 
 
 def stage_explicit(worktree, pathspec, *, style=None):
-    """Stage only the named paths; Unix supports Git predating pathspec files."""
+    """Stage only named paths, including author-ignored retained original assets."""
     worktree, pathspec = Path(worktree).resolve(), Path(pathspec).resolve()
     paths = pathspec.read_text(encoding="utf-8").split("\0")
     d.require(paths and paths[-1] == "", "stage path list must be NUL-terminated")
@@ -608,18 +608,18 @@ def stage_explicit(worktree, pathspec, *, style=None):
     d.require(style in ("pathspec-file", "argv"), "unknown explicit staging style")
     env = {"GIT_LITERAL_PATHSPECS": "1"}
     if style == "pathspec-file":
-        git(["-C", worktree, "add", "--pathspec-from-file=" + str(pathspec), "--pathspec-file-nul"], env=env)
+        git(["-C", worktree, "add", "-f", "--pathspec-from-file=" + str(pathspec), "--pathspec-file-nul"], env=env)
     else:
         chunk, size = [], 0
         for name in paths:
             width = len(name.encode("utf-8")) + 1
             d.require(width <= 8192, "one explicit stage path exceeds the argument budget")
             if chunk and (len(chunk) >= 64 or size + width > 8192):
-                git(["-C", worktree, "add", "--", *chunk], env=env)
+                git(["-C", worktree, "add", "-f", "--", *chunk], env=env)
                 chunk, size = [], 0
             chunk.append(name); size += width
         if chunk:
-            git(["-C", worktree, "add", "--", *chunk], env=env)
+            git(["-C", worktree, "add", "-f", "--", *chunk], env=env)
     return paths
 
 
