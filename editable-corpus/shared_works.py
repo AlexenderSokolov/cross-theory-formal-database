@@ -371,7 +371,7 @@ def publish_work(registry, work_key, corpus):
         if not index_source.is_absolute():
             index_source = inside(work_root(work, registry), index_source)
         require(index_source.is_file(), 'declared existing structure index missing')
-    relative = ('lean' if work['material_format'] == 'native_lean' else 'tex') + '/works/' + quote(work_key, safe='')
+    relative = work.get('public_root') or (('lean' if work['material_format'] == 'native_lean' else 'tex') + '/works/' + quote(work_key, safe=''))
     if existing and existing.get('state') not in ('unresolved', 'not_published'):
         relative = existing.get('public_root') or relative
         dst = inside(corpus, relative + '/' + index_name)
