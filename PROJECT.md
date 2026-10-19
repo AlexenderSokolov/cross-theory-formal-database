@@ -1,33 +1,58 @@
-# 高级数学人类证明题库
+# 作者题证库：结构与维护
 
-目标：在已有成果上推进到30,000道合格唯一题，交付完整可编辑题证TeX、真实编译结果、INDEX、全文SQLite和公开可恢复材料。
+本项目收集高级数学作者的完整命题、证明和必要上下文，供跨理论研究等任务使用。作者负责原数学；本库负责材料配对、来源定位、固定版本、必要上下文、难度依据和针对性去重。不能由模型补写作者证明、修改假设或以编译成功认证数学。
 
-## 入口与位置
+## 当前结构与权威
 
-- 日常执行：[LOCAL_CONTROLLER_HANDOFF.md](LOCAL_CONTROLLER_HANDOFF.md)。
-- 当前主库、待交付包、来源块与历史清理候选：[产物索引](handoff/yupeng/ARTIFACTS_CURRENT.md)。计数以索引指向的queue和公开恢复结果为准，不在本文维护另一套数字。
-- 题证标准：[human-proof-corpus skill](corpus-work/.agents/skills/human-proof-corpus/SKILL.md)。
-- 本地负责SSH与GitHub认证中转；计算与数据在Yupeng `/disks/sata1/yupeng/human-proof-corpus`。仓库为其`repo/`，Python为`runtime/python/bin/python`，分支`corpus-progress-20261001`。
-- GitHub仓库`AlexenderSokolov/cross-theory-formal-database`为公开；用户已授权本项目正常提交发布，逐组件来源许可仍须匹配。
+- `editable-corpus/manifest.json` 的活动 `items` 决定材料成员及稳定字符串 ID；未知字段、前导零、历史判断、退休编号保留。
+- `work-registry.jsonl` 关联固定作品版本及共享原件。`tex/works`、`lean/works` 保存作品，`tex/entries`、`lean/entries` 定位每题范围；旧 `items/` 与 `prepared-jobs/` 的原有题证继续可用。
+- `catalog.json`／CSV 是元数据投影，保留已有审阅字段；`browse/` 是阅读投影，不能反向修改原始材料或决定准入。
+- SQLite、数据库分片及增量描述继续沿既有恢复路径；本轮不迁移或重建作者材料、数据库 schema、编号和运行环境。
 
-## 收录与生产
+## 阅读与选题
 
-严格高于常规博士资格考试，记录H1/H2/H3及具体理由；保留作者完整原命题、证明和必要新局部核心、准确来源定位与引用。不得生成补证、改变作者数学、拆常规引理凑数或重复计版本；不开展独立数学审稿或提前增加研究标签。具体门禁统一按项目skill执行。
+入口为 [browse/README.md](editable-corpus/browse/README.md)。TeX 与 Lean 分页，每页最多100条，MD与配套JSON各不超过64 KiB。精简summary列出分页位置，来源目录按原记录的URL主机归组；这不是学科或跨理论标注。
 
-固定流程为：**复用或缓存来源 → 完成题证 → 逐题验收 → 满25项合并 → 公开恢复。** 未改变的成功材料直接复用；只修实际失败及其受影响范围。来源缺口、许可或难度问题逐题hold，继续独立候选。
+目录先链接真实 `item_path`；存在阅读PDF时链接PDF；已公开共享作品且原记录提供证明行范围时生成精确源码行链接。没有证据的PDF、页数、学科、难度和运行结果不猜测。历史映射待定位与旧题证丢失须区分。
 
-来源worker只写自己的互斥候选目录；唯一总控负责稳定ID、材料准入、语义去重、主库与发布。运行台账不代替题库，技术READY不代替准入或远端交付。
+网页端工具可先读小入口和相关分页，入选前再读题证及必要上下文。工具读不到的对应页／文件可以单独补交，无需让用户预先搬运全库。
 
-## 工具与维护边界
+## 生成路径与接口
 
-运行入口为`corpus-work/corpusctl`；编译沿用`compile-isolated`，校验显式使用`validate_corpus.py --mode editable-delivery`。复用canonical投影、现有合并器及发布恢复入口，不执行旧固定数量/旧绝对路径脚本。
+[prepared_retirements.write_active_indexes](editable-corpus/prepared_retirements.py) 继续作为活动材料投影入口，按现有manifest和catalog生成机器目录，并调用 [reader_catalog](editable-corpus/reader_catalog.py) 生成阅读页。
 
-[控制器v2契约](corpus-work/docs/controller-v2/CONTROLLER_CONTRACT.md)、schema及35项场景用于修改相关代码时查阅和回归，**不作为日常生产待办或每轮启动检查**。相关测试已通过后不再例行重跑；本次集成完成后优先交付题目，不追加泛化测试、架构审查或新平台。不得以精简为由再重构一轮已可用程序。
+- `render_reader_files(corpus, manifest, catalog)`：只读，返回相对路径到UTF-8文本的映射。
+- `write_reader_catalog(...)`：只写上述导航文件，固定LF；不改作者原件、manifest或注册表。
+- `active_index_files(...)`：列出本次全部生成路径，供现有prepare、失败续作和明确暂存白名单使用。
+- `prepared_publish.CONSUMER_HELPERS` 包含reader模块，消费者取得相同实现；嵌套阅读页的恢复备份创建其父目录。
 
-题目最终编译与item门禁、批次SQL/aggregate和必要公开恢复保留。每500道新增作完整对账；公开计数仅在实际远端恢复成功后更新。失败回执、唯一未交付材料和在途目录保留，不批量删除，不强推或覆盖其它成果。GitHub凭据留在本地，原始网页缓存不盲目公开。
+旧 `corpus-work/scripts/sync_editable_projections.py` 服务于历史 verified-editable-TeX 逐题包，不是混合总库的阅读入口；总库导航不能作为它的旧五列表格输入。旧说明保留在Git历史，不沿旧标签、数字或控制提示恢复任务。
 
-## 历史与接续
+## 复现命令
 
-975＋40已接收，LOCAL1002和旧独立备份存在重叠，不能重复计数；1907未完成。历史见`handoff/`和Git历史，日常不重做接收。dot方案已取消，旧会话和旧心跳20-1000保持暂停。
+使用现有Python 3.10+，仅依赖标准库；不安装新依赖。
 
-现行总控为“高级数学题库：本地总控续产”，模型gpt-6.1-sol / medium，每2小时汇报日程ID2。中断时只更新当前队列、真实完成阶段和必要下一步，不复制维护多份状态说明。
+```sh
+bash run_reader_catalog.sh generate
+bash run_reader_catalog.sh check
+bash run_reader_catalog.sh links
+bash run_reader_catalog.sh test
+```
+
+PowerShell等环境也可直接运行：
+
+```text
+python -B editable-corpus/reader_catalog.py
+python -B editable-corpus/reader_catalog.py --check --check-links
+python -B -m unittest discover -s corpus-work/tests -p test_reader_catalog.py -v
+```
+
+`generate`沿现有投影入口同步元数据与阅读目录；`check`核对当前manifest成员、核心元数据及应生成页面；`test`只运行本次相关回归。必要验证通过后不扩大到全库构建或作者数学复审。
+
+## 发布与运行副本
+
+本仓库的代码和生产环境使用的运行副本必须区分。公开helper更新不证明正在运行的副本已替换；部署应由原共享库单写者在安全窗口沿既有流程完成。目录更新不转移正式ID分配、材料采用、共享状态或发布职责，不操控其他会话。
+
+本轮仅改阅读组织及其直接生成／暂存／续作衔接。原有数据库恢复链、来源许可及在途材料继续保留；禁止批量删除、强推、覆盖他人改动、新建调度器或自动化。
+
+[本轮实际验证与复用](notes/PROJECT_REUSE.md)。[此前项目说明的固定历史版本](https://github.com/AlexenderSokolov/cross-theory-formal-database/blob/d4077e447681a460ce95ddf2ef4da24b08d10a06/PROJECT.md)用于追溯旧决策，不能覆盖本次明确范围。

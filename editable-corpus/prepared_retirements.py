@@ -8,6 +8,7 @@ import contextlib
 import sqlite3
 
 import prepared_delivery as d
+import reader_catalog
 
 RECORD_TYPE = "explicit_material_retirement_v1"
 
@@ -145,6 +146,11 @@ def validate_frontiers(descriptor):
 ACTIVE_INDEX_FILES = ("INDEX.md", "catalog.json", "catalog.csv")
 
 
+def active_index_files(corpus, manifest, catalog):
+    """Derive the exact generated whitelist, including nested reading pages."""
+    return tuple(sorted(set(ACTIVE_INDEX_FILES) | set(reader_catalog.render_reader_files(corpus, manifest, catalog))))
+
+
 def write_active_indexes(corpus, manifest, previous_catalog=None):
     """Deterministic current-material projection; retain existing scoped review metadata."""
     corpus = Path(corpus)
@@ -152,6 +158,12 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
               previous_catalog.get("schema_version", 2) == 2 and isinstance(previous_catalog.get("items"), list),
               "previous catalog must be an existing items object with absent or supported schema version")
     previous = {key: copy.deepcopy(value) for key, value in (previous_catalog or {}).items() if key != "items"}
+    if previous.get("generated_at"):
+        previous.setdefault("historical_catalog_generated_at", previous["generated_at"])
+    # The old timestamp described a historical catalog, not this active projection.
+    # Git identifies the current version; no wall-clock timestamp breaks replay.
+    previous["generated_at"] = None
+    previous["generation_basis"] = "active manifest.json; current version is the containing Git commit"
     old_rows = {str(row["problem_id"]): row for row in (previous_catalog or {}).get("items", [])}
     active = manifest["items"]
     ids = {str(row["problem_id"]) for row in active}
@@ -200,25 +212,12 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
                     current_confirmed_difficulty_counts=dict(Counter(row["confirmed_H"] for row in rows if row.get("confirmed_H"))))
     previous.setdefault("qualification_scope", "Current materials and recorded difficulty states; historical labels alone do not establish a current review.")
     corpus.mkdir(parents=True, exist_ok=True)
-    d.save(corpus / "catalog.json", previous)
     columns = ("display_index", "problem_id", "title", "H", "qualification_status", "collection_state", "difficulty_state",
                "difficulty_assessed_by", "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt", "material_format", "origin_class", "native_build_status")
     with (corpus / "catalog.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
-    def cell(value):
-        return str(value or "").replace("|", "\\|").replace("\n", " ").replace("\r", " ")
-    lines = ["# 当前材料索引", "", f"当前材料：{len(rows)}。展示序号连续，稳定题号保持不变。", "",
-             "| 序号 | 稳定题号 | 题名 | 难度标签 | 收集状态 | 难度状态 | 原生材料 | 来源 |",
-             "|---|---|---|---|---|---|---|---|"]
-    for row in rows:
-        item = row.get("item_path", "")
-        url = row.get("source_url", "")
-        label = "Lean" if row.get("material_format") == d.NATIVE_FORMAT else "TeX"
-        values = [row["display_index"], row["problem_id"], row.get("title"), row.get("H"),
-                  row["collection_state"], row["difficulty_state"],
-                  f"[{label}]({item})" if item else "", f"[作者来源]({url})" if url else row.get("source_id", "")]
-        lines.append("| " + " | ".join(cell(value) for value in values) + " |")
-    (corpus / "INDEX.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    previous["reader_files"] = reader_catalog.write_reader_catalog(corpus, manifest, previous)
+    d.save(corpus / "catalog.json", dict(sorted(previous.items())))
     return previous

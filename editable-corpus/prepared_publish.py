@@ -27,7 +27,22 @@ import shared_works as shared
 
 FIRST_ID, LAST_ID = 900000000, 900999999
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
-CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py", "prepared_material_updates.py", "shared_works.py")
+CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py", "prepared_material_updates.py", "shared_works.py", "reader_catalog.py")
+
+
+def validate_stage_paths(work, declared, expected_files, index_files, legacy_index_files):
+    """Accept the exact prior helper set while upgrading an in-flight candidate."""
+    declared_set = set(declared[:-1])
+    current = set(expected_files)
+    prior = current - {"editable-corpus/reader_catalog.py"}
+    allowed = {frozenset(base | extra) for base in (current, prior)
+               for extra in (set(), set(index_files), set(legacy_index_files))}
+    d.require(declared and declared[-1] == "" and len(declared) - 1 == len(declared_set) and
+              frozenset(declared_set) in allowed, "prepared explicit stage path set conflict")
+    # A newly introduced helper is copied below, after the old stage is checked.
+    # Only paths actually declared by that completed old stage must exist now.
+    for name in declared_set:
+        d.relative_path(work, name, existing=True)
 
 
 def git(argv, *, cwd=None, env=None, output=None):
@@ -836,8 +851,8 @@ def prepare(spec):
                 d.save(corpus / entry["path"], record)
                 descriptor.setdefault("retirement_records", []).append(entry)
                 new_paths.append(entry["path"])
-            retirements.write_active_indexes(corpus, manifest, public_catalog(repo, spec["public_base_commit"]))
-            new_paths.extend(retirements.ACTIVE_INDEX_FILES)
+            active_catalog = retirements.write_active_indexes(corpus, manifest, public_catalog(repo, spec["public_base_commit"]))
+            new_paths.extend(retirements.active_index_files(corpus, manifest, active_catalog))
             descriptor["material_count"] = len(manifest["items"])
             validate_restore_batch(descriptor, batch)
             d.save(corpus / "manifest.json", manifest)
@@ -995,17 +1010,16 @@ def resume_prepare(folder, *, approve_existing_stage=False):
         new_files = delta["artifact_paths"] + [delta["path"]] if jobs else qualification_paths + retirement_paths + maintenance_paths
         expected_files = ["editable-corpus/" + name for name in new_files +
                           ["manifest.json", "prepared-database.json", *CONSUMER_HELPERS]]
+        if descriptor.get("work_registry") == "work-registry.jsonl":
+            expected_files.append("editable-corpus/work-registry.jsonl")
         d.require(not jobs or all(any(name.startswith(job + "/") for job in job_paths) for name in delta["artifact_paths"]),
                   "prepared delta declares an asset outside incoming jobs")
         stage_path = folder / "stage-paths.txt"
         declared = stage_path.read_text(encoding="utf-8").split("\0")
-        index_files = ["editable-corpus/" + name for name in retirements.ACTIVE_INDEX_FILES]
-        declared_set = set(declared[:-1])
-        d.require(declared and declared[-1] == "" and len(declared) - 1 == len(declared_set) and
-                  declared_set in (set(expected_files), set(expected_files) | set(index_files)),
-                  "prepared explicit stage path set conflict")
-        for name in expected_files:
-            d.relative_path(work, name, existing=True)
+        active_catalog = d.load(corpus / "catalog.json")
+        index_files = ["editable-corpus/" + name for name in retirements.active_index_files(corpus, manifest, active_catalog)]
+        legacy_index_files = ["editable-corpus/" + name for name in retirements.ACTIVE_INDEX_FILES]
+        validate_stage_paths(work, declared, expected_files, index_files, legacy_index_files)
         if checkpoint:
             d.require(state["material_count"] == expected_count and state["increment"] == len(jobs) - len(retired) and
                       state["sql"]["problem_count"] == sql["problem_count"], "saved stage checkpoint/count conflict")
@@ -1015,11 +1029,12 @@ def resume_prepare(folder, *, approve_existing_stage=False):
         d.require(not snapshot.exists(), "recovery evidence directory already exists")
         snapshot.mkdir(parents=True)
         d.save(snapshot / "prior-publication.json", state)
-        for name in retirements.ACTIVE_INDEX_FILES:
+        for name in retirements.active_index_files(corpus, manifest, active_catalog):
             if (corpus / name).is_file():
+                (snapshot / name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(corpus / name, snapshot / name)
-        retirements.write_active_indexes(corpus, manifest, public_catalog(repo, base))
-        expected_files.extend(index_files)
+        active_catalog = retirements.write_active_indexes(corpus, manifest, public_catalog(repo, base))
+        expected_files.extend("editable-corpus/" + name for name in retirements.active_index_files(corpus, manifest, active_catalog))
         stage_path.write_text("\0".join(expected_files) + "\0", encoding="utf-8")
         # Update just the declared consumer helpers, retaining their old copies;
         # mathematical packages, assets and existing databases are untouched.
