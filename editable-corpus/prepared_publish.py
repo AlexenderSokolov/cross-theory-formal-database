@@ -1733,7 +1733,10 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
         if old:
             d.require(all(old[k] == work[k] for k in shared.IDENTITY), 'shared asset version changed in incremental restore')
         if (old and old.get('state') == 'published' and isinstance(old.get('root'), str) and
-                shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl').is_dir()):
+                shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl').is_dir() and
+                bool(work.get('files')) and all(shared.inside(
+                    shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl'), name).is_file()
+                    for name in work['files'])):
             work['root'] = str(shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl'))
         elif key in needed:
             d.require(work.get('state') == 'published' and isinstance(public_root, str) and bool(work.get('files')),

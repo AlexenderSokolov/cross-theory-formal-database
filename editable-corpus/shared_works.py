@@ -468,12 +468,48 @@ def publish_work(registry, work_key, corpus):
                     'explicit fixed source alias pair required')
             if alias not in aliases:
                 aliases.append(copy.deepcopy(alias))
-        if aliases != (existing.get('source_aliases') or []):
+        aliases_changed = aliases != (existing.get('source_aliases') or [])
+        if aliases_changed:
             existing = dict(existing, source_aliases=aliases)
+        # A fixed published work may gain explicitly approved assets, never replacements.
+        additions = {name: Path(origin) for name, origin in work.get('asset_sources', {}).items()
+                     if name not in existing.get('files', [])}
+        if additions:
+            require(existing.get('structure_index'), 'append assets requires a published structure index')
+            reading = work.get('readability')
+            if reading is not None and reading != existing.get('readability'):
+                require('readability' not in existing, 'published readability cannot be replaced by an asset append')
+                require(isinstance(reading, dict) and reading.get('path') in additions,
+                        'new readability must reference an appended asset')
+            relative = existing.get('public_root') or existing['root']
+            public_dir = inside(corpus, relative)
+            registered_outputs = {inside(public_dir, name) for name in existing.get('files', [])}
+            copies = []
+            outputs = set()
+            for name, origin in additions.items():
+                destination = inside(public_dir, name)
+                require(destination not in registered_outputs, 'append cannot replace a registered asset')
+                require(destination not in outputs, 'appended assets resolve to the same output')
+                outputs.add(destination)
+                require(origin.is_file(), 'declared appended asset missing')
+                require(not destination.exists(), 'appended public asset output already exists')
+                copies.append((name, origin, destination))
+            updated = copy.deepcopy(existing)
+            updated['files'] = list(existing['files']) + list(additions)
+            if reading is not None and 'readability' not in existing:
+                updated['readability'] = copy.deepcopy(reading)
+            for name, origin, destination in copies:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(origin, destination)
             records = read_registry(public_registry)
-            records[work_key] = existing
+            records[work_key] = updated
             write_registry(public_registry, records)
+            return updated, [relative + '/' + name for name in additions]
         if existing.get('structure_index') or not work.get('structure_index'):
+            if aliases_changed:
+                records = read_registry(public_registry)
+                records[work_key] = existing
+                write_registry(public_registry, records)
             return existing, []
     index_name = 'metadata/structure-index.json'
     index_source = work.get('structure_index')
