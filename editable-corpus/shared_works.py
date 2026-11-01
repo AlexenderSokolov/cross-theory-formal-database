@@ -6,6 +6,7 @@ entries retain their supplied identifiers until the existing writer adopts them.
 from __future__ import annotations
 
 import copy
+import hashlib
 import base64
 import itertools
 import json
@@ -25,6 +26,15 @@ MIGRATION_TYPE = 'shared_work_reference_migration'
 PDF_FORMAT = 'author_pdf'
 PDF_ORIGIN = 'human_authored_original_pdf'
 FORMATS = ('native_tex', 'native_lean', PDF_FORMAT)
+
+
+def _storage_component(work_key):
+    """Bound new path components; identity remains the full metadata key."""
+    encoded = quote(work_key, safe='')
+    if len(encoded) <= 236:  # Leave 19 bytes for the atomic JSON temporary name.
+        return encoded
+    # @ is escaped in ordinary quoted keys, so compact names cannot collide with them.
+    return '@work-' + hashlib.sha256(work_key.encode('utf-8')).hexdigest()
 
 
 def require(value, message):
@@ -220,7 +230,7 @@ def register_work(registry, work, *, index_root):
                     match = re.search(pattern, line)
                     if match:
                         results.append({'path': name, 'line': number, 'label': match.group(1)})
-        index = Path(index_root).resolve() / (quote(record['work_key'], safe='') + '.json')
+        index = Path(index_root).resolve() / (_storage_component(record['work_key']) + '.json')
         save(index, {'work_key': record['work_key'], 'source_version': record['source_version'],
                      'index_version': INDEX_VERSION, 'results': results})
         record['structure_index'] = str(index)
@@ -472,9 +482,9 @@ def publish_work(registry, work_key, corpus):
         if not index_source.is_absolute():
             index_source = inside(work_root(work, registry), index_source)
         require(index_source.is_file(), 'declared existing structure index missing')
-    relative = work.get('public_root') or (entry_prefix(work['material_format']) + '/works/' + quote(work_key, safe=''))
+    relative = work.get('public_root') or (entry_prefix(work['material_format']) + '/works/' + _storage_component(work_key))
     if existing and existing.get('state') not in ('unresolved', 'not_published'):
-        relative = existing.get('public_root') or relative
+        relative = existing.get('public_root') or existing.get('root') or relative
         dst = inside(corpus, relative + '/' + index_name)
         require(not dst.exists(), 'public index output already exists without registration')
         dst.parent.mkdir(parents=True, exist_ok=True)
