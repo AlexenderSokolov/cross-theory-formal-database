@@ -579,6 +579,9 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
             d.relative_path(destination, entry["path"])
             record = git_json(repo, commit, corpus_prefix + "/" + entry["path"])
             d.require(record["qualification_set_id"] == entry["qualification_set_id"], "qualification descriptor/record ID conflict")
+            if record.get("record_type") == material_updates.RECORD_TYPE:
+                material_updates.validate_record(record)
+                verify_native_contexts(repo, commit, corpus_prefix, record)
             d.save(destination / corpus_prefix / entry["path"], record)
             def published_payload(path):
                 local = d.relative_path(destination, path)
@@ -661,6 +664,45 @@ def public_catalog(repo, commit):
     return git_json(repo, commit, "editable-corpus/catalog.json") if "catalog.json" in names else None
 
 
+def verify_native_contexts(repo, commit, corpus_prefix, record):
+    """Verify requested native spans against the registry and source at this Git commit."""
+    entries = [entry for entry in record["updates"] if entry["kind"] == "native_metadata"]
+    if not entries:
+        return
+    def git_text(path):
+        d.relative_path(Path.cwd(), path)
+        result = subprocess.run(["git", "--git-dir", str(repo), "show", commit + ":" + path],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        d.require(result.returncode == 0, "native fixed-version public asset missing: " + path)
+        return result.stdout.decode("utf-8-sig")
+    descriptor = git_json(repo, commit, corpus_prefix + "/prepared-database.json")
+    registry_name = descriptor.get("work_registry")
+    d.require(isinstance(registry_name, str), "native fixed-version work registry missing")
+    records = [d.json.loads(line) for line in git_text(corpus_prefix + "/" + registry_name).splitlines() if line.strip()]
+    keys = [work.get("work_key") for work in records]
+    d.require(len(keys) == len(set(keys)), "duplicate native work identity")
+    works = {work["work_key"]: work for work in records}
+    checked_files = {}
+    for entry in entries:
+        row = entry["expected_reference"]
+        ref = row["work_ref"]
+        work = works.get(ref["work_key"])
+        d.require(work is not None and work.get("state") == "published" and work.get("material_format") == d.NATIVE_FORMAT and
+                  work.get("source_id") == entry["expected"]["source_id"] and work.get("source_version") == ref["source_version"],
+                  "native reference work differs from fixed registry")
+        work_root = work.get("root")
+        d.require(isinstance(work_root, str) and not Path(work_root).is_absolute() and ".." not in Path(work_root).parts,
+                  "native public work root invalid")
+        for span in entry["context_spans"]:
+            location = d.normalized_span(span)
+            relative = location["path"]
+            d.require(relative in work.get("files", []), "native context file outside retained work")
+            path = (Path(corpus_prefix) / work_root / relative).as_posix()
+            if path not in checked_files:
+                checked_files[path] = len(git_text(path).splitlines())
+            d.require(location["end_line"] <= checked_files[path], "native context exceeds fixed source")
+
+
 def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover=False):
     assets, replacements = [], []
     def replacement(entry):
@@ -721,6 +763,27 @@ def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover
                 relative_reader = Path(reader_path).relative_to(baseline_work["public_root"])
                 d.relative_path(shared.work_root(baseline_work, baseline_registry), relative_reader.as_posix(), existing=True)
     record = material_updates.build_record(approved, manifest, replacement)
+    for entry in record["updates"]:
+        if entry["kind"] != "native_metadata":
+            continue
+        old = material_updates.checked_row(manifest, entry)
+        name = old["item_path"]
+        d.require(name == "lean/entries/" + entry["problem_id"] + "/entry.json", "native reader path differs")
+        source = git_json(spec["base_git_dir"], spec["public_base_commit"], "editable-corpus/" + name)
+        d.require(isinstance(source, dict) and all(source.get(k) == old.get(k) for k in source.keys() & old.keys()) and
+                  all(k in source and k in old for k in ("problem_id", "task_id", "revision", "source_id", "source_version",
+                      "claim_key", "difficulty_reason", "contexts", "context_spans", "statement_spans", "proof_spans",
+                      "status", "origin_class", "item_path", "prepared_job")),
+                  "native reader differs from baseline manifest")
+        verify_native_contexts(spec["base_git_dir"], spec["public_base_commit"], "editable-corpus", record)
+        projected = copy.deepcopy(source)
+        projected.update(copy.deepcopy(entry["changes"]))
+        target = d.relative_path(corpus, name)
+        if recover:
+            d.require(target.is_file() and d.load(target) == projected, "native reader candidate differs from approved projection")
+        else:
+            d.save(target, projected)
+        assets.append(name)
     if replacements:
         delta = "material-updates/" + approved["qualification_set_id"] + ".sqlite"
         record["replacement_delta"] = delta
@@ -783,6 +846,11 @@ def prepare(spec):
                 rows.append(row); assets.extend(names)
                 ids.add(task["problem_id"]); claims.add(task["claim_key"])
             normalize_source_rows(rows, manifest["items"], spec.get("source_reconciliations", spec.get("approved_source_reconciliations", [])))
+            # Canonical public reference entries must match the normalized public rows.
+            # The copied approved job/task keeps its original module-level attribution.
+            for row in rows:
+                if row.get('work_ref'):
+                    d.save(d.relative_path(corpus, row['item_path']), row)
             new_paths = []
             if rows:
                 delta_path = "prepared-deltas/" + batch + ".sqlite"
@@ -1529,6 +1597,27 @@ def publication_annotations(baseline):
             for ident in entry.get('problem_ids', [])}
 
 
+def project_reference_markdown(content, registry, source_work, public_work, corpus, target):
+    """Project only bound private navigation URIs into the public package layout."""
+    from urllib.parse import quote
+    registry_uri = Path(registry).resolve().as_uri()
+    source_uri = shared.work_root(source_work, registry).resolve().as_uri().rstrip('/')
+    public_root = Path(corpus) / public_work['root']
+    def relative(path):
+        return quote(os.path.relpath(path, Path(target).parent).replace(os.sep, '/'), safe='/')
+    def link(match):
+        href = match.group(1)
+        path, mark, anchor = href.partition('#')
+        if path == registry_uri:
+            result = relative(Path(corpus) / 'work-registry.jsonl')
+        elif path.startswith(source_uri + '/'):
+            result = relative(public_root) + '/' + path[len(source_uri) + 1:]
+        else:
+            return match.group(0)
+        return '](' + result + (mark + anchor if mark else '') + ')'
+    return re.sub(r'\]\(([^)]+)\)', link, content)
+
+
 def public_reference_job(job, corpus, task, *, copy_files=True):
     state = d.load(job / 'job-state.json')
     package = job / state['package']
@@ -1549,7 +1638,11 @@ def public_reference_job(job, corpus, task, *, copy_files=True):
         target = d.relative_path(corpus, (relative / name).as_posix())
         target.parent.mkdir(parents=True, exist_ok=True)
         d.require(not target.exists(), 'fresh public reference job required')
-        shutil.copyfile(source, target)
+        if source.suffix == '.md':
+            target.write_text(project_reference_markdown(source.read_text(), state['work_registry'],
+                              source_work, work, corpus, target), encoding='utf-8')
+        else:
+            shutil.copyfile(source, target)
     public_state = dict(state, work_registry=None)
     d.save(corpus / relative / 'job-state.json', public_state)
     row['prepared_job'] = relative.as_posix()
@@ -1593,6 +1686,9 @@ def restore_incremental_database(repo, commit, destination, manifest, descriptor
         return local
     for entry in descriptor.get('qualification_records', [])[len(previous.get('qualification_records', [])):]:
         record = git_json(repo, commit, corpus_prefix + '/' + entry['path'])
+        if record.get("record_type") == material_updates.RECORD_TYPE:
+            material_updates.validate_record(record)
+            verify_native_contexts(repo, commit, corpus_prefix, record)
         qualifications.append(qualification.apply(master, current, record,
             lambda path: git_json(repo, commit, path), published_payload))
         d.save(destination / corpus_prefix / entry['path'], record)
@@ -1620,8 +1716,18 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
     records = shared.read_registry(registry)
     previous = shared.read_registry(Path(baseline['package']) / 'work-registry.jsonl') if baseline else {}
     selected_ids = None
+    native_corrections = set()
     if batch_id is not None:
         selected_ids = {ident for delta in descriptor['deltas'] if delta['batch_id'] == batch_id for ident in delta['problem_ids']}
+    for item in descriptor.get('qualification_records', []):
+        if batch_id is not None and item.get('batch_id') != batch_id:
+            continue
+        record = git_json(repo, commit, 'editable-corpus/' + item['path'])
+        if record.get('record_type') == material_updates.RECORD_TYPE:
+            material_updates.validate_record(record)
+            native_corrections.update(change['problem_id'] for change in record['updates'] if change['kind'] == 'native_metadata')
+    if selected_ids is not None:
+        selected_ids.update(native_corrections)
     rows = [row for row in restored['manifest']['items'] if row.get('status') == shared.STATUS and
             (selected_ids is None or row['problem_id'] in selected_ids)]
     needed = {row['work_ref']['work_key'] for row in rows}
@@ -1668,7 +1774,13 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
     shared.write_registry(registry, records)
     shared.project_registry(restored['database'], records)
     for row in rows:
-        git_file(repo, commit, 'editable-corpus/' + row['item_path'], d.relative_path(corpus, row['item_path']))
+        reader_path = d.relative_path(corpus, row['item_path'])
+        git_file(repo, commit, 'editable-corpus/' + row['item_path'], reader_path)
+        if row['problem_id'] in native_corrections:
+            reader = d.load(reader_path)
+            d.require(all(reader.get(key) == row.get(key) for key in
+                          ('problem_id', 'work_ref', 'difficulty_reason', 'contexts', 'context_spans')),
+                      'restored native reader differs from final manifest')
 
 
 def stage_shared_migration(spec, output, *, registry=None):

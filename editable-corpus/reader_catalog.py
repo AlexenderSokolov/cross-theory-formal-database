@@ -42,12 +42,55 @@ def source_link(url):
     return "[作者来源](" + quote(url, safe=":/?=&%#@+;,~!$*'") + ")"
 
 
+def reference_job_binding(corpus):
+    """Use only the job that explicitly names this standalone package."""
+    corpus = Path(corpus).resolve()
+    state_path = corpus.parent / "job-state.json"
+    if not state_path.is_file():
+        return None
+    state = json.loads(state_path.read_text(encoding="utf-8-sig"))
+    if not state.get("work_ref"):
+        return None
+    package = relative(state.get("package"))
+    if (state_path.parent / package).resolve() != corpus:
+        raise ValueError("standalone reader package differs from job-state")
+    return state_path, state
+
+
+def registry_path(corpus):
+    corpus = Path(corpus)
+    local = corpus / "work-registry.jsonl"
+    if local.is_file():
+        return local
+    binding = reference_job_binding(corpus)
+    if binding is None:
+        return None
+    state_path, state = binding
+    value = state.get("work_registry")
+    if not isinstance(value, str) or not value:
+        raise ValueError("standalone reference reader needs its bound work_registry")
+    path = Path(value)
+    if not path.is_absolute():
+        path = state_path.parent / relative(value)
+    if not path.is_file():
+        raise ValueError("bound work registry is missing: " + str(path))
+    return path.resolve()
+
+
 def registry_rows(corpus):
-    path = Path(corpus) / "work-registry.jsonl"
-    if not path.exists():
+    path = registry_path(corpus)
+    if path is None:
         return {}
     with path.open(encoding="utf-8-sig") as stream:
         rows = [json.loads(line) for line in stream if line.strip()]
+    # A standalone job may bind a registry outside its package. Match the
+    # reference resolver's root, rather than interpreting that root in the job.
+    if path.resolve() != (Path(corpus) / "work-registry.jsonl").resolve():
+        for row in rows:
+            if row.get("author_pdf_assets") and row.get("root"):
+                root = Path(row["root"])
+                row["root"] = str(root if root.is_absolute() else (path.parent / relative(root)).resolve())
+                row.pop("public_root", None)
     return {row["work_key"]: row for row in rows}
 
 
@@ -62,6 +105,19 @@ def reading_links(row, registry):
     if material:
         label = "已有阅读PDF" if material["reader_path"].lower().endswith(".pdf") else "已有阅读材料"
         links.append(local_link(label, material["reader_path"]))
+    if row.get("material_format") == "author_pdf" and not root:
+        raise ValueError("author PDF reader needs a bound work registry")
+    if row.get("material_format") == "author_pdf" and root:
+        for kind, label in (("statement_spans", "作者题面"), ("proof_spans", "作者证明"), ("context_spans", "先修"), ("correction_spans", "官方勘误")):
+            for span in row.get(kind, []):
+                path = relative(span['path'])
+                first, last = span['physical_start_page'], span['physical_end_page']
+                title = label + " P" + str(first) + ("–" + str(last) if first != last else "")
+                if Path(root).is_absolute():
+                    links.append("[" + title + "](" + (Path(root) / path).as_uri() + "#page=" + str(first) + ")")
+                else:
+                    links.append(local_link(title, relative(root) + "/" + path, fragment="#page=" + str(first)))
+        return " · ".join(links)
     if work.get("state") == "published" and root:
         reader = work.get("readability", {}).get("path")
         if not material and reader in work.get("files", []):
@@ -93,6 +149,19 @@ def render_reader_files(corpus, manifest, catalog):
         raise ValueError("reader membership contains duplicate or retired IDs")
     old = {row["problem_id"]: row for row in catalog.get("items", [])}
     registry = registry_rows(corpus)
+    standalone = not (Path(corpus) / "work-registry.jsonl").is_file() and reference_job_binding(corpus) is not None
+    metadata_browse = ("| 元数据 | [manifest.json](../manifest.json) · [job-state.json](../../job-state.json) |\n\n"
+                       if standalone else "| 下载全量元数据 | [catalog.json](../catalog.json) · [catalog.csv](../catalog.csv) |\n\n")
+    metadata_index = ("- [活动manifest](manifest.json) · [job-state](../job-state.json)\n\n" if standalone else
+                      "- [完整JSON](catalog.json) · [完整CSV](catalog.csv)\n\n")
+    maintenance_note = ("此目录读取已绑定的job-state与作品登记；不修改原件或采用状态。\n" if standalone else
+                        "此目录由现有活动材料投影入口统一生成。[生成与检查命令](../../run_reader_catalog.sh)；"
+                        "[开发说明](../../PROJECT.md)。不要手改分页或把总库导航输入旧逐题包合并器。\n")
+    metadata_root = (("阅读从小型目录开始；[活动manifest](manifest.json)、[已绑定作品登记](" +
+                      registry_path(corpus).resolve().as_uri() + ")及[job-state](../job-state.json)按需使用。"
+                      "恢复或构建成功不表示新的数学判定。\n") if standalone else
+                     "阅读从小型目录开始；[完整元数据](catalog.json)、[作品注册表](work-registry.jsonl)及"
+                     "[数据库恢复说明](RECOVERY_CURRENT.md)按需使用。恢复或构建成功不表示新的数学判定。\n")
     rows = []
     by_format = defaultdict(list)
     by_source = defaultdict(list)
@@ -102,11 +171,16 @@ def render_reader_files(corpus, manifest, catalog):
         row.update(display_index=number,
                    collection_state=prior.get("collection_state", "retained_material"),
                    difficulty_state=prior.get("difficulty_state", original.get("difficulty_state", "not_reassessed")))
-        row["reader_format"] = "lean" if original.get("material_format") == "native_lean" else "tex"
+        row["reader_format"] = {"native_lean": "lean", "author_pdf": "pdf"}.get(original.get("material_format"), "tex")
         rows.append(row)
         by_format[row["reader_format"]].append(row)
         host = urlsplit(str(row.get("source_url") or "")).hostname or "未提供公开来源URL"
         by_source[host].append(row["problem_id"])
+    formats = ("tex", "lean") + (("pdf",) if by_format.get("pdf") else ())
+    has_pdf = "pdf" in formats
+    pdf_count_note = f"，作者PDF **{len(by_format['pdf']):,}** 条" if has_pdf else ""
+    pdf_nav_link = " · [作者PDF目录](pdf/README.md)" if has_pdf else ""
+    pdf_root_link = " · [作者PDF](browse/pdf/README.md)" if has_pdf else ""
     outputs = {}
     pages = []
     id_page = {}
@@ -129,7 +203,7 @@ def render_reader_files(corpus, manifest, catalog):
                 "item_path": row.get("item_path"), "source_url": row.get("source_url"),
                 "source_id": row.get("source_id"), "source_version": row.get("source_version")}
 
-    for kind in ("tex", "lean"):
+    for kind in formats:
         chunks = []
         chunk = []
         md_size, js_size = len(header.encode("utf-8")), 3
@@ -146,7 +220,7 @@ def render_reader_files(corpus, manifest, catalog):
                 js_size += row_js
         if chunk:
             chunks.append(chunk)
-        navigation = ["# " + ("Lean" if kind == "lean" else "TeX") + " 材料", "",
+        navigation = ["# " + {"lean": "Lean", "tex": "TeX", "pdf": "作者PDF"}[kind] + " 材料", "",
                       "[目录首页](../README.md) · [按来源浏览](../sources.md)", "",
                       "每行是一个活动问题；标签沿用既有记录，不表示重新数学认证。", "",
                       "| 分页 | 条数 | 稳定题号范围 |", "|---|---|---|"]
@@ -176,7 +250,7 @@ def render_reader_files(corpus, manifest, catalog):
             navigation.append("\n当前没有此格式的活动材料。")
         outputs["browse/" + kind + "/README.md"] = "\n".join(navigation) + "\n"
 
-    format_counts = {kind: len(by_format[kind]) for kind in ("tex", "lean")}
+    format_counts = {kind: len(by_format[kind]) for kind in formats}
     summary = {"schema_version": 1, "membership_basis": "manifest.json:items",
                "material_count": len(rows), "format_counts": format_counts,
                "difficulty_state_counts": dict(sorted(Counter(r["difficulty_state"] for r in rows).items())),
@@ -194,13 +268,13 @@ def render_reader_files(corpus, manifest, catalog):
         sources.append("| " + text(host) + " | " + str(len(members)) + " | " + links + " |")
     outputs["browse/sources.md"] = "\n".join(sources) + "\n"
     outputs["browse/README.md"] = ("# 题库阅读入口\n\n"
-        f"当前活动材料 **{len(rows):,}** 条：TeX **{format_counts['tex']:,}** 条，Lean **{format_counts['lean']:,}** 条。\n\n"
+        f"当前活动材料 **{len(rows):,}** 条：TeX **{format_counts['tex']:,}** 条，Lean **{format_counts['lean']:,}** 条{pdf_count_note}。\n\n"
         "活动材料数、记录中的难度筛选状态、数学正确性和跨理论标注是不同概念。历史 H 标签不表示已按当前标准重新核准。\n\n"
         "| 阅读目的 | 入口 |\n|---|---|\n"
-        "| 从可读小页选题 | [TeX目录](tex/README.md) · [Lean目录](lean/README.md) |\n"
+        f"| 从可读小页选题 | [TeX目录](tex/README.md) · [Lean目录](lean/README.md){pdf_nav_link} |\n"
         "| 按作者来源缩小范围 | [来源目录](sources.md) |\n"
         "| 程序或网页工具分段读取 | 每页配套JSON；[精简统计与分页位置](summary.json) |\n"
-        "| 下载全量元数据 | [catalog.json](../catalog.json) · [catalog.csv](../catalog.csv) |\n\n"
+        f"{metadata_browse}"
         "## 怎样读一道题\n\n"
         "1. 打开目录行中的题证／条目；旧TeX包直接给出正文，新共享条目给出固定作品与题面、证明、上下文范围。\n"
         "2. 有已有阅读PDF或证明行链接时直接打开；必要定义、专门支撑引理仍以条目原记录为准。\n"
@@ -212,28 +286,26 @@ def render_reader_files(corpus, manifest, catalog):
         "使用Git固定版本链接记录所选题；链接无法读取时只补对应分页或题证文件，无需上传整个仓库。"
         "作者负责原数学，本项目整理来源与材料；明确缺口应如实保留，不由模型补证。\n\n"
         "## 维护\n\n"
-        "此目录由现有活动材料投影入口统一生成。[生成与检查命令](../../run_reader_catalog.sh)；"
-        "[开发说明](../../PROJECT.md)。不要手改分页或把总库导航输入旧逐题包合并器。\n")
+        f"{maintenance_note}")
     outputs["INDEX.md"] = ("# 当前材料索引\n\n"
         f"活动材料：**{len(rows):,}**。稳定题号保留；总清单已改为小型入口。\n\n"
         "- [开始阅读与选题](browse/README.md)\n- [TeX分页](browse/tex/README.md)\n"
         "- [Lean分页](browse/lean/README.md)\n- [按来源浏览](browse/sources.md)\n"
-        "- [分片元数据与统计](browse/summary.json)\n- [完整JSON](catalog.json) · [完整CSV](catalog.csv)\n\n"
+        f"- [分片元数据与统计](browse/summary.json)\n{metadata_index}"
         "历史难度标签、材料完整性和实际运行状态分别记录；目录更新不执行数学认证。\n")
     outputs["CORPUS_INDEX.md"] = ("# 题库目录兼容入口\n\n"
         "本路径保留给已有引用，内容与当前材料投影同步。\n\n[当前索引](INDEX.md) · "
         "[阅读与选题](browse/README.md) · [来源目录](browse/sources.md)\n")
     outputs["README.md"] = ("# 数学作者题证材料\n\n"
-        "[当前阅读入口](browse/README.md) · [TeX](browse/tex/README.md) · [Lean](browse/lean/README.md)\n\n"
+        f"[当前阅读入口](browse/README.md) · [TeX](browse/tex/README.md) · [Lean](browse/lean/README.md){pdf_root_link}\n\n"
         "题证按稳定问题编号关联固定版本作者材料；旧逐题包与新共享作品并存，目录统一展示。"
         "活动身份以manifest为准，机器目录、分页和展示编号是投影。\n\n"
-        "阅读从小型目录开始；[完整元数据](catalog.json)、[作品注册表](work-registry.jsonl)及"
-        "[数据库恢复说明](RECOVERY_CURRENT.md)按需使用。恢复或构建成功不表示新的数学判定。\n")
+        f"{metadata_root}")
     # Material retirement or smaller partitions can leave formerly linked pages.
     # Replace those derived pages with a current-entry notice, without deleting
     # any files or carrying retired records into the active reading projection.
     for name in catalog.get("reader_files", []):
-        if name not in outputs and re.fullmatch(r"browse/(tex|lean)/[0-9]+\.(md|json)", name):
+        if name not in outputs and re.fullmatch(r"browse/(tex|lean|pdf)/[0-9]+\.(md|json)", name):
             outputs[name] = ("# 此分页已退出当前目录\n\n[当前阅读入口](../README.md)。"
                              "历史内容请按原Git版本查看。\n" if name.endswith(".md") else
                              json_text({"status": "superseded_reader_page", "current_index": "../README.md"}))

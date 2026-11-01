@@ -1023,7 +1023,7 @@ problem_id TEXT PRIMARY KEY, title TEXT NOT NULL,
 difficulty_level TEXT NOT NULL CHECK(difficulty_level IN ('H1','H2','H3')),
 difficulty_reason TEXT NOT NULL, source_id TEXT NOT NULL REFERENCES sources(source_id),
 source_locator_json TEXT NOT NULL, tex_path TEXT UNIQUE, tex_content TEXT,
-tex_sha256 TEXT, origin_class TEXT NOT NULL CHECK(origin_class IN ('human_authored_native_tex','human_authored_proof_assistant_transcription','human_authored_checked_published_transcription','author_native_lean')),
+tex_sha256 TEXT, origin_class TEXT NOT NULL CHECK(origin_class IN ('human_authored_native_tex','human_authored_proof_assistant_transcription','human_authored_checked_published_transcription','author_native_lean','human_authored_original_pdf')),
 status TEXT NOT NULL CHECK(status IN ('verified_editable_tex','verified_native_author_proof','complete_author_material')), compile_receipt_path TEXT,
 task_id TEXT, revision TEXT, validation_policy TEXT DEFAULT 'legacy', claim_key TEXT,
 review_state TEXT, dedup_state TEXT, publication_commit TEXT, qualification_set_id TEXT, review_protocol TEXT,
@@ -1035,6 +1035,9 @@ def locator(row):
     result = dict(copy.deepcopy(row.get('locator_extensions', {})), primary=row.get('primary', []), contexts=row.get('contexts', []))
     if row.get("policy") == POLICY:
         result["proof_spans"] = row.get("proof_spans", [])
+    if row.get("material_format") == shared.PDF_FORMAT:
+        result.update(material_format=shared.PDF_FORMAT, correction_spans=copy.deepcopy(row.get("correction_spans", [])),
+                      source_caveats=copy.deepcopy(row.get("source_caveats", {})))
     if row.get("material_format") == NATIVE_FORMAT:
         result["native_material"] = copy.deepcopy(row["native_material"])
     for key in ("work_ref", "statement_spans", "context_spans", "material_state", "run_state", "materials"):
@@ -1109,7 +1112,7 @@ def migrate_database(source, output):
         dst.execute("PRAGMA foreign_keys=OFF")
         with dst:
             original_schema = dst.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='problems'").fetchone()[0]
-            if info["tex_sha256"][3] or NATIVE_ORIGIN not in original_schema or info["tex_content"][3] or shared.STATUS not in original_schema:
+            if info["tex_sha256"][3] or NATIVE_ORIGIN not in original_schema or shared.PDF_ORIGIN not in original_schema or info["tex_content"][3] or shared.STATUS not in original_schema:
                 extra_sql = [row[0] for row in dst.execute(
                     "SELECT sql FROM sqlite_master WHERE tbl_name='problems' AND type IN ('index','trigger') AND sql IS NOT NULL")]
                 # Transform the existing definition, retaining custom columns,
@@ -1120,6 +1123,8 @@ def migrate_database(source, output):
                     upgraded = re.sub(r'(' + identifier + r'\s+(?:TEXT|BLOB|VARCHAR(?:\([0-9]+\))?))\s+NOT\s+NULL', r'\1', upgraded, flags=re.I)
                 if NATIVE_ORIGIN not in original_schema:
                     upgraded = re.sub(r"(?<![A-Za-z0-9_])(origin_class\s+IN\s*\()", r"\1'author_native_lean',", upgraded, flags=re.I)
+                if shared.PDF_ORIGIN not in original_schema:
+                    upgraded = re.sub(r"(?<![A-Za-z0-9_])(origin_class\s+IN\s*\()", r"\1'human_authored_original_pdf',", upgraded, flags=re.I)
                 upgraded = re.sub(r"CHECK\s*\(\s*status\s*=\s*'verified_editable_tex'\s*\)", "CHECK(status IN ('verified_editable_tex','verified_native_author_proof','complete_author_material'))", upgraded, flags=re.I)
                 upgraded = re.sub(r"(CHECK\s*\(\s*status\s+IN\s*\()(?!'complete_author_material')", r"\1'complete_author_material',", upgraded, flags=re.I)
                 # Preserve unrelated custom CHECKs. Only the legacy TeX-storage
@@ -1179,6 +1184,14 @@ def validate_database(path, expected_rows=None, *, publication_annotations=None)
                 "native Lean must not masquerade as TeX")
         for native in db.execute("SELECT source_locator_json FROM problems WHERE origin_class='author_native_lean'"):
             require(isinstance(json.loads(native[0]).get("native_material"), dict), "native SQL material locator missing")
+        for pdf in db.execute("SELECT source_locator_json, status, tex_path, tex_content, compile_receipt_path FROM problems WHERE origin_class=?", (shared.PDF_ORIGIN,)):
+            metadata = json.loads(pdf[0])
+            require(pdf[1] == shared.STATUS and all(value is None for value in pdf[2:]) and
+                    metadata.get('material_format') == shared.PDF_FORMAT and
+                    metadata.get('primary') and metadata.get('proof_spans'),
+                    'author PDF must retain explicit page references, never fake TeX')
+            for key in ('primary', 'proof_spans', 'contexts', 'correction_spans'):
+                shared._spans(metadata, key, key, shared.PDF_FORMAT)
         for reference in db.execute("SELECT source_locator_json FROM problems WHERE status='complete_author_material'"):
             metadata = json.loads(reference[0])
             require(bool(metadata.get('work_ref', {}).get('work_key')) and metadata.get('material_state') == 'complete',
@@ -1455,6 +1468,8 @@ def assemble_reference(task_path, registry, output_root):
     require(row['eligible'], 'reference candidate remains pending: ' + row['material_state'])
     task = dict(task, problem_id=ident)
     row['problem_id'] = ident
+    if row['material_format'] == shared.PDF_FORMAT:
+        save(package / row['item_path'], row)
     state = dict(binding(task), schema_version=2, policy=POLICY, status='material_ready',
                  package=package.name, task_snapshot='prepared-task.json',
                  work_ref=row['work_ref'], work_registry=str(Path(registry).resolve()),
@@ -1479,15 +1494,23 @@ def verify_reference_job(job, state, *, require_ready=True, registry=None):
     require(row.get('work_ref') == state['work_ref'] and row.get('status') == shared.STATUS, 'reference material binding/status differs')
     require((task.get('work_key') or task.get('work_ref', {}).get('work_key')) == row['work_ref']['work_key'],
             'reference task work identity differs')
-    for key in ('title', 'authors', 'difficulty_level', 'difficulty_reason', 'statement_spans', 'proof_spans', 'context_spans'):
+    for key in ('title', 'authors', 'difficulty_level', 'difficulty_reason', 'statement_spans', 'proof_spans', 'context_spans', 'correction_spans', 'source_caveats'):
         require(row.get(key) == task.get(key), 'reference task metadata differs: ' + key)
+    if any(record.get('material_format') == shared.PDF_FORMAT for record in (state, task, row)):
+        require(all(record.get('material_format') == shared.PDF_FORMAT for record in (state, task, row)) and
+                row.get('origin_class') == shared.PDF_ORIGIN, 'author PDF format/origin binding differs')
+        entry_path = relative_path(package, row['item_path'], existing=True)
+        require(load(entry_path) == row, 'author PDF entry differs from its manifest')
     result = shared.resolve_entry(row, registry)
     require(result['eligible'] and row.get('material_state') == 'complete', 'reference material incomplete or unscreened')
     work = shared.read_registry(registry)[row['work_ref']['work_key']]
     sql = validate_database(package / state.get('material_database', 'corpus.sqlite'), [row])
     return dict(binding(task), schema_version=2, policy=POLICY, work_ref=row['work_ref'],
                 material_format=row['material_format'], preparation_basis=MATERIAL_BASIS,
-                status='verified_local_prepared_job', editable_qualified_count=1, package_item_count=1,
+                status='verified_local_prepared_job',
+                editable_qualified_count=0 if row['material_format'] == shared.PDF_FORMAT else 1,
+                author_pdf_qualified_count=1 if row['material_format'] == shared.PDF_FORMAT else 0,
+                qualified_material_count=1, package_item_count=1,
                 errors=[], sql=sql, public_redistribution_supported=work.get('public_redistribution_supported') is True,
                 build_status=row['run_state'], qualification_basis=MATERIAL_BASIS)
 
@@ -1510,11 +1533,13 @@ def adopt_reference_material(job, output_root, reservations_path):
     manifest = load(package / 'manifest.json')
     manifest['items'][0]['problem_id'] = ident
     material_format = manifest['items'][0]['material_format']
-    manifest['items'][0]['item_path'] = ('lean' if material_format == NATIVE_FORMAT else 'tex') + '/entries/' + ident + '/entry.json'
+    manifest['items'][0]['item_path'] = shared.entry_prefix(material_format) + '/entries/' + ident + '/entry.json'
     out = target / state['package']
     save(target / 'job-state.json', state)
     save(out / state['task_snapshot'], task)
     save(out / 'manifest.json', manifest)
+    if material_format == shared.PDF_FORMAT:
+        save(out / manifest['items'][0]['item_path'], manifest['items'][0])
     create_database(out, manifest['items'], out / state['material_database'])
     report = verify_reference_job(target, state)
     save(target / ('final-item-root-' + task['revision'] + '.json'), report)

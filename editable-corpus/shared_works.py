@@ -6,6 +6,7 @@ entries retain their supplied identifiers until the existing writer adopts them.
 from __future__ import annotations
 
 import copy
+import base64
 import itertools
 import json
 import os
@@ -21,6 +22,9 @@ STATUS = 'complete_author_material'
 INDEX_VERSION = 'author-structure-v1'
 IDENTITY = ('work_key', 'source_id', 'source_version', 'material_format')
 MIGRATION_TYPE = 'shared_work_reference_migration'
+PDF_FORMAT = 'author_pdf'
+PDF_ORIGIN = 'human_authored_original_pdf'
+FORMATS = ('native_tex', 'native_lean', PDF_FORMAT)
 
 
 def require(value, message):
@@ -73,11 +77,95 @@ def work_root(work, registry):
     return root.resolve() if root.is_absolute() else inside(Path(registry).parent, root)
 
 
+def entry_prefix(material_format):
+    require(material_format in FORMATS, 'unsupported author material format')
+    return {'native_tex': 'tex', 'native_lean': 'lean', PDF_FORMAT: 'pdf'}[material_format]
+
+
+def _pdf_assets(work, root, files):
+    """Explicit author assets, never infer authorship from a compiled PDF suffix."""
+    assets = work.get('author_pdf_assets', {})
+    require(isinstance(assets, dict), 'author PDF assets must be explicit')
+    if work['material_format'] == PDF_FORMAT:
+        require(assets, 'author PDF assets required')
+    if not assets:
+        return {}
+    import pymupdf
+    result = copy.deepcopy(assets)
+    for name, asset in result.items():
+        require(name in files and isinstance(asset, dict) and
+                asset.get('role') in ('author_original', 'official_errata'),
+                'declared author PDF asset role/inventory required')
+        path = inside(root, name)
+        require(path.is_file(), 'author PDF asset missing')
+        try:
+            with pymupdf.open(path) as document:
+                require(document.is_pdf and not document.needs_pass and document.page_count > 0,
+                        'readable author PDF required')
+                expected = asset.get('page_count', document.page_count)
+                require(type(expected) is int and expected == document.page_count,
+                        'author PDF page count differs from declared version')
+                asset['page_count'] = document.page_count
+        except (RuntimeError, OSError) as error:
+            raise ValueError('author PDF cannot be opened: ' + name) from error
+    require(any(a['role'] == 'author_original' for a in result.values()),
+            'at least one original author PDF is required')
+    return result
+
+
+def _resolve_pdf(groups, work, root):
+    """Return actual page text and renderings; no OCR or placeholder proof text."""
+    import pymupdf
+    assets = work.get('author_pdf_assets', {})
+    require(isinstance(assets, dict) and assets, 'author PDF assets required')
+    output, missing, pages = {}, [], {}
+    with contextlib.ExitStack() as stack:
+        documents = {}
+        for kind, spans in groups.items():
+            output[kind] = []
+            for span in spans:
+                name = span['path']
+                asset = assets.get(name, {})
+                expected_role = 'official_errata' if kind == 'correction' else 'author_original'
+                require(name in work['files'] and asset.get('role') == expected_role,
+                        'PDF span must name the declared ' + expected_role)
+                path = inside(root, name)
+                require(path.is_file(), 'author PDF span file missing')
+                if name not in documents:
+                    try:
+                        documents[name] = stack.enter_context(pymupdf.open(path))
+                    except (RuntimeError, OSError) as error:
+                        raise ValueError('author PDF cannot be opened: ' + name) from error
+                    document = documents[name]
+                    require(document.is_pdf and not document.needs_pass and
+                            type(asset.get('page_count')) is int and
+                            document.page_count == asset['page_count'],
+                            'PDF version page count or readability changed')
+                document = documents[name]
+                require(span['physical_end_page'] <= document.page_count, 'PDF page span exceeds author source')
+                material = []
+                for number in range(span['physical_start_page'], span['physical_end_page'] + 1):
+                    key = name, number
+                    if key not in pages:
+                        page = document.load_page(number - 1)
+                        pixmap = page.get_pixmap(matrix=pymupdf.Matrix(4 / 3, 4 / 3), alpha=False)
+                        pages[key] = {'physical_page': number, 'text': page.get_text('text'),
+                                      'width': float(page.rect.width), 'height': float(page.rect.height),
+                                      'content_present': bool(page.get_contents()),
+                                      'image_data_url': 'data:image/png;base64,' +
+                                      base64.b64encode(pixmap.tobytes('png')).decode('ascii')}
+                    material.append(pages[key])
+                if not any(page['content_present'] for page in material):
+                    missing.append(name + ': selected PDF span contains no page content')
+                output[kind].append(dict(span, representation='author_pdf_pages', pages=material))
+    return output, missing
+
+
 def register_work(registry, work, *, index_root):
     """Register an explicitly located version once, reusing supplied indexes."""
     records = read_registry(registry)
     require(all(isinstance(work.get(k), str) and work[k] for k in IDENTITY), 'fixed work identity required')
-    require(work['material_format'] in ('native_tex', 'native_lean'), 'native work format required')
+    require(work['material_format'] in FORMATS, 'supported author work format required')
     old = records.get(work['work_key'])
     if old is not None and old.get('state') != 'unresolved':
         require(all(old[k] == work[k] for k in IDENTITY) and
@@ -87,6 +175,9 @@ def register_work(registry, work, *, index_root):
         for key in ('files', 'structure_index', 'index_version'):
             if key in old:
                 merged[key] = old[key]
+        if merged.get('author_pdf_assets'):
+            merged['author_pdf_assets'] = _pdf_assets(merged, work_root(merged, registry), merged['files'])
+            merged['supported_formats'] = sorted(set(merged.get('supported_formats', [merged['material_format']])) | {PDF_FORMAT})
         records[work['work_key']] = merged
         write_registry(registry, records)
         return merged
@@ -106,6 +197,9 @@ def register_work(registry, work, *, index_root):
     record['supported_formats'] = sorted({record['material_format']} |
         ({'native_tex'} if any(Path(name).suffix == '.tex' for name in files) else set()) |
         ({'native_lean'} if any(Path(name).suffix == '.lean' for name in files) else set()))
+    if record['material_format'] == PDF_FORMAT or record.get('author_pdf_assets'):
+        record['author_pdf_assets'] = _pdf_assets(record, root, files)
+        record['supported_formats'] = sorted(set(record['supported_formats']) | {PDF_FORMAT})
     if record['material_format'] == 'native_lean':
         environment = record.get('environment', {})
         if environment.get('toolchain_file') and not environment.get('toolchain'):
@@ -114,12 +208,12 @@ def register_work(registry, work, *, index_root):
     if existing:
         require(Path(existing).is_file(), 'declared existing structure index missing')
     else:
-        results = []
+        results = [{'path': name, **asset} for name, asset in record.get('author_pdf_assets', {}).items()]
         suffix = '.lean' if record['material_format'] == 'native_lean' else '.tex'
         pattern = (r'^\s*(?:(?:private|protected|noncomputable|unsafe|public)\s+)*(?:theorem|lemma|def|instance|structure|class)\s+(\S+)' if suffix == '.lean'
                    else r'\\(?:label|section|chapter|begin)\s*\{([^}]+)\}')
         for name in files:
-            if Path(name).suffix != suffix:
+            if record['material_format'] == PDF_FORMAT or Path(name).suffix != suffix:
                 continue
             with inside(root, name).open(encoding='utf-8-sig', errors='replace') as stream:
                 for number, line in enumerate(stream, 1):
@@ -136,18 +230,19 @@ def register_work(registry, work, *, index_root):
     return record
 
 
-def _spans(entry, key, alias):
+def _spans(entry, key, alias, material_format=None):
     spans = entry.get(key, entry.get(alias, []))
     require(isinstance(spans, list), 'explicit source span list required: ' + key)
+    first, last = ('physical_start_page', 'physical_end_page') if material_format == PDF_FORMAT else ('start_line', 'end_line')
     for span in spans:
         require(isinstance(span, dict) and isinstance(span.get('path'), str) and
-                type(span.get('start_line')) is int and type(span.get('end_line')) is int and
-                1 <= span['start_line'] <= span['end_line'], 'invalid source span')
+                type(span.get(first)) is int and type(span.get(last)) is int and
+                1 <= span[first] <= span[last], 'invalid source span')
     return spans
 
 
 def resolve_entry(entry, registry):
-    """Read only requested spans; no inventory rebuild, dependency walk or build."""
+    """Read only selected source spans; PDF spans include real readable page data."""
     ref = entry.get('work_ref', {'work_key': entry.get('work_key')})
     work = read_registry(registry).get(ref.get('work_key'))
     require(work is not None, 'work reference unresolved')
@@ -155,31 +250,35 @@ def resolve_entry(entry, registry):
     require((entry.get('source_id'), entry.get('source_version')) in allowed_identities, 'entry/work fixed identity conflict')
     root = work_root(work, registry)
     material_format = entry.get('material_format') or work['material_format']
-    require(material_format in work.get('supported_formats', [work['material_format']]), 'entry format not present in fixed author work')
-    groups = {'statement': _spans(entry, 'statement_spans', 'primary'),
-              'proof': _spans(entry, 'proof_spans', 'proof_spans'),
-              'context': _spans(entry, 'context_spans', 'contexts')}
-    missing, loaded = [], {}
-    for spans in groups.values():
-        for span in spans:
-            name = span['path']
-            path = inside(root, work.get('path_aliases', {}).get(name, name))
-            if not path.is_file():
-                missing.append(name)
-                continue
-            end = max(s['end_line'] for values in groups.values() for s in values if s['path'] == name)
-            if name not in loaded:
-                with path.open(encoding='utf-8-sig', errors='replace') as stream:
-                    loaded[name] = list(itertools.islice(stream, end))
-            if len(loaded[name]) < span['end_line']:
-                missing.append(name + ': span exceeds retained source')
-    output = {key: [dict(span, text=''.join(loaded.get(span['path'], [])[span['start_line']-1:span['end_line']]))
-                    for span in spans] for key, spans in groups.items()}
+    require(material_format in FORMATS and material_format in work.get('supported_formats', [work['material_format']]),
+            'entry format not present in fixed author work')
+    groups = {'statement': _spans(entry, 'statement_spans', 'primary', material_format),
+              'proof': _spans(entry, 'proof_spans', 'proof_spans', material_format),
+              'context': _spans(entry, 'context_spans', 'contexts', material_format)}
+    if material_format == PDF_FORMAT:
+        groups['correction'] = _spans(entry, 'correction_spans', 'correction_spans', material_format)
+        output, missing = _resolve_pdf(groups, work, root)
+    else:
+        missing, loaded = [], {}
+        for spans in groups.values():
+            for span in spans:
+                name = span['path']
+                path = inside(root, work.get('path_aliases', {}).get(name, name))
+                if not path.is_file():
+                    missing.append(name)
+                    continue
+                end = max(s['end_line'] for values in groups.values() for s in values if s['path'] == name)
+                if name not in loaded:
+                    with path.open(encoding='utf-8-sig', errors='replace') as stream:
+                        loaded[name] = list(itertools.islice(stream, end))
+                if len(loaded[name]) < span['end_line']:
+                    missing.append(name + ': span exceeds retained source')
+        output = {key: [dict(span, text=''.join(loaded.get(span['path'], [])[span['start_line']-1:span['end_line']]))
+                        for span in spans] for key, spans in groups.items()}
     state = 'complete' if groups['statement'] and groups['proof'] and not missing else 'pending_material'
     if entry.get('proof_state') in ('placeholder', 'incomplete'):
         state = 'pending_author_proof'
     if material_format == 'native_lean':
-        # Scope is the selected proof bodies, never every import in the project.
         for span in output['proof']:
             text = re.sub(r'/\-.*?\-/', '', span['text'], flags=re.S)
             text = re.sub(r'--[^\n]*|"(?:\\.|[^"\\])*"', '', text)
@@ -219,8 +318,9 @@ def prepare_entry(task, registry, output_root):
                tex_sha256=None, publication_commit=None, author='; '.join(row.get('authors', work.get('authors', []))),
                work=work.get('title', work_key), retrieved_at=work.get('retrieved_at', ''),
                license=work.get('license', ''), license_path=work.get('license_path', ''),
-               origin_class='author_native_lean' if row['material_format'] == 'native_lean' else 'human_authored_native_tex',
-               item_path=('lean' if row['material_format'] == 'native_lean' else 'tex') + '/entries/' + quote(ident, safe='') + '/entry.json')
+               origin_class=(PDF_ORIGIN if row['material_format'] == PDF_FORMAT else
+                              'author_native_lean' if row['material_format'] == 'native_lean' else 'human_authored_native_tex'),
+               item_path=entry_prefix(row['material_format']) + '/entries/' + quote(ident, safe='') + '/entry.json')
     if row['material_format'] == 'native_lean':
         row['native_material'] = dict(row.get('native_material', {}), environment=work.get('environment', {}),
                                       toolchain=work.get('environment', {}).get('toolchain', ''),
@@ -270,7 +370,8 @@ def migrate_manifest(manifest, records):
             require(key not in records or (records[key].get('source_id'), records[key].get('source_version')) == identity,
                     'unresolved work identity conflict')
             records.setdefault(key, dict(work_key=key, source_id=identity[0], source_version=identity[1], root=None,
-                material_format='native_lean' if row.get('origin_class') == 'author_native_lean' else 'native_tex',
+                material_format=(PDF_FORMAT if row.get('origin_class') == PDF_ORIGIN else
+                                 'native_lean' if row.get('origin_class') == 'author_native_lean' else 'native_tex'),
                 state='unresolved', title=row.get('work', ''), authors=row.get('authors', [])))
             identities[identity] = key
         row['work_ref'] = dict(work_key=key, source_version=identity[1],
@@ -371,7 +472,7 @@ def publish_work(registry, work_key, corpus):
         if not index_source.is_absolute():
             index_source = inside(work_root(work, registry), index_source)
         require(index_source.is_file(), 'declared existing structure index missing')
-    relative = work.get('public_root') or (('lean' if work['material_format'] == 'native_lean' else 'tex') + '/works/' + quote(work_key, safe=''))
+    relative = work.get('public_root') or (entry_prefix(work['material_format']) + '/works/' + quote(work_key, safe=''))
     if existing and existing.get('state') not in ('unresolved', 'not_published'):
         relative = existing.get('public_root') or relative
         dst = inside(corpus, relative + '/' + index_name)

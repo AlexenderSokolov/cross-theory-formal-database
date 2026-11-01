@@ -15,6 +15,47 @@ CAS_FIELDS = BINDING_FIELDS + ("title", "author", "authors", "difficulty_level",
 MATERIAL_FIELDS = ("title", "revision", "difficulty_level", "difficulty_reason", "primary", "proof_spans", "contexts", "item_path", "compile_receipt",
     "prepared_job", "origin_class", "status", "source_files", "asset_dependencies", "license_evidence_path", "material_format", "native_material")
 SQL_FIELDS = ("title", "revision", "difficulty_level", "difficulty_reason", "source_locator_json", "tex_path", "tex_content", "origin_class", "status", "compile_receipt_path")
+NATIVE_SQL_CAS = ("problem_id", "title", "difficulty_level", "difficulty_reason", "source_id", "source_locator_json",
+                  "tex_path", "tex_content", "origin_class", "status", "compile_receipt_path", "task_id", "revision",
+                  "validation_policy", "claim_key", "review_state", "dedup_state", "publication_commit",
+                  "qualification_set_id", "review_protocol")
+NATIVE_SOURCE_CAS = ("source_id", "source_version", "author")
+NATIVE_REFERENCE_KEYS = ("problem_id", "material_format", "work_ref", "statement_spans", "context_spans")
+NATIVE_LOCATOR_SPANS = ("primary", "contexts", "proof_spans", "statement_spans", "context_spans")
+NATIVE_LOCATOR_KEYS = NATIVE_LOCATOR_SPANS + ("work_ref", "material_state", "run_state")
+
+
+def native_spans(value):
+    d.require(isinstance(value, list), "native locator spans required")
+    return [d.normalized_span(span) for span in value]
+
+
+def native_work_ref(value):
+    d.require(isinstance(value, dict), "native work reference required")
+    return {key: value.get(key) for key in ("work_key", "source_version")}
+
+
+def native_reference(row):
+    return {"problem_id": row.get("problem_id"), "material_format": row.get("material_format"),
+            "work_ref": native_work_ref(row.get("work_ref")), "statement_spans": native_spans(row.get("statement_spans")),
+            "context_spans": native_spans(row.get("context_spans"))}
+
+
+def native_locator(value):
+    value = d.locator_metadata(value)
+    d.require(isinstance(value, dict), "native locator object required")
+    result = {key: native_spans(value.get(key)) for key in NATIVE_LOCATOR_SPANS}
+    result["work_ref"] = native_work_ref(value.get("work_ref"))
+    result["material_state"] = value.get("material_state")
+    result["run_state"] = value.get("run_state")
+    return result
+
+
+def native_snapshot(row):
+    result = snapshot(row)
+    for key in ("primary", "proof_spans", "contexts"):
+        result[key] = native_spans(result[key])
+    return result
 
 
 def snapshot(row):
@@ -56,9 +97,26 @@ def validate_record(value):
         ident = entry.get("problem_id")
         d.require(isinstance(ident, str) and ident.isdecimal() and ident not in ids, "unique exact stable ID required")
         ids.add(ident)
-        d.require(entry.get("kind") in ("authors_only", "material_revision", "material_association") and d.nonempty(entry.get("reason")) and
+        d.require(entry.get("kind") in ("authors_only", "material_revision", "material_association", "native_metadata") and d.nonempty(entry.get("reason")) and
                   isinstance(entry.get("expected"), dict) and set(entry["expected"]) == set(CAS_FIELDS), "maintenance kind/expected metadata/reason missing")
-        if entry["kind"] == "authors_only":
+        if entry["kind"] == "native_metadata":
+            allowed = {"problem_id", "kind", "reason", "expected", "expected_context_spans", "expected_reference", "expected_sql", "expected_source", "difficulty_reason", "context_spans",
+                       "changes", "old_values", "old_missing_fields"}
+            d.require(set(entry) <= allowed and set(entry) >= {"problem_id", "kind", "reason", "expected", "expected_context_spans", "expected_reference", "expected_sql", "expected_source", "difficulty_reason", "context_spans"},
+                      "native metadata operation contains unauthorized fields")
+            d.require(isinstance(entry["expected_reference"], dict) and isinstance(entry["expected_sql"], dict) and
+                      isinstance(entry["expected_source"], dict) and set(entry["expected_reference"]) == set(NATIVE_REFERENCE_KEYS) and
+                      entry["expected_reference"].get("context_spans") == entry["expected_context_spans"] and
+                      set(entry["expected_sql"].get("source_locator_json", {})) == set(NATIVE_LOCATOR_KEYS) and
+                      set(entry["expected_sql"]) == set(NATIVE_SQL_CAS) and set(entry["expected_source"]) == set(NATIVE_SOURCE_CAS),
+                      "native reference and bounded SQL baseline required")
+            d.require(d.nonempty(entry["difficulty_reason"]) and isinstance(entry["context_spans"], list) and entry["context_spans"] and
+                      isinstance(entry["expected_context_spans"], list) and entry["expected"]["contexts"] == entry["expected_context_spans"],
+                      "native metadata old/new context and reason required")
+            d.require(native_spans(entry["context_spans"]) == entry["context_spans"] and
+                      native_spans(entry["expected_context_spans"]) == entry["expected_context_spans"],
+                      "native contexts must use public span fields")
+        elif entry["kind"] == "authors_only":
             authors = entry.get("authors")
             d.require(isinstance(authors, list) and authors and all(d.nonempty(author) for author in authors) and
                       "; ".join(authors) == entry["expected"]["author"], "authors correction must match the already correct scalar author")
@@ -97,7 +155,18 @@ def checked_row(manifest, entry, *, projected=False):
     expected = copy.deepcopy(entry["expected"])
     if projected:
         expected.update({key: value for key, value in entry["changes"].items() if key in CAS_FIELDS})
-    d.require(snapshot(rows[0]) == expected, "maintenance expected old/current metadata differs")
+    current = native_snapshot(rows[0]) if entry["kind"] == "native_metadata" else snapshot(rows[0])
+    d.require(current == expected, "maintenance expected old/current metadata differs")
+    if entry["kind"] == "native_metadata":
+        reference = copy.deepcopy(entry["expected_reference"])
+        if projected:
+            reference["context_spans"] = copy.deepcopy(entry["changes"]["context_spans"])
+        d.require(native_reference(rows[0]) == reference, "native reference baseline differs")
+        context = entry["changes"]["context_spans"] if projected else entry["expected_context_spans"]
+        d.require(rows[0].get("context_spans") == context and rows[0].get("contexts") == context and
+                  rows[0].get("material_format") == d.NATIVE_FORMAT and rows[0].get("status") == "complete_author_material" and
+                  rows[0].get("origin_class") == "author_native_lean" and isinstance(rows[0].get("work_ref"), dict),
+                  "native metadata context or reference state differs")
     if entry["kind"] == "material_association":
         expected_materials = entry["changes"].get("materials", entry["expected_materials"]) if projected else entry["expected_materials"]
         d.require(rows[0].get("materials") == expected_materials, "associated material list changed")
@@ -118,7 +187,11 @@ def build_record(approved, manifest, replacement):
     result = copy.deepcopy(approved)
     for entry in result["updates"]:
         old = checked_row(manifest, entry)
-        if entry["kind"] == "authors_only":
+        if entry["kind"] == "native_metadata":
+            changes = {"difficulty_reason": entry["difficulty_reason"], "contexts": copy.deepcopy(entry["context_spans"]),
+                       "context_spans": copy.deepcopy(entry["context_spans"])}
+            d.require(any(old.get(k) != v for k, v in changes.items()), "native metadata operation has no changes")
+        elif entry["kind"] == "authors_only":
             changes = {"authors": entry["authors"]}
         elif entry["kind"] == "material_association":
             changes = {"materials": associated_materials(entry)}
@@ -135,8 +208,12 @@ def build_record(approved, manifest, replacement):
             entry["compile_metadata"] = {key: copy.deepcopy(receipt[key]) for key in ("problem_id", *BINDING_FIELDS, "pages", "ok")}
             entry["replacement_row"] = row
             entry.pop("replacement_job", None); entry.pop("replacement_qa_path", None)
-        entry["changes"] = {key: value for key, value in changes.items() if old.get(key) != value or key not in old}
+        entry["changes"] = (changes if entry["kind"] == "native_metadata" else
+                            {key: value for key, value in changes.items() if old.get(key) != value or key not in old})
         entry["old_values"] = {key: copy.deepcopy(old.get(key)) for key in entry["changes"]}
+        if entry["kind"] == "native_metadata":
+            for key in ("contexts", "context_spans"):
+                entry["old_values"][key] = native_spans(entry["old_values"][key])
         entry["old_missing_fields"] = [key for key in entry["changes"] if key not in old]
     return result
 
@@ -151,10 +228,16 @@ def reviewed_rows(manifest, record):
     prepared = []
     for entry in record["updates"]:
         d.require(isinstance(entry.get("changes"), dict) and isinstance(entry.get("old_values"), dict), "published maintenance projection missing")
-        allowed = ({"authors"} if entry["kind"] == "authors_only" else {"materials"} if entry["kind"] == "material_association"
+        allowed = ({"difficulty_reason", "contexts", "context_spans"} if entry["kind"] == "native_metadata" else {"authors"} if entry["kind"] == "authors_only" else {"materials"} if entry["kind"] == "material_association"
                    else set(MATERIAL_FIELDS) | {"difficulty_state", "difficulty_assessed_by", "material_update_id"})
         d.require(set(entry["changes"]) <= allowed and set(entry["old_values"]) == set(entry["changes"]), "maintenance changes exceed the explicit field scope")
-        if entry["kind"] == "authors_only":
+        if entry["kind"] == "native_metadata":
+            proposed = {"difficulty_reason": entry["difficulty_reason"], "contexts": entry["context_spans"], "context_spans": entry["context_spans"]}
+            previous = {"difficulty_reason": entry["expected"]["difficulty_reason"], "contexts": entry["expected"]["contexts"],
+                        "context_spans": entry["expected_context_spans"]}
+            d.require(entry["changes"] == proposed and entry["old_values"] == previous and entry.get("old_missing_fields") == [],
+                      "published native metadata projection differs")
+        elif entry["kind"] == "authors_only":
             d.require(entry["changes"].get("authors", entry["expected"]["authors"]) == entry["authors"], "published authors correction differs")
         elif entry["kind"] == "material_association":
             d.require(entry["changes"].get("materials", entry["expected_materials"]) == associated_materials(entry),
@@ -186,6 +269,10 @@ def historical_manifest(manifest, records):
             # (for example qualification_basis). Restore the captured stage,
             # not just fields this maintenance operation itself changed.
             for key, value in entry["expected"].items():
+                # Native span snapshots are normalized; retain any unrecorded
+                # locator extensions while restoring the other CAS metadata.
+                if entry["kind"] == "native_metadata" and key in ("primary", "proof_spans", "contexts"):
+                    continue
                 if key in row or value is not None:
                     row[key] = copy.deepcopy(value)
             for key in entry.get("old_missing_fields", []):
@@ -205,6 +292,25 @@ def apply(master, manifest, record, read_review, read_file):
         for entry, old in prepared:
             actual = db.execute("SELECT p.*,s.source_version,s.author AS source_author FROM problems p JOIN sources s USING(source_id) WHERE problem_id=?", (entry["problem_id"],)).fetchone()
             d.require(actual is not None, "maintenance SQL ID missing")
+            if entry["kind"] == "native_metadata":
+                sql_expected = copy.deepcopy(entry["expected_sql"])
+                d.require(set(NATIVE_SQL_CAS) <= set(actual.keys()), "native required SQL columns missing")
+                source_expected = entry["expected_source"]
+                source_actual = db.execute("SELECT source_id,source_version,author FROM sources WHERE source_id=?", (old["source_id"],)).fetchone()
+                d.require(source_actual is not None and dict(source_actual) == source_expected,
+                          "native SQL source baseline differs")
+                projected_sql = copy.deepcopy(sql_expected)
+                projected_locator = copy.deepcopy(sql_expected["source_locator_json"])
+                projected_locator["contexts"] = copy.deepcopy(entry["changes"]["contexts"])
+                projected_locator["context_spans"] = copy.deepcopy(entry["changes"]["context_spans"])
+                projected_sql["difficulty_reason"] = entry["changes"]["difficulty_reason"]
+                projected_sql["source_locator_json"] = projected_locator
+                projected = (old.get("difficulty_reason") == entry["difficulty_reason"] and
+                             native_spans(old.get("context_spans")) == entry["context_spans"])
+                target_sql = projected_sql if projected else sql_expected
+                observed = {k: actual[k] for k in sql_expected}
+                observed["source_locator_json"] = native_locator(d.json.loads(actual["source_locator_json"]))
+                d.require(observed == target_sql, "native SQL baseline differs")
             for key in BINDING_FIELDS:
                 wanted = old.get(key)
                 d.require(actual[key] == wanted or (key == "claim_key" and actual[key] is None and actual["validation_policy"] == "legacy"), "maintenance SQL binding mismatch: " + key)
@@ -213,8 +319,16 @@ def apply(master, manifest, record, read_review, read_file):
             d.require(old.get("publication_commit") is None or actual["publication_commit"] == old["publication_commit"], "maintenance SQL publication metadata differs")
             for key in ("title", "difficulty_level", "difficulty_reason", "revision", "review_state", "dedup_state", "qualification_set_id", "review_protocol"):
                 d.require(actual[key] == old.get(key), "maintenance SQL current metadata differs: " + key)
-            d.require(d.locator_metadata(d.json.loads(actual["source_locator_json"])) == d.locator_metadata(d.locator(old)), "maintenance SQL counted locations differ")
+            if entry["kind"] != "native_metadata":
+                d.require(d.locator_metadata(d.json.loads(actual["source_locator_json"])) == d.locator_metadata(d.locator(old)), "maintenance SQL counted locations differ")
             if entry["kind"] == "authors_only":
+                continue
+            if entry["kind"] == "native_metadata":
+                locator = d.json.loads(actual["source_locator_json"])
+                locator["contexts"] = copy.deepcopy(entry["changes"]["contexts"])
+                locator["context_spans"] = copy.deepcopy(entry["changes"]["context_spans"])
+                db.execute("UPDATE problems SET difficulty_reason=?, source_locator_json=? WHERE problem_id=?",
+                           (entry["changes"]["difficulty_reason"], d.json.dumps(locator, ensure_ascii=False), entry["problem_id"]))
                 continue
             if entry["kind"] == "material_association":
                 locator = d.json.loads(actual["source_locator_json"])
