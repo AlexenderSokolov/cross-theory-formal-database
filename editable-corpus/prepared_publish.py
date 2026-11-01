@@ -824,18 +824,9 @@ def prepare(spec):
             corpus = folder / "worktree/editable-corpus"
             corpus.mkdir(parents=True)
             if confirmed and Path(confirmed['package'], 'work-registry.jsonl').is_file():
-                records = shared.read_registry(Path(confirmed['package']) / 'work-registry.jsonl')
-                for record in records.values():
-                    record['root'] = record.pop('public_root', record['root'])
-                    index_ref = record.get('structure_index')
-                    if index_ref and Path(index_ref).is_absolute():
-                        marker = '/' + record['root'].strip('/') + '/'
-                        index_ref = Path(index_ref).as_posix()
-                        d.require(marker in index_ref, 'runtime index is outside the public work layout')
-                        index_name = index_ref.rsplit(marker, 1)[1]
-                        d.require(index_name in record.get('files', []), 'runtime index is outside the published inventory')
-                        record['structure_index'] = index_name
-                shared.write_registry(corpus / 'work-registry.jsonl', records)
+                # Runtime restore paths are a projection; retain every field from the frozen public record.
+                git_file(repo, spec['public_base_commit'], 'editable-corpus/work-registry.jsonl',
+                         corpus / 'work-registry.jsonl')
             manifest, descriptor = baseline["manifest"], baseline["descriptor"]
             ids = {str(r["problem_id"]) for r in manifest["items"]} | set(map(str, manifest.get("retired_problem_ids", [])))
             claims = {r["claim_key"] for r in manifest["items"] if r.get("claim_key")}
