@@ -1,6 +1,6 @@
 # 数学作者题证材料
 
-[当前阅读入口](browse/README.md) · [TeX](browse/tex/README.md) · [Lean](browse/lean/README.md)
+[当前阅读入口](browse/README.md) · [TeX](browse/tex/README.md) · [Lean](browse/lean/README.md) · [作者PDF](browse/pdf/README.md)
 
 题证按稳定问题编号关联固定版本作者材料；旧逐题包与新共享作品并存，目录统一展示。活动身份以manifest为准，机器目录、分页和展示编号是投影。
 

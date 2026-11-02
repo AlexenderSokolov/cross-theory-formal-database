@@ -1,12 +1,12 @@
 # 题库阅读入口
 
-当前活动材料 **22,920** 条：TeX **22,883** 条，Lean **37** 条。
+当前活动材料 **22,921** 条：TeX **22,883** 条，Lean **37** 条，作者PDF **1** 条。
 
 活动材料数、记录中的难度筛选状态、数学正确性和跨理论标注是不同概念。历史 H 标签不表示已按当前标准重新核准。
 
 | 阅读目的 | 入口 |
 |---|---|
-| 从可读小页选题 | [TeX目录](tex/README.md) · [Lean目录](lean/README.md) |
+| 从可读小页选题 | [TeX目录](tex/README.md) · [Lean目录](lean/README.md) · [作者PDF目录](pdf/README.md) |
 | 按作者来源缩小范围 | [来源目录](sources.md) |
 | 程序或网页工具分段读取 | 每页配套JSON；[精简统计与分页位置](summary.json) |
 | 下载全量元数据 | [catalog.json](../catalog.json) · [catalog.csv](../catalog.csv) |
