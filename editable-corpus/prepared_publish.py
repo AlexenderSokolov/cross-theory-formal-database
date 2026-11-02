@@ -1477,13 +1477,12 @@ def publish(folder, *, restore_only=False):
             d.require(observed in (state["public_base_commit"], candidate), "public branch moved; preserve this batch for reconciliation")
             d.require(not restore_only or observed == candidate, "restore-only requires the exact candidate already public; no server push attempted")
             if observed != candidate:
-                # Candidate is proven to be the one-parent child of the leased
-                # base. This compare-and-swap cannot replace another writer.
+                # The candidate is a direct child of the frozen base. Ordinary
+                # push also rejects a non-fast-forward race after our read.
                 state.update(stage="external_write_unknown", push_started_at=d.utc_now())
                 d.save(folder / "publication.json", state)
                 require_owner(spec["state_root"], spec["actor"])
-                git(["--git-dir", repo, "push", "--force-with-lease=refs/heads/" + spec["branch"] + ":" + observed,
-                     spec["origin_url"], candidate + ":refs/heads/" + spec["branch"]])
+                git(["--git-dir", repo, "push", spec["origin_url"], candidate + ":refs/heads/" + spec["branch"]])
             d.require(remote_commit(repo, spec["origin_url"], spec["branch"]) == candidate, "public ref is not the candidate after push")
             state.update(stage="restoring", publicly_observed_commit=candidate)
             d.save(folder / "publication.json", state)
@@ -1731,7 +1730,12 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
         work['public_root'] = public_root
         old = previous.get(key)
         if old:
-            d.require(all(old[k] == work[k] for k in shared.IDENTITY), 'shared asset version changed in incremental restore')
+            # An unresolved shell has no author inventory yet; registration may
+            # establish its real format while keeping its fixed source identity.
+            identity = shared.IDENTITY
+            if old.get('state') == 'unresolved' and old.get('root') is None and not old.get('files'):
+                identity = tuple(k for k in identity if k != 'material_format')
+            d.require(all(old[k] == work[k] for k in identity), 'shared asset version changed in incremental restore')
         if (old and old.get('state') == 'published' and isinstance(old.get('root'), str) and
                 shared.work_root(old, Path(baseline['package']) / 'work-registry.jsonl').is_dir() and
                 bool(work.get('files')) and all(shared.inside(
