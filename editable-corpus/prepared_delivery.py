@@ -1512,6 +1512,8 @@ def verify_reference_job(job, state, *, require_ready=True, registry=None):
                 author_pdf_qualified_count=1 if row['material_format'] == shared.PDF_FORMAT else 0,
                 qualified_material_count=1, package_item_count=1,
                 errors=[], sql=sql, public_redistribution_supported=work.get('public_redistribution_supported') is True,
+                publication_allowed=shared.publication_admission(work, registry)['allowed'],
+                publication_admission_basis=shared.publication_admission(work, registry)['basis'],
                 build_status=row['run_state'], qualification_basis=MATERIAL_BASIS)
 
 

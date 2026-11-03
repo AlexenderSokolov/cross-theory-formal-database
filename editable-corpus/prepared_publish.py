@@ -227,7 +227,9 @@ def select_jobs(spec, qualification_records=None):
         for path in paths:
             job = Path(path).resolve()
             verified = d.verify_job(job)
-            if verified.get("material_format") == d.NATIVE_FORMAT:
+            if verified.get("work_ref"):
+                d.require(verified.get("publication_allowed") is True, "reference public licence or explicit user publication authorization required")
+            elif verified.get("material_format") == d.NATIVE_FORMAT:
                 d.require(verified.get("public_redistribution_supported") is True, "native public redistribution licence remains on hold; retain internal material")
             ident = verified["problem_id"]
             d.require(verified.get("preparation_basis") == d.MATERIAL_BASIS, "material publication requires explicitly adopted material")
@@ -1145,8 +1147,11 @@ def restore_release(repo, commit, output, *, batch_id=None, baseline=None):
         for job in retained_jobs:
             shared_state = d.load(output / 'editable-corpus' / job / 'job-state.json')
             if shared_state.get('work_ref'):
-                reports.append(d.verify_reference_job(output / 'editable-corpus' / job, shared_state,
-                                                     registry=output / 'editable-corpus/work-registry.jsonl'))
+                reference_report = d.verify_reference_job(output / 'editable-corpus' / job, shared_state,
+                                                          registry=output / 'editable-corpus/work-registry.jsonl')
+                d.require(reference_report.get('publication_allowed') is True,
+                          'restored reference publication authorization unsupported')
+                reports.append(reference_report)
                 continue
             report = d.verify_job(output / "editable-corpus" / job, require_ready=False)
             state = d.load(output / "editable-corpus" / job / "job-state.json")

@@ -453,10 +453,63 @@ def project_registry(database, records):
                 db.execute('INSERT INTO works(work_key,record_json) VALUES (?,?)', (key, json.dumps(canonical, ensure_ascii=False)))
 
 
+def _user_publication_authorization(work, registry):
+    """Validate operator release evidence without inferring a source licence."""
+    authorization = work.get('user_publication_authorization')
+    if not isinstance(authorization, dict):
+        return None
+    expected = {'kind': 'explicit_user_publication_instruction',
+                'decision': 'publish_qualified_material',
+                'scope': 'qualified_materials_of_fixed_work',
+                'authorized_by': 'project_operator'}
+    if any(authorization.get(key) != value for key, value in expected.items()):
+        return None
+    if any(not isinstance(work.get(key), str) or not work[key]
+           or authorization.get(key) != work[key]
+           for key in ('work_key', 'source_id', 'source_version')):
+        return None
+    if any(not isinstance(authorization.get(key), str) or not authorization[key].strip()
+           for key in ('policy_record_id', 'recorded_at', 'evidence_path')):
+        return None
+    try:
+        from datetime import datetime
+        recorded = datetime.fromisoformat(authorization['recorded_at'].replace('Z', '+00:00'))
+        if recorded.utcoffset() is None:
+            return None
+        root = work_root(work, registry)
+        name = authorization['evidence_path']
+        inside(root, name)  # Relative target syntax and containment remain mandatory.
+        assets = work.get('asset_sources', {})
+        if name not in work.get('files', []) and name not in assets:
+            return None
+        evidence = Path(assets[name]) if name in assets else inside(root, name)
+        if not evidence.is_file() or load(evidence) != authorization:
+            return None
+    except (KeyError, TypeError, ValueError, OSError):
+        return None
+    return copy.deepcopy(authorization)
+
+
+def publication_admission(work, registry):
+    """Keep source-rights facts separate from explicit operator publication."""
+    authorization = _user_publication_authorization(work, registry)
+    licensed = work.get('public_redistribution_supported') is True
+    allowed = licensed or authorization is not None
+    basis = ('source_redistribution_supported' if licensed else
+             'explicit_user_publication_instruction' if authorization is not None else
+             'not_authorized')
+    return {'allowed': allowed, 'basis': basis,
+            'source_public_redistribution_supported': work.get('public_redistribution_supported'),
+            'authorization': authorization}
+
+
 def publish_work(registry, work_key, corpus):
     """Publish one work, carrying its existing index without rescanning originals."""
     work = copy.deepcopy(read_registry(registry)[work_key])
-    require(work.get('public_redistribution_supported') is True, 'work public licence remains on hold')
+    admission = publication_admission(work, registry)
+    require(admission['allowed'], 'work public licence or explicit user publication authorization required')
+    require('user_publication_authorization' not in work or admission['authorization'] is not None,
+            'invalid explicit user publication authorization')
     public_registry = Path(corpus) / 'work-registry.jsonl'
     existing = read_registry(public_registry).get(work_key)
     if existing and existing.get('state') not in ('unresolved', 'not_published'):
@@ -468,6 +521,16 @@ def publish_work(registry, work_key, corpus):
                     'explicit fixed source alias pair required')
             if alias not in aliases:
                 aliases.append(copy.deepcopy(alias))
+        incoming_authorization = admission['authorization']
+        authorization_changed = (incoming_authorization is not None and
+                                 incoming_authorization != existing.get('user_publication_authorization'))
+        if authorization_changed:
+            updated_authorization = dict(existing, user_publication_authorization=incoming_authorization)
+            # Existing evidence is immutable; a changed record needs a new asset name.
+            if incoming_authorization['evidence_path'] in existing.get('files', []):
+                require(_user_publication_authorization(updated_authorization, public_registry) is not None,
+                        'registered publication evidence cannot be replaced')
+            existing = updated_authorization
         aliases_changed = aliases != (existing.get('source_aliases') or [])
         if aliases_changed:
             existing = dict(existing, source_aliases=aliases)
@@ -501,12 +564,16 @@ def publish_work(registry, work_key, corpus):
             for name, origin, destination in copies:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(origin, destination)
+            require(publication_admission(updated, public_registry)['allowed'],
+                    'appended public work authorization is incomplete')
             records = read_registry(public_registry)
             records[work_key] = updated
             write_registry(public_registry, records)
             return updated, [relative + '/' + name for name in additions]
         if existing.get('structure_index') or not work.get('structure_index'):
-            if aliases_changed:
+            if aliases_changed or authorization_changed:
+                require(publication_admission(existing, public_registry)['allowed'],
+                        'public work authorization evidence missing')
                 records = read_registry(public_registry)
                 records[work_key] = existing
                 write_registry(public_registry, records)
