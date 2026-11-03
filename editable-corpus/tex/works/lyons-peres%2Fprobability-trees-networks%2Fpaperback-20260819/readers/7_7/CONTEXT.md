@@ -1,0 +1,1 @@
+LP 7.7: fixed 2026-08-19 PDF transcription; selected definition physical264–265, statement266/289, full Comment638, bibliography669. Source and reader pixels actually viewed. Billingsley exercise is cited, not obtained. Existing H2 ruling and its medium-confidence qualification retained. No source repair or mathematical certification.

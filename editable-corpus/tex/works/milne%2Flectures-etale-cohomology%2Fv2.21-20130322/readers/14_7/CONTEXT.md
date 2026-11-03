@@ -1,0 +1,14 @@
+# LEC 14.7 private reader draft
+
+- Author and fixed work: J.S. Milne, Lectures on Etale Cohomology, v2.21, 2013-03-22; original/LEC.pdf, 202 pages, 1,514,442 bytes. SOURCE remains unchanged. Rights do not establish public redistribution of this edited reader.
+- Sole primary target: Theorem 14.7, p93; connected regular curve U over algebraically closed k, integer n prime to characteristic, locally constant F killed by n with finite stalks, all r>=0, the specific canonical finite-group perfect pairing with check(F)(1).
+- Primary proof: complete printed author sketch, Steps 0--7, pp93--96, including all four diagrams. Author omission of commutativity checks and the final instruction to apply Step4 twice remain unexpanded.
+- Necessary uncounted context: propositions/remarks14.1--14.6 pp89--92; compact completion/j_!/Hc definitions; finite locally constant sheaf/continuous-pi1 description; finite direct image; H1/pi1; first (nonaffine)15.1 bound and its exact source role. These support statements are quoted, not represented as all their proofs being reprinted. In particular, first15.1 proof exists on105--106 in source/input; affine107 is not used. Earlier13.6(c) remains the source's own omitted input boundary.
+- Specific-pairing context: complete p102 Ext-category discussion/Lemma14.21 printed sketch and p103 Yoneda/splicing/iterated-boundary/j_! passage up to but excluding the constructible-proof paragraph. Neither14.20 nor14.21 is an additional counted primary result. Example14.8 is an uncounted adjacent comment.
+- Literal source readings retained: check accent confirmed from source pixels; Step1 finite map; Step2 proof H_x^r(V,mu_n) versus diagram U; Step5 heading mu_n versus proof Z/n; p102 extension's n on second arrow; spectral sequence RHS Ext^s; p102 final X rather than U/Y. Diagram isomorphism labels use the original approximate mark.
+- Existing nine-actual focused semantic comparison (jep222/22806) is not redone. No mathematical correctness claim, new supporting proof, task, registry entry, qualification, or adoption is produced. Qualification increment remains0.
+- The source-native text was used only for positioning and transcription; source mathematical pixels were inspected. All final rendered pages must be actually inspected before reporting the draft complete. Parent independently checks source fidelity and source/support binding.
+
+## Writer build and page inspection
+
+Final reader: 9 pages, 302,888 bytes. All final pages1--9 actually viewed; stored render is150dpi. latexmk final exit0. No related overfull/undefined/missing-glyph/reference warnings in the final engine log. The unrelated epstopdf shell-escape warning is recorded; no EPS conversion is used. Two early TeX-only diagram macro failures and their logs are retained. Independent source-fidelity review remains pending; this is not READER_VERIFIED or qualified.
