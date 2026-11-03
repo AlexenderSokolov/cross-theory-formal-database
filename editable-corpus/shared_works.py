@@ -537,6 +537,24 @@ def publish_work(registry, work_key, corpus):
         # A fixed published work may gain explicitly approved assets, never replacements.
         additions = {name: Path(origin) for name, origin in work.get('asset_sources', {}).items()
                      if name not in existing.get('files', [])}
+        pdf_metadata_changed = False
+        if work.get('author_pdf_assets'):
+            source = work_root(work, registry)
+            incoming = _pdf_assets(work, source, work['files'])
+            published_assets = existing.get('author_pdf_assets', {})
+            for name, asset in incoming.items():
+                require(name in existing['files'] or name in additions,
+                        'author PDF must be in the published asset inventory')
+                require(name not in additions or additions[name].resolve() == inside(source, name),
+                        'appended author PDF must use the validated registered file')
+                require(name not in published_assets or published_assets[name] == asset,
+                        'published author PDF metadata cannot be replaced')
+            formats = existing.get('supported_formats', [existing['material_format']])
+            assets = dict(published_assets, **incoming)
+            pdf_metadata_changed = assets != published_assets or PDF_FORMAT not in formats
+            if pdf_metadata_changed:
+                existing = dict(existing, author_pdf_assets=assets,
+                                supported_formats=sorted(set(formats) | {PDF_FORMAT}))
         if additions:
             require(existing.get('structure_index'), 'append assets requires a published structure index')
             reading = work.get('readability')
@@ -574,6 +592,7 @@ def publish_work(registry, work_key, corpus):
             if aliases_changed or authorization_changed:
                 require(publication_admission(existing, public_registry)['allowed'],
                         'public work authorization evidence missing')
+            if aliases_changed or authorization_changed or pdf_metadata_changed:
                 records = read_registry(public_registry)
                 records[work_key] = existing
                 write_registry(public_registry, records)
