@@ -1620,6 +1620,10 @@ def public_reference_job(job, corpus, task, *, copy_files=True):
     work_key = row['work_ref']['work_key']
     d.require(copy_files, 'shared material replacement requires an explicit prepared reference output')
     source_work = shared.read_registry(state['work_registry'])[work_key]
+    if 'source_url' not in row:
+        d.require(d.nonempty(source_work.get('source_url')),
+                  'legacy reference source URL missing from both item and registered work')
+        row['source_url'] = source_work['source_url']
     work, assets = shared.publish_work(state['work_registry'], work_key, corpus)
     license_source = (Path(source_work.get('asset_sources', {})[work['license_path']]) if work.get('license_path') in source_work.get('asset_sources', {})
                       else shared.inside(shared.work_root(source_work, state['work_registry']), work['license_path'])) if work.get('license_path') else None
