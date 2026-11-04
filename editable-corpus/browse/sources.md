@@ -27,6 +27,6 @@
 | theoryofcomputing.org | 55 | [tex/011](tex/011.md) · [tex/012](tex/012.md) · [tex/013](tex/013.md) · [tex/014](tex/014.md) · [tex/015](tex/015.md) · [tex/147](tex/147.md) · [tex/148](tex/148.md) · [tex/149](tex/149.md) · [tex/236](tex/236.md) |
 | www.advancesincombinatorics.com | 11 | [tex/142](tex/142.md) |
 | www.cambridge.org | 1 | [tex/144](tex/144.md) |
-| www.jmilne.org | 9 | [pdf/001](pdf/001.md) · [tex/235](tex/235.md) |
+| www.jmilne.org | 12 | [pdf/001](pdf/001.md) · [pdf/002](pdf/002.md) · [tex/235](tex/235.md) |
 | www.jstage.jst.go.jp | 1 | [pdf/001](pdf/001.md) |
 | yufeizhao.com | 27 | [pdf/001](pdf/001.md) · [tex/235](tex/235.md) |
