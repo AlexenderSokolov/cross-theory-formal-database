@@ -32,4 +32,5 @@
 | www.cambridge.org | 1 | [tex/144](tex/144.md) |
 | www.jmilne.org | 23 | [pdf/001](pdf/001.md) · [pdf/002](pdf/002.md) · [pdf/003](pdf/003.md) · [tex/235](tex/235.md) · [tex/236](tex/236.md) |
 | www.jstage.jst.go.jp | 1 | [pdf/001](pdf/001.md) |
+| www.mathnet.ru | 1 | [pdf/003](pdf/003.md) |
 | yufeizhao.com | 27 | [pdf/001](pdf/001.md) · [tex/235](tex/235.md) |
