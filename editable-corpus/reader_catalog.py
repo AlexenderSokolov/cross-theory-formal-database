@@ -118,7 +118,9 @@ def reading_links(row, registry):
                 else:
                     links.append(local_link(title, relative(root) + "/" + path, fragment="#page=" + str(first)))
         return " · ".join(links)
-    if work.get("state") == "published" and root:
+    registered_lean = (row.get("material_format") == "native_lean"
+                       and work.get("state") == "registered" and work.get("public_root"))
+    if root and (work.get("state") == "published" or registered_lean):
         reader = work.get("readability", {}).get("path")
         if not material and reader in work.get("files", []):
             label = "已有阅读PDF" if reader.lower().endswith(".pdf") else "已有阅读材料"
