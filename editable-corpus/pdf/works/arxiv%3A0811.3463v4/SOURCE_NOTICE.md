@@ -1,0 +1,5 @@
+# Polynomiality of some hook-length statistics
+
+Greta Panova proves the Okada hook-length product formula. The fixed [Stanley 103(e)](../../../tex/works/stanley%252Fch7-supplement-20230604-solutions-20230324/original/ch7supp.pdf#page=33) and its [author solution references](../../../tex/works/stanley%252Fch7-supplement-20230604-solutions-20230324/original/ch7suppsol.pdf#page=45) give the exercise and provenance. The selected proof uses the author's finite hook-shape evaluations and the RSK longest-subsequence moment bound. In the opening of Section 2 the author prints both a square in the definition of F_r and an evaluation at squared hooks. The original definition (1), q_i on page 4 and Proposition 1 retain the single-squared-hook relation. The fixed PDF is preserved verbatim.
+
+In the intermediate sums in (6), three partition weights are printed without their squares. Equation (5), the first weighted bound and the last permutation average in (6), and the growth bound on physical page 4 record the correct weights. The original PDF retains these printed differences.
