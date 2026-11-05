@@ -916,7 +916,9 @@ def prepare(spec):
             new_paths.extend(retirements.active_index_files(corpus, manifest, active_catalog))
             descriptor["material_count"] = len(manifest["items"])
             validate_restore_batch(descriptor, batch)
-            d.save(corpus / "manifest.json", manifest)
+            with (corpus / "manifest.json").open("w", encoding="utf-8") as stream:
+                json.dump(manifest, stream, ensure_ascii=False, separators=(",", ":"))
+                stream.write("\n")
             d.save(corpus / "prepared-database.json", descriptor)
             if (corpus / 'work-registry.jsonl').exists():
                 shared.project_registry(baseline['database'], shared.read_registry(corpus / 'work-registry.jsonl'))
