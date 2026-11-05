@@ -1,0 +1,556 @@
+import category_theory.abelian.projective
+import pseudo_normed_group.category
+import topology.continuous_function.algebra
+
+import algebra.group.ulift
+
+import for_mathlib.abelian_sheaves.main
+import for_mathlib.AddCommGroup.exact
+import for_mathlib.types
+
+import condensed.adjunctions
+import condensed.top_comparison
+import condensed.filtered_colimits
+
+/-!
+# Properties of the category of condensed abelian groups
+
+-/
+
+open category_theory category_theory.limits
+
+universes v u
+
+-- Move this!
+-- @[simps obj map {fully_applied := ff}] -- we probably don't want these as global simp lemmas
+/-- `Ab.ulift.{v u}` is the universe lifting functor sending the category of abelian groups in
+  universe `u` into those in universe `max v u`. -/
+def Ab.ulift : Ab.{u} ⥤ Ab.{max v u} :=
+{ obj := λ M, AddCommGroup.of $ ulift.{v} M,
+  map := λ M N f,
+  { to_fun := λ x, ⟨f x.down⟩,
+    map_zero' := by { ext1, apply f.map_zero },
+    map_add' := λ x y, by { ext1, apply f.map_add } },
+  map_id' := by { intros, ext, refl },
+  map_comp' := by { intros, ext, refl } }
+
+@[simp] lemma Ab.exact_ulift_map {A B C : Ab} (f : A ⟶ B) (g : B ⟶ C) :
+  exact (Ab.ulift.map f) (Ab.ulift.map g) ↔ exact f g :=
+begin
+  let F := Ab.ulift.map f,
+  let G := Ab.ulift.map g,
+  change exact F G ↔ _,
+  rw AddCommGroup.exact_iff,
+  rw AddCommGroup.exact_iff,
+  split,
+  { intro h,
+    apply le_antisymm,
+    { rintros _ ⟨x,rfl⟩,
+      have : ulift.up (f x) ∈ F.range := ⟨⟨x⟩, rfl⟩,
+      rw h at this,
+      change _ = _ at this,
+      apply_fun (λ e, e.down) at this,
+      exact this },
+    { rintros x hx, change _ = _ at hx,
+      have : ulift.up x ∈ G.ker, by { apply_fun ulift.up at hx, exact hx },
+      rw ← h at this,
+      obtain ⟨y,hy⟩ := this,
+      apply_fun (λ e, e.down) at hy,
+      rw ← hy,
+      use [y.down, rfl] } },
+  { intro h,
+    apply le_antisymm,
+    { rintros _ ⟨x,rfl⟩,
+      ext,
+      change _ ∈ g.ker,
+      rw ← h,
+      use [x.down, rfl] },
+    { intros x hx,
+      change _ = _ at hx,
+      apply_fun (λ e, e.down) at hx,
+      change _ ∈ g.ker at hx,
+      rw ← h at hx,
+      obtain ⟨y,hy⟩ := hx,
+      use y,
+      ext,
+      exact hy } },
+end
+
+namespace Condensed
+
+--instance : preadditive (Condensed Ab.{u+1}) := by admit
+
+noncomputable theory
+
+-- Sanity check
+example {J : Type (u+1)} [small_category J] [is_filtered J] :
+  limits.preserves_colimits_of_shape J (forget Ab.{u+1}) := by apply_instance
+
+-- this is now available in `condensed/projective_resolutions.lean`...
+--instance : enough_projectives (Condensed Ab.{u+1}) := by admit
+
+instance : is_right_adjoint (Sheaf_to_presheaf _ _ : Condensed Ab.{u+1} ⥤ _) :=
+{ left := presheaf_to_Sheaf _ _,
+  adj := (sheafification_adjunction _ _) }
+
+@[simps obj map {fully_applied := ff}]
+def forget_to_CondensedType : Condensed Ab.{u+1} ⥤ CondensedSet :=
+{ obj := λ F, ⟨F.val ⋙ forget _, begin
+    cases F with F hF,
+    rwa (presheaf.is_sheaf_iff_is_sheaf_forget _ _ (forget Ab)) at hF,
+    apply_instance
+  end ⟩,
+  map := λ A B f, ⟨whisker_right f.val _⟩ }
+
+instance : is_right_adjoint forget_to_CondensedType :=
+{ left := CondensedSet_to_Condensed_Ab,
+  adj := Condensed_Ab_CondensedSet_adjunction }
+
+section
+
+variables (A : Type u) [add_comm_group A] [topological_space A] [topological_add_group A]
+
+def of_top_ab.presheaf : Profinite.{u}ᵒᵖ ⥤ Ab.{u} :=
+{ obj := λ S, ⟨C(S.unop, A)⟩,
+  map := λ S₁ S₂ f, add_monoid_hom.mk' (λ g, g.comp f.unop) $ λ g₁ g₂, rfl,
+  map_id' := by { intros, ext, refl },
+  map_comp' := by { intros, ext, refl } }
+
+/-- The condensed abelian group associated with a topological abelian group -/
+def of_top_ab : Condensed.{u} Ab.{u+1} :=
+{ val := of_top_ab.presheaf A ⋙ Ab.ulift.{u+1},
+  cond := begin
+    rw category_theory.presheaf.is_sheaf_iff_is_sheaf_forget _ _ (forget Ab),
+    swap, apply_instance,
+    let B := Top.of A,
+    change presheaf.is_sheaf _ B.to_Condensed.val,
+    exact B.to_Condensed.cond,
+  end }
+
+
+variables {A} {B : Type u} [add_comm_group B] [topological_space B] [topological_add_group B]
+
+def of_top_ab_map (f : A →+ B) (hf : continuous f) : of_top_ab A ⟶ of_top_ab B :=
+{ val := whisker_right
+  { app := λ S, begin
+      refine add_monoid_hom.mk' (λ g, ⟨f ∘ (show C(↥(opposite.unop S), A), from g), hf.comp _⟩) _,
+      { exact g.continuous },
+      { intros, ext, exact f.map_add _ _, }
+    end,
+    naturality' := λ S T g, rfl, }
+  Ab.ulift.{u+1} }
+
+
+end
+
+end Condensed
+
+namespace CompHausFiltPseuNormGrp
+
+open_locale nnreal
+open pseudo_normed_group comphaus_filtered_pseudo_normed_group
+
+def presheaf (A : CompHausFiltPseuNormGrp.{u}) (S : Profinite.{u}) : Type u :=
+{ f : S → A // ∃ (c : ℝ≥0) (f₀ : S → filtration A c), continuous f₀ ∧ f = coe ∘ f₀ }
+
+namespace presheaf
+
+variables (A : CompHausFiltPseuNormGrp.{u}) (S : Profinite.{u})
+
+@[ext]
+lemma ext {A : CompHausFiltPseuNormGrp} {S : Profinite} (f g : presheaf A S) : f.1 = g.1 → f = g :=
+subtype.ext
+
+instance : has_zero (presheaf A S) := ⟨⟨0, 0, 0, continuous_zero, rfl⟩⟩
+
+instance : has_neg (presheaf A S) :=
+⟨λ f, ⟨-f.1,
+  begin
+    obtain ⟨_, c, f, hf, rfl⟩ := f,
+    refine ⟨c, λ s, - f s, _, rfl⟩,
+    exact (continuous_neg' c).comp hf
+  end⟩⟩
+
+instance : has_add (presheaf A S) :=
+⟨λ f g, ⟨f.1 + g.1,
+  begin
+    obtain ⟨_, cf, f, hf, rfl⟩ := f,
+    obtain ⟨_, cg, g, hg, rfl⟩ := g,
+    refine ⟨cf + cg, λ s, ⟨f s + g s, add_mem_filtration (f s).2 (g s).2⟩, _, rfl⟩,
+    have aux := (hf.prod_mk hg),
+    exact (continuous_add' cf cg).comp aux,
+  end⟩⟩
+
+instance : has_sub (presheaf A S) :=
+⟨λ f g, ⟨f.1 - g.1,
+  begin
+    obtain ⟨_, cf, f, hf, rfl⟩ := f,
+    obtain ⟨_, cg, g, hg, rfl⟩ := g,
+    refine ⟨cf + cg, λ s, ⟨f s - g s, sub_mem_filtration (f s).2 (g s).2⟩, _, rfl⟩,
+    have aux := (hf.prod_mk ((continuous_neg' cg).comp hg)),
+    simp only [sub_eq_add_neg],
+    exact (continuous_add' cf cg).comp aux,
+  end⟩⟩
+
+variables {A S}
+
+protected def nsmul (n : ℕ) (f : presheaf A S) : presheaf A S :=
+⟨n • f.1,
+begin
+  obtain ⟨_, c, f, hf, rfl⟩ := f,
+  refine ⟨n * c, λ s, ⟨n • f s, nat_smul_mem_filtration _ _ _ (f s).2⟩, _, rfl⟩,
+  exact continuous_nsmul _ _ _ hf,
+end⟩
+
+protected def zsmul (n : ℤ) (f : presheaf A S) : presheaf A S :=
+⟨n • f.1,
+begin
+  obtain ⟨_, c, f, hf, rfl⟩ := f,
+  refine ⟨n.nat_abs * c, λ s, ⟨n • f s, int_smul_mem_filtration _ _ _ (f s).2⟩, _, rfl⟩,
+  exact continuous_zsmul _ _ _ hf,
+end⟩
+
+variables (A S)
+
+instance : add_comm_group (presheaf A S) :=
+{ zero := 0,
+  add := (+),
+  nsmul := presheaf.nsmul,
+  zsmul := presheaf.zsmul,
+  add_assoc := by { intros, ext, exact add_assoc _ _ _ },
+  zero_add := by { intros, ext, exact zero_add _ },
+  add_zero := by { intros, ext, exact add_zero _ },
+  add_comm := by { intros, ext, exact add_comm _ _ },
+  add_left_neg := by { intros, ext, exact add_left_neg _ },
+  sub_eq_add_neg := by { intros, ext, exact sub_eq_add_neg _ _ },
+  nsmul_zero' := by { intros, ext, exact zero_nsmul _ },
+  nsmul_succ' := by { intros, ext, exact succ_nsmul _ _ },
+  zsmul_zero' := by { intros, ext, exact zero_zsmul _ },
+  zsmul_succ' := by { intros, ext, exact add_comm_group.zsmul_succ' _ _ },
+  zsmul_neg' := by { intros, ext, exact add_comm_group.zsmul_neg' _ _ },
+  .. presheaf.has_sub A S, .. presheaf.has_neg A S }
+
+@[simps apply {fully_applied := ff}]
+def comap (A : CompHausFiltPseuNormGrp) {S T : Profinite} (φ : S ⟶ T) :
+  presheaf A T →+ presheaf A S :=
+{ to_fun := λ f, ⟨f.1 ∘ φ,
+  begin
+    obtain ⟨_, c, f, hf, rfl⟩ := f,
+    refine ⟨c, f ∘ φ, hf.comp φ.continuous, rfl⟩,
+  end⟩,
+  map_zero' := rfl,
+  map_add' := by { intros, refl } }
+
+@[simps apply {fully_applied := ff}]
+def map {A B : CompHausFiltPseuNormGrp} (φ : A ⟶ B) (S : Profinite) :
+  presheaf A S →+ presheaf B S :=
+{ to_fun := λ f, ⟨φ ∘ f.1,
+  begin
+    obtain ⟨_, c, f, hf, rfl⟩ := f,
+    obtain ⟨d,hd⟩ := φ.bound,
+    let e : filtration A c → filtration B (d * c) := λ t, ⟨φ t, hd t.2⟩,
+    have he : continuous e,
+    { apply φ.continuous, intros, refl },
+    refine ⟨d * c, e ∘ f, he.comp hf, rfl⟩,
+  end⟩,
+  map_zero' := by { ext, exact φ.map_zero },
+  map_add' := by { intros, ext, exact φ.map_add _ _ } }
+
+end presheaf
+
+open opposite
+
+/--
+Given `A : CompHausFiltPseuNormGrp`, this is the presheaf which sends a profinite set
+`S` to the collection of functions `f : S → A` such that there exists some `r : ℝ≥0`
+and some continuous map `g : S → A_{≤ r}`, where `f` is the composition of `g` with
+the inclusion of `A_{≤ r}` into `A`.
+This turns out to be a proetale sheaf, and thus defines a condensed abelian group.
+See `to_Condensed` below.
+-/
+@[simps obj map {fully_applied := ff}]
+def Presheaf (A : CompHausFiltPseuNormGrp.{u}) : Profinite.{u}ᵒᵖ ⥤ Ab :=
+{ obj := λ S, ⟨presheaf A (unop S)⟩,
+  map := λ S T φ, presheaf.comap A φ.unop,
+  map_id' := by { intros, ext, refl },
+  map_comp' := by { intros, ext, refl } }
+
+@[simps app {fully_applied := ff}]
+def Presheaf.map {A B : CompHausFiltPseuNormGrp} (φ : A ⟶ B) :
+  Presheaf A ⟶ Presheaf B :=
+{ app := λ S, presheaf.map φ (unop S),
+  naturality' := by { intros, refl } }
+
+@[simp]
+lemma Presheaf.map_id (A : CompHausFiltPseuNormGrp) :
+  Presheaf.map (𝟙 A) = 𝟙 _ := by { ext, refl }
+
+@[simp]
+lemma Presheaf.map_comp {A B C : CompHausFiltPseuNormGrp} (f : A ⟶ B) (g : B ⟶ C) :
+  Presheaf.map (f ≫ g) = Presheaf.map f ≫ Presheaf.map g := by { ext, refl }
+
+--set_option pp.universes true
+
+lemma Presheaf_comp_ulift_is_sheaf_aux_equalizer
+  (A : CompHausFiltPseuNormGrp.{u}) :
+  (A.Presheaf ⋙ Ab.ulift.{u+1 u} ⋙ forget.{u+2 u+1 u+1} Ab.{u+1}).equalizer_condition :=
+begin
+  intros X B π hh,
+  split,
+  { rintros ⟨x⟩ ⟨y⟩ h,
+    ext t,
+    obtain ⟨t,rfl⟩ := hh t,
+    apply_fun (λ e, e.val.down.val t) at h,
+    exact h },
+  { rintros ⟨⟨⟨t,c,t',ht',ht⟩⟩,h⟩,
+    let E : Top := Top.of (filtration A c),
+    let t'' : Profinite.to_Top.obj X ⟶ E := ⟨t',ht'⟩,
+    have hw : Profinite.to_Top.{u}.map (Profinite.pullback.fst.{u} π π) ≫ t'' =
+      Profinite.to_Top.{u}.map (Profinite.pullback.snd.{u} π π) ≫ t'',
+    { dsimp at h,
+      ext i,
+      dsimp [Profinite.pullback.fst, Profinite.pullback.snd],
+      apply_fun (λ e, e.down.val i) at h,
+      change (coe ∘ t') i.val.fst = (coe ∘ t') i.val.snd,
+      rw ← ht,
+      exact h },
+    let w := Profinite.descend_to_Top π t'' hh hw,
+    refine ⟨⟨⟨_,c,w,w.2,rfl⟩⟩,_⟩,
+    ext : 3,
+    dsimp,
+    rw ht,
+    ext i,
+    dsimp [CompHausFiltPseuNormGrp.Presheaf, Ab.ulift,
+      functor.map_to_equalizer],
+    have := Profinite.π_descend_to_Top π t'' hh hw,
+    apply_fun (λ e, (e i).val) at this, exact this }
+end
+
+lemma Presheaf_comp_ulift_is_sheaf (A : CompHausFiltPseuNormGrp.{u}):
+  presheaf.is_sheaf proetale_topology (Presheaf A ⋙ Ab.ulift.{u+1}) :=
+begin
+  rw category_theory.presheaf.is_sheaf_iff_is_sheaf_forget _ _ (forget Ab),
+  swap, apply_instance,
+  rw is_sheaf_iff_is_sheaf_of_type,
+  erw (functor.is_proetale_sheaf_of_types_tfae
+    (A.Presheaf ⋙ Ab.ulift.{u+1} ⋙ forget _)).out 0 5,
+  refine ⟨_,_,_⟩,
+  { dsimp [functor.empty_condition],
+    split,
+    { intros a b h, ext ⟨⟩ },
+    { intros x, dsimp,
+      refine ⟨⟨⟨λ x, x.elim, 0, λ x, x.elim, by continuity, _⟩⟩, _⟩,
+      { ext ⟨⟩ },
+      { cases x, refl } } },
+  { intros X Y,
+    split,
+    { rintros ⟨x⟩ ⟨y⟩ h, dsimp at h,
+      ext : 2,
+      dsimp,
+      ext (t|t),
+      { apply_fun (λ e, e.fst.down.val t) at h, exact h },
+      { apply_fun (λ e, e.snd.down.val t) at h, exact h } },
+    { rintros ⟨⟨f,c,f',hf',hf⟩,⟨g,d,g',hg',hg⟩⟩,
+      let p : X.sum Y → A := λ t, sum.rec_on t f g,
+      let e : ℝ≥0 := c ⊔ d,
+      haveI : fact (c ≤ e) := ⟨le_sup_left⟩,
+      haveI : fact (d ≤ e) := ⟨le_sup_right⟩,
+      let p' : X.sum Y → filtration A e :=
+        λ t, sum.rec_on t (cast_le ∘ f') (cast_le ∘ g'),
+      have hp' : continuous p',
+      { have aux1 : p' ∘ sum.inl = cast_le ∘ f', by ext; refl,
+        have aux2 : p' ∘ sum.inr = cast_le ∘ g', by ext; refl,
+        simp only [continuous_sup_dom, continuous_coinduced_dom, aux1, aux2],
+        exact ⟨(continuous_cast_le _ _).comp hf', (continuous_cast_le _ _).comp hg'⟩, },
+      have hh : p = coe ∘ p',
+      { ext (a|a),
+        { apply_fun (λ u, u a) at hf, exact hf },
+        { apply_fun (λ u, u a) at hg, exact hg } },
+      refine ⟨⟨⟨p,e,p',hp',hh⟩⟩,_⟩,
+      ext; refl } },
+  { apply Presheaf_comp_ulift_is_sheaf_aux_equalizer }
+end
+
+/--
+Given `A : CompHausFiltPseuNormGrp`, this is the condensed abeliian group
+which, as a presheaf, sends a profinite set `S` to the collection of
+functions `f : S → A` such that there exists some `r : ℝ≥0`
+and some continuous map `g : S → A_{≤ r}`, where `f` is the composition of `g` with
+the inclusion of `A_{≤ r}` into `A`.
+
+NOTE: For silly universe reasons, we need to apply a `ulift` as well.
+-/
+@[simps obj map {fully_applied := ff}]
+def to_Condensed : CompHausFiltPseuNormGrp.{u} ⥤ Condensed.{u} Ab.{u+1} :=
+{ obj := λ A,
+  { val := Presheaf A ⋙ Ab.ulift.{u+1},
+    cond := Presheaf_comp_ulift_is_sheaf _ },
+  map := λ A B f, ⟨whisker_right (Presheaf.map f) _⟩,
+  map_id' := λ X, by { ext : 2, dsimp, simp },
+  map_comp' := λ X Y Z f g, by { ext : 2, dsimp, simp } }
+
+section
+
+-- #check Top.to_Condensed
+
+variables (A : CompHausFiltPseuNormGrp.{u})
+
+@[simps]
+def level : ℝ≥0 ⥤ CompHaus.{u} :=
+{ obj := λ r, CompHaus.of $ filtration A r,
+  map := λ r s h,
+  { to_fun := cast_le' h.le,
+    continuous_to_fun := by letI : fact (r ≤ s) := ⟨h.le⟩; exact continuous_cast_le _ _ },
+  map_id' := λ r, by { ext, refl },
+  map_comp' := λ r s t h1 h2, by { ext, refl } }
+
+@[simps]
+def level_Condensed_diagram : ℝ≥0 ⥤ CondensedSet.{u} :=
+A.level ⋙ CompHaus_to_Top.{u} ⋙ Top_to_Condensed.{u}
+
+@[simps]
+def level_Condensed_diagram' : (as_small.{u+1} ℝ≥0) ⥤ CondensedSet.{u} :=
+as_small.down ⋙ A.level_Condensed_diagram
+
+def level_Condensed_diagram_cocone :
+  cocone A.level_Condensed_diagram' :=
+{ X := Condensed_Ab_to_CondensedSet.obj (to_Condensed.obj A),
+  ι :=
+  { app := λ r, Sheaf.hom.mk $
+    { app := λ S f, ulift.up $ ⟨_, ulift.down r, f.down.1, f.down.2, rfl⟩,
+      naturality' := λ S T f, by { ext, refl } },
+    naturality' := λ r s h, by { ext, refl } } } .
+
+def colimit_iso_Condensed_obj_aux_fun (X) :
+let E := A.level_Condensed_diagram' ⋙ Sheaf_to_presheaf _ _ ⋙ (evaluation _ _).obj (op X) in
+  (types.filtered_colimit_cocone E).X → A.presheaf X :=
+let E := A.level_Condensed_diagram' ⋙ Sheaf_to_presheaf _ _ ⋙ (evaluation _ _).obj (op X) in
+λ t, @quotient.lift_on' (Σ (j : as_small.{u+1} ℝ≥0), E.obj j) (A.presheaf X)
+  (types.filtered_colimit_setoid E) t
+  (λ f, ⟨_,ulift.down f.1, f.2.down.1, f.2.down.2, rfl⟩) begin
+    rintros ⟨i,x⟩ ⟨j,y⟩ ⟨e,u,v,h⟩,
+    ext q : 2,
+    dsimp [level_Condensed_diagram, level_Condensed_diagram'] at *,
+    apply_fun (λ e, (e.down q).1) at h, exact h
+  end
+
+lemma colimit_iso_Condensed_obj_aux_fun_bijective (X) :
+  function.bijective (colimit_iso_Condensed_obj_aux_fun A X) :=
+begin
+  split,
+  { rintros ⟨⟨⟨i⟩,f⟩⟩ ⟨⟨⟨j⟩,g⟩⟩ h, dsimp [colimit_iso_Condensed_obj_aux_fun] at h ⊢,
+    simp only [subtype.mk_eq_mk] at h,
+    apply quotient.sound',
+    use [⟨i ⊔ j⟩, ⟨le_sup_left⟩, ⟨le_sup_right⟩],
+    ext q,
+    dsimp [level_Condensed_diagram'], apply_fun (λ e, e q) at h, exact h },
+  { rintros ⟨f,c,g,hg,hf⟩,
+    use quotient.mk' ⟨⟨c⟩,⟨⟨g,hg⟩⟩⟩, ext tt, dsimp, rw hf, refl }
+end
+
+-- We would have to use `some` to define the inverse of this equiv, so we may as well just use
+-- `equiv.of_bijective`
+@[simps]
+def colimit_iso_Condensed_obj_aux (X) :
+let E := A.level_Condensed_diagram' ⋙ Sheaf_to_presheaf _ _ ⋙ (evaluation _ _).obj (op X) in
+  (types.filtered_colimit_cocone E).X ≃ A.presheaf X :=
+equiv.of_bijective (A.colimit_iso_Condensed_obj_aux_fun X)
+(A.colimit_iso_Condensed_obj_aux_fun_bijective X)
+
+/-
+let E := A.level_Condensed_diagram' ⋙ Sheaf_to_presheaf _ _ ⋙ (evaluation _ _).obj (op X) in
+  (types.filtered_colimit_cocone E).X ≃ A.presheaf X :=
+let E := A.level_Condensed_diagram' ⋙ Sheaf_to_presheaf _ _ ⋙ (evaluation _ _).obj (op X) in
+equiv.of_bijective
+(λ t, @quotient.lift_on' (Σ (j : as_small.{u+1} ℝ≥0), E.obj j) (A.presheaf X)
+  (types.filtered_colimit_setoid E) t
+  (λ f, ⟨_,ulift.down f.1, f.2.down.1, f.2.down.2, rfl⟩) begin
+    rintros ⟨i,x⟩ ⟨j,y⟩ ⟨e,u,v,h⟩,
+    ext q : 2,
+    dsimp [level_Condensed_diagram, level_Condensed_diagram'] at *,
+    apply_fun (λ e, (e.down q).1) at h, exact h
+  end)
+begin
+  split,
+  { rintros ⟨⟨⟨i⟩,f⟩⟩ ⟨⟨⟨j⟩,g⟩⟩ h, dsimp at h ⊢, apply quotient.sound',
+    simp only [subtype.mk_eq_mk] at h, use [⟨i ⊔ j⟩, ⟨le_sup_left⟩, ⟨le_sup_right⟩],
+    ext q,
+    dsimp [level_Condensed_diagram'], apply_fun (λ e, e q) at h, exact h },
+  { rintros ⟨f,c,g,hg,hf⟩,
+    use quotient.mk' ⟨⟨c⟩,⟨⟨g,hg⟩⟩⟩, ext tt, dsimp, rw hf }
+end
+-/
+
+def colimit_iso_Condensed_obj_aux_nat_iso :
+  (filtered_cocone.{u} A.level_Condensed_diagram').X.val ≅
+  (Condensed_Ab_to_CondensedSet.{u}.obj (to_Condensed.{u}.obj A)).val :=
+  nat_iso.of_components (λ X,
+    (is_colimit_of_preserves ((evaluation _ _).obj X)
+      (colimit.is_colimit (A.level_Condensed_diagram' ⋙
+        Sheaf_to_presheaf _ _))).cocone_point_unique_up_to_iso (colimit.is_colimit _) ≪≫
+    (colimit.is_colimit _).cocone_point_unique_up_to_iso
+    (types.filtered_colimit_cocone_is_colimit _) ≪≫
+    equiv.to_iso ((A.colimit_iso_Condensed_obj_aux X.unop).trans equiv.ulift.symm)
+  )
+begin
+  intros X Y f, dsimp [is_colimit.cocone_point_unique_up_to_iso],
+  apply
+    (is_colimit_of_preserves ((evaluation Profiniteᵒᵖ (Type (u+1))).obj X)
+    (colimit.is_colimit (A.level_Condensed_diagram' ⋙
+    Sheaf_to_presheaf proetale_topology (Type (u+1))))).hom_ext,
+  intros j, simp only [category.assoc],
+  slice_lhs 0 1
+  { dsimp, rw ← nat_trans.naturality },
+  slice_lhs 2 3
+  { erw ((is_colimit_of_preserves ((evaluation Profiniteᵒᵖ (Type (u+1))).obj Y)
+      (colimit.is_colimit (A.level_Condensed_diagram' ⋙
+      Sheaf_to_presheaf proetale_topology (Type (u+1)))))).fac },
+  slice_lhs 2 3
+  { erw colimit.ι_desc },
+  slice_rhs 1 2
+  { erw (is_colimit_of_preserves ((evaluation Profiniteᵒᵖ (Type (u+1))).obj X)
+    (colimit.is_colimit (A.level_Condensed_diagram' ⋙
+    Sheaf_to_presheaf proetale_topology (Type (u+1))))).fac },
+  slice_rhs 1 2
+  { erw colimit.ι_desc },
+  ext, refl
+end
+
+def colimit_iso_Condensed_obj :
+  colimit A.level_Condensed_diagram' ≅ Condensed_Ab_to_CondensedSet.obj (to_Condensed.obj A) :=
+(colimit.is_colimit _).cocone_point_unique_up_to_iso (filtered_cocone_is_colimit _) ≪≫
+  Sheaf.iso.mk _ (Condensed_Ab_to_CondensedSet.{u}.obj (to_Condensed.{u}.obj A))
+    A.colimit_iso_Condensed_obj_aux_nat_iso
+
+def colimit_to_Condensed_obj :
+  colimit A.level_Condensed_diagram' ⟶ Condensed_Ab_to_CondensedSet.obj (to_Condensed.obj A) :=
+colimit.desc _ A.level_Condensed_diagram_cocone
+
+instance is_iso_colimit_to_Condensed_obj : is_iso A.colimit_to_Condensed_obj :=
+begin
+  suffices : A.colimit_to_Condensed_obj =
+    A.colimit_iso_Condensed_obj.hom, by { rw this, apply_instance },
+  dsimp [colimit_iso_Condensed_obj, colimit_to_Condensed_obj],
+  apply colimit.hom_ext, intros i,
+  dsimp [is_colimit.cocone_point_unique_up_to_iso],
+  rw [colimit.ι_desc, colimit.ι_desc_assoc],
+  dsimp [Sheaf.iso.mk],
+  ext T : 3, dsimp,
+  rw ← nat_trans.comp_app,
+  dsimp [colimit_iso_Condensed_obj_aux_nat_iso, nat_iso.of_components],
+  slice_rhs 1 2
+  { erw (is_colimit_of_preserves ((evaluation Profiniteᵒᵖ (Type (u+1))).obj T)
+      (colimit.is_colimit (A.level_Condensed_diagram' ⋙
+      Sheaf_to_presheaf proetale_topology (Type (u+1))))).fac },
+  slice_rhs 1 2 { erw colimit.ι_desc },
+  ext, refl,
+end
+
+end
+
+end CompHausFiltPseuNormGrp
+
+@[simps obj map {fully_applied := ff}]
+def CompHausFiltPseuNormGrp₁.to_Condensed :
+  CompHausFiltPseuNormGrp₁.{u} ⥤ Condensed.{u} Ab.{u+1} :=
+CHFPNG₁_to_CHFPNGₑₗ ⋙ CompHausFiltPseuNormGrp.to_Condensed
