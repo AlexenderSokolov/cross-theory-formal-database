@@ -797,6 +797,30 @@ def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover
     return record, assets, replacements
 
 
+def materialize_append_authorizations(repo, base, corpus, jobs):
+    """Load frozen evidence required by appends to a sparse public worktree."""
+    published = shared.read_registry(corpus / 'work-registry.jsonl')
+    paths = set()
+    for job, _ in jobs:
+        state = d.load(job / 'job-state.json')
+        key = (state.get('work_ref') or {}).get('work_key')
+        existing = published.get(key)
+        if not existing or existing.get('state') != 'published':
+            continue
+        registry = state['work_registry']
+        source = shared.read_registry(registry)[key]
+        files = set(existing.get('files', []))
+        if not set(source.get('asset_sources', {})) - files:
+            continue
+        authorization = (shared.publication_admission(source, registry)['authorization']
+                         or existing.get('user_publication_authorization'))
+        name = authorization.get('evidence_path') if isinstance(authorization, dict) else None
+        if name in files:
+            paths.add((existing.get('public_root') or existing['root']) + '/' + name)
+    for path in sorted(paths):
+        git_file(repo, base, 'editable-corpus/' + path, d.relative_path(corpus, path))
+
+
 def prepare(spec):
     """Prepare a local candidate commit only. Root separately calls publish."""
     with control(spec, publication=True):
@@ -829,6 +853,7 @@ def prepare(spec):
                 # Runtime restore paths are a projection; retain every field from the frozen public record.
                 git_file(repo, spec['public_base_commit'], 'editable-corpus/work-registry.jsonl',
                          corpus / 'work-registry.jsonl')
+                materialize_append_authorizations(repo, spec['public_base_commit'], corpus, jobs)
             manifest, descriptor = baseline["manifest"], baseline["descriptor"]
             ids = {str(r["problem_id"]) for r in manifest["items"]} | set(map(str, manifest.get("retired_problem_ids", [])))
             claims = {r["claim_key"] for r in manifest["items"] if r.get("claim_key")}
@@ -1736,6 +1761,14 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
                   for row in restored['manifest']['items']
                   for material in row.get('materials', [])
                   if material.get('work_ref', {}).get('work_key'))
+    restored_work_assets = set()
+
+    def restore_work_asset(asset, destination):
+        key = (asset, destination)
+        if key not in restored_work_assets:
+            git_file(repo, commit, "editable-corpus/" + asset, destination)
+            restored_work_assets.add(key)
+
     for key, work in records.items():
         public_root = work['root']
         work['public_root'] = public_root
@@ -1757,8 +1790,8 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
             d.require(work.get('state') == 'published' and isinstance(public_root, str) and bool(work.get('files')),
                       'needed shared work has no public complete asset root')
             for name in work['files']:
-                git_file(repo, commit, 'editable-corpus/' + public_root + '/' + name,
-                         d.relative_path(corpus, public_root + '/' + name))
+                asset = public_root + '/' + name
+                restore_work_asset(asset, d.relative_path(corpus, asset))
             work['root'] = str(d.relative_path(corpus, public_root))
         index_name = work.get('structure_index')
         if index_name and work.get('state') == 'published':
@@ -1778,7 +1811,7 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
                 if candidate.is_file():
                     index_path = candidate
             if not index_path.is_file():
-                git_file(repo, commit, 'editable-corpus/' + public_root + '/' + index_name, index_path)
+                restore_work_asset(public_root + '/' + index_name, index_path)
             work['structure_index'] = str(index_path)
     shared.write_registry(registry, records)
     shared.project_registry(restored['database'], records)
