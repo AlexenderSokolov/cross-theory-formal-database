@@ -1,0 +1,3 @@
+# Two Enumerative Results on Cycles of Permutations
+
+Richard P. Stanley posed [Exercise 110(d)](../../../tex/works/stanley%252Fch7-supplement-20230604-solutions-20230324/original/ch7supp.pdf#page=38) and gave its [solution sketch](../../../tex/works/stanley%252Fch7-supplement-20230604-solutions-20230324/original/ch7suppsol.pdf#page=49). The fixed author's article supplies the proof of Corollary 3.3, including the shift-operator formula and root-line argument in Theorems 3.1 and 3.2. The exercise selects the zero-real-part clause. The article and exercise put the fixed cycle on opposite sides of the product. Conjugacy gives the same number of cycles.
