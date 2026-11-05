@@ -29,6 +29,6 @@
 | www.advancesincombinatorics.com | 11 | [tex/142](tex/142.md) |
 | www.bolyai.hu | 22 | [pdf/002](pdf/002.md) · [pdf/003](pdf/003.md) |
 | www.cambridge.org | 1 | [tex/144](tex/144.md) |
-| www.jmilne.org | 20 | [pdf/001](pdf/001.md) · [pdf/002](pdf/002.md) · [pdf/003](pdf/003.md) · [tex/235](tex/235.md) · [tex/236](tex/236.md) |
+| www.jmilne.org | 22 | [pdf/001](pdf/001.md) · [pdf/002](pdf/002.md) · [pdf/003](pdf/003.md) · [tex/235](tex/235.md) · [tex/236](tex/236.md) |
 | www.jstage.jst.go.jp | 1 | [pdf/001](pdf/001.md) |
 | yufeizhao.com | 27 | [pdf/001](pdf/001.md) · [tex/235](tex/235.md) |
