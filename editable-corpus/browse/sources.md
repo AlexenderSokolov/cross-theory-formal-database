@@ -21,7 +21,7 @@
 | lmcs.episciences.org | 2 | [tex/143](tex/143.md) · [tex/144](tex/144.md) |
 | math.mit.edu | 30 | [pdf/001](pdf/001.md) · [pdf/002](pdf/002.md) · [pdf/003](pdf/003.md) · [tex/234](tex/234.md) · [tex/236](tex/236.md) |
 | math.nyu.edu | 1 | [pdf/003](pdf/003.md) |
-| math.stanford.edu | 28 | [pdf/003](pdf/003.md) |
+| math.stanford.edu | 29 | [pdf/003](pdf/003.md) · [pdf/004](pdf/004.md) |
 | mathoverflow.net | 1 | [tex/235](tex/235.md) |
 | metaphor.ethz.ch | 2 | [pdf/003](pdf/003.md) |
 | ocw.mit.edu | 2 | [pdf/003](pdf/003.md) |
