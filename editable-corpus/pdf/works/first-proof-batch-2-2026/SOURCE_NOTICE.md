@@ -1,0 +1,11 @@
+# First Proof Batch 2 source and publication notice
+
+Official source: https://github.com/1stproof/batch-2 ; fixed Git 274625a22e4748d5f9264ba3614353461520bd20. Original README, NOTICE, DATA-LICENSE.md and LICENSE-DOCS are retained. The explicit author-document grant is CC-BY-SA-4.0; original notices remain authoritative. The public inventory includes official problem inputs, author PDFs, accompanying author TeX and figures. The archive of model outputs is not a proof source.
+
+Each selected entry counts one whole original numbered problem. Proof bylines and the official contributor mapping are recorded per question, with distinct SQL source aliases under one fixed-version work. The aggregate contributor list does not attribute every proof to every contributor.
+
+Difficulty rule public-problemsets-external-evidence-v1-20261112: original README lines 3–7 designates this exact ten-problem set as research-level; the official second-batch Raw input file binds prob-001 through prob-010. H3 records this author/editor evidence, without measuring mathematical depth.
+
+The corpus preserves author material and cited standard prerequisites without repairing proofs or certifying mathematical correctness. Q7 preserves the source notation F_s/F_w. Q10 has no PDF/TeX byline, so attribution follows the official contributor mapping. In Q10 original TeX line 305, an intermediate display reads q1 q2 = q1 before continuing to q; line 347 contains an unintroduced u' and writes (u,u') in V(G). These source expressions remain unedited and are disclosed in the entry. No AI-assistance disclosure appears in these supplied Q1/Q7/Q10 texts; this does not establish that no AI was used. Any explicit disclosure in another entry is retained in that entry.
+
+User publication authorization, recorded on 2026-11-13, is separate from author rights. An author's complete local argument and necessary context must pass the recorded primary intake before its numbered question is adopted. Retaining all ten original files does not count unselected questions as corpus entries. In particular, original question 3 remains held because its supplied solution does not characterize the entire requested parameter range.
