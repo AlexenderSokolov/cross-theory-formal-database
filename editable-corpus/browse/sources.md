@@ -6,7 +6,7 @@
 
 | 来源主机 | 材料数 | 涉及的目录页 |
 |---|---|---|
-| 1stproof.org | 12 | [pdf/004](pdf/004.md) |
+| 1stproof.org | 14 | [pdf/004](pdf/004.md) |
 | afst.centre-mersenne.org | 1 | [tex/144](tex/144.md) |
 | ahl.centre-mersenne.org | 125 | [tex/001](tex/001.md) · [tex/002](tex/002.md) · [tex/143](tex/143.md) · [tex/144](tex/144.md) · [tex/148](tex/148.md) · [tex/149](tex/149.md) · [tex/150](tex/150.md) · [tex/151](tex/151.md) · [tex/228](tex/228.md) · [tex/230](tex/230.md) · [tex/231](tex/231.md) · [tex/232](tex/232.md) · [tex/236](tex/236.md) |
 | alco.centre-mersenne.org | 206 | [tex/001](tex/001.md) · [tex/002](tex/002.md) · [tex/003](tex/003.md) · [tex/004](tex/004.md) · [tex/005](tex/005.md) · [tex/006](tex/006.md) · [tex/008](tex/008.md) · [tex/009](tex/009.md) · [tex/010](tex/010.md) · [tex/013](tex/013.md) · [tex/014](tex/014.md) · [tex/016](tex/016.md) · [tex/019](tex/019.md) · [tex/023](tex/023.md) · [tex/026](tex/026.md) · [tex/032](tex/032.md) · [tex/033](tex/033.md) · [tex/034](tex/034.md) · [tex/040](tex/040.md) · [tex/041](tex/041.md) · [tex/146](tex/146.md) · [tex/147](tex/147.md) · [tex/148](tex/148.md) · [tex/149](tex/149.md) · [tex/151](tex/151.md) · [tex/152](tex/152.md) · [tex/231](tex/231.md) · [tex/232](tex/232.md) · [tex/236](tex/236.md) |
