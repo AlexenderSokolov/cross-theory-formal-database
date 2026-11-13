@@ -315,6 +315,11 @@ def prepare_entry(task, registry, output_root):
     work = read_registry(registry).get(work_key)
     require(work is not None, 'work reference unresolved')
     row = copy.deepcopy(task)
+    import problemset_difficulty_gate
+    gate = problemset_difficulty_gate.validate(row, work, work_root(work, registry))
+    if gate is not None:
+        row['difficulty_gate'] = gate
+        row['difficulty_reason'] = gate['difficulty_reason']
     ident = row.get('problem_id') or row.get('local_material_id') or row.get('task_id')
     require(isinstance(ident, str) and ident and ident not in ('.', '..') and '/' not in ident and '\\' not in ident, 'candidate identifier required')
     row['work_ref'] = {'work_key': work_key, 'source_version': work['source_version']}
