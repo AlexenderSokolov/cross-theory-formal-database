@@ -1,0 +1,5 @@
+# Original problem collection and fixed author proofs
+
+Original question author Haïm Brezis, Some of my favorite open problems, EMS2023, copyright Accademia Nazionale dei Lincei2023; no broader redistribution grant identified. Registered solution files are fixed arXivv1 versions, whose nonexclusive-distribution terms are not a general grant to this corpus. Pacard author-hosted JDE2011 support and Bath Musso-Wei peer-reviewed manuscript retain their own publisher/author rights. No open license is inferred. The separately recorded operator instruction is not copyright permission.
+
+Selected circle units5.1 and equivalent5.7/5.8 have distinct proof authors, named in each task, with source statements and complete proof PDFs preserved. Their physical3 AI disclosures expressly include author substantive mathematical validation/responsibility, as preserved in each entry. No blanket no-AI label is used. Other retained source PDFs do not add counted tasks; PDE1.1 requires its own resumed primary decision.
