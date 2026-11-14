@@ -1265,6 +1265,12 @@ def use_public_base_cache(consumer_git_dir, base_git_dir, base_commit, candidate
     d.require((consumer_git_dir / "objects").is_dir() and not alternate.exists(), "fresh public consumer alternates required")
     alternate.parent.mkdir(parents=True, exist_ok=True)
     alternate.write_text("".join(store.as_posix() + "\n" for store in borrowed_object_stores(cache / "objects")), encoding="utf-8", newline="\n")
+    # Alternates share objects, while shallow history boundaries remain per repo.
+    # Match the original local-clone boundary handling before public fetch checks
+    # connectivity through the confirmed, possibly shallow, baseline cache.
+    if (cache / "shallow").is_file():
+        d.require(not (consumer_git_dir / "shallow").exists(), "fresh public consumer shallow boundary required")
+        shutil.copyfile(cache / "shallow", consumer_git_dir / "shallow")
     return str(cache / "objects")
 
 
