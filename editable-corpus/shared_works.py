@@ -123,6 +123,62 @@ def _pdf_assets(work, root, files):
     return result
 
 
+
+# Short-lived rendering reuse only; original and delivered physical paths differ.
+from collections import OrderedDict
+from contextvars import ContextVar
+
+_PDF_PAGE_CACHE = ContextVar('author_pdf_page_cache', default=None)
+
+
+def pdf_renderer_identity():
+    import pymupdf
+    stat = Path(__file__).stat()
+    return {'implementation': 'shared-works-pdf-v2', 'pymupdf': pymupdf.VersionBind,
+            'implementation_size': stat.st_size, 'implementation_mtime_ns': stat.st_mtime_ns,
+            'scale': [4, 3], 'alpha': False, 'format': 'png'}
+
+
+@contextlib.contextmanager
+def pdf_page_cache(*, max_bytes=64 * 1024 * 1024):
+    require(type(max_bytes) is int and max_bytes > 0, 'positive bounded cache size required')
+    cache = {'items': OrderedDict(), 'bytes': 0, 'hits': 0, 'renders': 0, 'max_bytes': max_bytes}
+    token = _PDF_PAGE_CACHE.set(cache)
+    try:
+        yield cache
+    finally:
+        cache['items'].clear()
+        cache['bytes'] = 0
+        _PDF_PAGE_CACHE.reset(token)
+
+
+def _render_pdf_page(path, document, number):
+    import pymupdf
+    cache = _PDF_PAGE_CACHE.get()
+    stat = path.stat()
+    key = (str(path.resolve()), stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, number)
+    if cache is not None and key in cache['items']:
+        cache['hits'] += 1
+        value, size = cache['items'].pop(key)
+        cache['items'][key] = value, size
+        return dict(value)
+    page = document.load_page(number - 1)
+    pixmap = page.get_pixmap(matrix=pymupdf.Matrix(4 / 3, 4 / 3), alpha=False)
+    value = {'physical_page': number, 'text': page.get_text('text'),
+             'width': float(page.rect.width), 'height': float(page.rect.height),
+             'content_present': bool(page.get_contents()),
+             'image_data_url': 'data:image/png;base64,' + base64.b64encode(pixmap.tobytes('png')).decode('ascii')}
+    if cache is not None:
+        cache['renders'] += 1
+        size = len(value['image_data_url']) + len(value['text'].encode('utf-8'))
+        while cache['items'] and cache['bytes'] + size > cache['max_bytes']:
+            _, (_, old_size) = cache['items'].popitem(last=False)
+            cache['bytes'] -= old_size
+        if size <= cache['max_bytes']:
+            cache['items'][key] = dict(value), size
+            cache['bytes'] += size
+    return value
+
 def _resolve_pdf(groups, work, root):
     """Return actual page text and renderings; no OCR or placeholder proof text."""
     import pymupdf
@@ -157,13 +213,7 @@ def _resolve_pdf(groups, work, root):
                 for number in range(span['physical_start_page'], span['physical_end_page'] + 1):
                     key = name, number
                     if key not in pages:
-                        page = document.load_page(number - 1)
-                        pixmap = page.get_pixmap(matrix=pymupdf.Matrix(4 / 3, 4 / 3), alpha=False)
-                        pages[key] = {'physical_page': number, 'text': page.get_text('text'),
-                                      'width': float(page.rect.width), 'height': float(page.rect.height),
-                                      'content_present': bool(page.get_contents()),
-                                      'image_data_url': 'data:image/png;base64,' +
-                                      base64.b64encode(pixmap.tobytes('png')).decode('ascii')}
+                        pages[key] = _render_pdf_page(path, document, number)
                     material.append(pages[key])
                 if not any(page['content_present'] for page in material):
                     missing.append(name + ': selected PDF span contains no page content')
@@ -180,6 +230,8 @@ def register_work(registry, work, *, index_root):
     if old is not None and old.get('state') != 'unresolved':
         require(all(old[k] == work[k] for k in IDENTITY) and
                 work_root(old, registry) == work_root(work, registry), 'work identity conflict; preserve original')
+        if old.get('production_admission'):
+            require(work.get('production_admission') == old['production_admission'], 'registered source policy is immutable')
         # Metadata does not invalidate a fixed-version inventory or structure index.
         merged = dict(old, **copy.deepcopy(work))
         for key in ('files', 'structure_index', 'index_version'):
@@ -314,6 +366,9 @@ def prepare_entry(task, registry, output_root):
     work_key = task.get('work_key') or task.get('work_ref', {}).get('work_key')
     work = read_registry(registry).get(work_key)
     require(work is not None, 'work reference unresolved')
+    if work.get('production_admission'):
+        import run_author_work_production
+        run_author_work_production.validate_task_admission(task, work, registry)
     row = copy.deepcopy(task)
     import problemset_difficulty_gate
     gate = problemset_difficulty_gate.validate(row, work, work_root(work, registry))
