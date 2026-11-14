@@ -46,7 +46,7 @@
 | www.fim.uni-passau.de | 1 | [pdf/004](pdf/004.md) |
 | www.jmilne.org | 23 | [pdf/001](pdf/001.md) · [pdf/002](pdf/002.md) · [pdf/003](pdf/003.md) · [tex/235](tex/235.md) · [tex/236](tex/236.md) |
 | www.jstage.jst.go.jp | 1 | [pdf/001](pdf/001.md) |
-| www.math.ias.edu | 92 | [pdf/004](pdf/004.md) · [pdf/005](pdf/005.md) · [pdf/006](pdf/006.md) |
+| www.math.ias.edu | 93 | [pdf/004](pdf/004.md) · [pdf/005](pdf/005.md) · [pdf/006](pdf/006.md) |
 | www.math.uchicago.edu | 1 | [pdf/003](pdf/003.md) |
 | www.math.uni-konstanz.de | 1 | [pdf/003](pdf/003.md) |
 | www.mathnet.ru | 1 | [pdf/003](pdf/003.md) |
