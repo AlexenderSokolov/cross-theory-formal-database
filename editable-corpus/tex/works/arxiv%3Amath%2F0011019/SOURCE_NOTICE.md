@@ -1,0 +1,6 @@
+Recurrence of Distributional Limits of Finite Planar Graphs; Itai Benjamini; Oded Schramm; math/0011019v4; https://arxiv.org/abs/math/0011019v4
+arXiv pre2004 assumed non-exclusive distribution licence; third-party redistribution not established
+Exact fixed-version original native source/archive and complete official authorPDF retained unchanged. Research-paper own concrete H2/H3 gate; no title/prestige or direct-corollary qualification.
+Each selected whole original theorem must retain every hypothesis, parameter, branch, continuation and fresh author support; no repair, assumption supplementation or mathematical reproof. Mature cited inputs are not recursively certified.
+Official source licence and existing explicit operator publication instruction are separate. AI assistance is not inferred from silence.
+Exact original math/0011019v4, authors Itai Benjamini and Oded Schramm; earlier title Unbiased Finite Planar Graphs are Asymptotically Recurrent is an alias, no extra count. Actual official authorPDF16pages (journal reference1-13 does not override actual PDF). Complete nativeTeX850lines, bbl/styles and all EPS/PS author figures retained. Pre2004 assumed arXiv licence and operator authorization recorded separately. Uniform finite degree bound, unbiased root and full finite planar graph case retained; never narrow to triangulations.
