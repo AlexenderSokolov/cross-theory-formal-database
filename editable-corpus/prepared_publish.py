@@ -26,16 +26,86 @@ import prepared_material_updates as material_updates
 import shared_works as shared
 
 FIRST_ID, LAST_ID = 900000000, 900999999
+_MODULE_FILE = Path(__file__).resolve()
+LOCAL_STORAGE_ROOT = (_MODULE_FILE.parents[3] if len(_MODULE_FILE.parents) > 3
+                      and _MODULE_FILE.parent.name == 'scripts'
+                      and (_MODULE_FILE.parents[3] / 'repo').is_dir() else _MODULE_FILE.parent)
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
-CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py", "prepared_material_updates.py", "shared_works.py", "reader_catalog.py")
+CONSUMER_HELPERS = ("prepared_retirements.py", "prepared_delivery.py", "prepared_qualification.py", "prepared_publish.py", "prepared_focused.py", "prepared_dsh_evidence.py", "prepared_material_updates.py", "shared_works.py", "reader_catalog.py", "acquire_author_works.py")
+
+
+def _capacity_tree_bytes(path):
+    path = Path(path)
+    if not path.exists():return 0
+    d.require(not path.is_symlink(), 'storage input must not be a symlink')
+    if path.is_file():return path.stat().st_size
+    total = count = 0
+    for directory, dirs, files in os.walk(path, followlinks=False):
+        for name in dirs + files:
+            d.require(not (Path(directory) / name).is_symlink(), 'storage input must not be a symlink')
+        for name in files:
+            total += (Path(directory) / name).stat().st_size
+            count += 1
+            d.require(count <= 100000, 'storage input inventory needs an explicit larger-source budget')
+    return total
+
+
+def guard_local_capacity(*, stage, output, spec=None, baseline=None, jobs=()):
+    """The same stateless budget at direct APIs and at their wrapper callers."""
+    from acquire_author_works import (capacity_inputs, storage_capacity_budget,
+        require_storage_capacity, UNKNOWN_ASSET_BYTES, UNKNOWN_GIT_BYTES,
+        UNKNOWN_INPUT_BYTES)
+    spec, baseline = spec or {}, baseline or {}
+    inputs = capacity_inputs(LOCAL_STORAGE_ROOT)
+    database, metadata = inputs['database_bytes'], inputs['metadata_bytes']
+    source_db = baseline.get('database') or baseline.get('master_database') or spec.get('master_db')
+    if source_db and Path(source_db).is_file():
+        database = max(database, Path(source_db).stat().st_size)
+    package = baseline.get('package')
+    if package:
+        metadata = max(metadata, sum((Path(package) / name).stat().st_size for name in
+            ('manifest.json', 'work-registry.jsonl', 'prepared-database.json') if (Path(package) / name).is_file()))
+    assets = 0
+    shared_assets_seen = set()
+    for job, task in jobs:
+        assets += _capacity_tree_bytes(job)
+        state = d.load(Path(job) / 'job-state.json')
+        if state.get('work_ref') and state.get('work_registry'):
+            work = shared.read_registry(state['work_registry'])[state['work_ref']['work_key']]
+            d.require(isinstance(work.get('source_version'), str) and bool(work['source_version']),
+                      'shared storage budget needs the fixed source version')
+            identity = (str(Path(state['work_registry']).resolve()), state['work_ref']['work_key'], work['source_version'])
+            if identity not in shared_assets_seen:
+                root = shared.work_root(work, state['work_registry'])
+                assets += sum(_capacity_tree_bytes(shared.inside(root, name)) for name in work.get('files', []))
+                shared_assets_seen.add(identity)
+    bootstrap = not baseline and stage != 'prepare'
+    budget = storage_capacity_budget(database, metadata, max(assets, UNKNOWN_ASSET_BYTES),
+        UNKNOWN_GIT_BYTES, database + UNKNOWN_INPUT_BYTES if bootstrap else 0, 0, stage=stage)
+    budget['baseline_basis'] = inputs['basis']
+    budget['bootstrap_full_restore_extra_reserved'] = bootstrap
+    target = Path(output).resolve()
+    while not target.exists():target = target.parent
+    paths = [target]
+    if (LOCAL_STORAGE_ROOT / 'repo/handoff/yupeng/PRODUCTION_QUEUE.json').is_file():
+        paths = [LOCAL_STORAGE_ROOT, Path(spec.get('host_filesystem', '/mnt/e')), target]
+        from acquire_author_works import project_maintenance_program
+        programme = project_maintenance_program(LOCAL_STORAGE_ROOT)
+        return require_storage_capacity(paths, budget, host_path=paths[1],
+            maintenance_previous_state=programme.get('storage_maintenance', {}).get('state'),
+            maintenance_enabled=programme.get('storage_maintenance_policy', {}).get('enabled') is True
+                and not programme.get('active_batch')
+                and not d.load(LOCAL_STORAGE_ROOT / 'repo/handoff/yupeng/PRODUCTION_QUEUE.json').get('active_batch'))
+    return require_storage_capacity(paths, budget, min_free_bytes=0, enforce_project_reserve=False)
 
 
 def validate_stage_paths(work, declared, expected_files, index_files, legacy_index_files):
     """Accept the exact prior helper set while upgrading an in-flight candidate."""
     declared_set = set(declared[:-1])
     current = set(expected_files)
-    prior = current - {"editable-corpus/reader_catalog.py"}
-    allowed = {frozenset(base | extra) for base in (current, prior)
+    optional = {"editable-corpus/reader_catalog.py", "editable-corpus/acquire_author_works.py"}
+    bases = (current, current - optional, *(current - {name} for name in optional))
+    allowed = {frozenset(base | extra) for base in bases
                for extra in (set(), set(index_files), set(legacy_index_files))}
     d.require(declared and declared[-1] == "" and len(declared) - 1 == len(declared_set) and
               frozenset(declared_set) in allowed, "prepared explicit stage path set conflict")
@@ -478,6 +548,8 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
     """Read all inputs from one actual Git commit, never from local job roots."""
     repo, destination = Path(repo).resolve(), Path(destination).resolve()
     d.require(COMMIT.fullmatch(commit) and not destination.exists(), "restore needs a full commit and fresh destination")
+    stage = "candidate" if destination.name.startswith("candidate-restore-") else "prepare" if destination.name == "base-restore" else "public"
+    capacity = guard_local_capacity(stage=stage, output=destination, baseline=baseline)
     destination.mkdir(parents=True)
     manifest = git_json(repo, commit, corpus_prefix + "/manifest.json")
     try:
@@ -494,8 +566,10 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
     d.require(descriptor.get("policy") == d.POLICY, "unsupported restoration policy")
     validate_restore_batch(descriptor, batch_id)
     if baseline is not None:
-        return restore_incremental_database(repo, commit, destination, manifest, descriptor, baseline,
+        restored = restore_incremental_database(repo, commit, destination, manifest, descriptor, baseline,
                                             corpus_prefix=corpus_prefix, batch_id=batch_id)
+        restored["storage_capacity"] = capacity
+        return restored
     parts = descriptor["base"]["parts"]
     d.require([p["index"] for p in parts] == list(range(len(parts))) and parts, "base parts must have explicit contiguous order")
     d.require(descriptor["base"]["format"] == "ordered gzip-compressed SQLite parts", "unsupported base SQLite delivery")
@@ -611,7 +685,8 @@ def restore_database(repo, commit, destination, *, corpus_prefix="editable-corpu
     d.require(sql["problem_count"] == manifest["verified_count"], "restored material count differs from manifest")
     d.require(descriptor.get("material_count", sql["problem_count"]) == sql["problem_count"], "restored material count differs from descriptor")
     return {"database": str(master), "manifest": manifest, "descriptor": descriptor, "sql": sql,
-            "qualification_updates": qualification_updates, "retirement_updates": retirement_updates}
+            "qualification_updates": qualification_updates, "retirement_updates": retirement_updates,
+            "storage_capacity": capacity}
 
 
 def stage_explicit(worktree, pathspec, *, style=None):
@@ -832,10 +907,12 @@ def prepare(spec):
         d.require(d.ID.fullmatch(batch), "invalid batch name")
         folder = Path(spec["publication_root"]).resolve() / batch
         d.require(not folder.exists(), "batch output exists; preserve it and use resume/status")
+        capacity = guard_local_capacity(stage="prepare", output=folder, spec=spec, baseline=q["base"], jobs=jobs)
         folder.mkdir(parents=True)
         state = {"schema_version": 2, "policy": d.POLICY, "batch_id": batch, "actor": spec["actor"],
                  "stage": "preparing", "public_base_commit": spec["public_base_commit"], "created_at": d.utc_now(),
-                 "incoming": [d.binding(t) for _, t in jobs], "qualification_set_ids": [r["qualification_set_id"] for r in qualifications], "spec": spec}
+                 "incoming": [d.binding(t) for _, t in jobs], "qualification_set_ids": [r["qualification_set_id"] for r in qualifications], "spec": spec,
+                 "storage_capacity": capacity}
         d.save(folder / "publication.json", state)
         try:
             repo = isolated_git(spec["base_git_dir"], folder / "worktree", spec["public_base_commit"], spec["branch"], spec["origin_url"])
@@ -1220,6 +1297,7 @@ def restore_release(repo, commit, output, *, batch_id=None, baseline=None):
               "material_count": restored["sql"]["problem_count"], "restored_prepared_jobs": len(reports),
               "asset_restore_scope": "all_prepared_jobs" if batch_id is None else "current_batch_only", "asset_batch_id": batch_id,
               "database": restored["database"], "sql": final_sql, "jobs": reports,
+              "storage_capacity": restored.get("storage_capacity"),
               "existing_qualification_updates": restored.get("qualification_updates", []),
               "retirement_updates": restored.get("retirement_updates", [])}
     d.save(output / 'editable-corpus/manifest.json', restored['manifest'])
@@ -1596,13 +1674,22 @@ def publish(folder, *, restore_only=False):
             raise
 
 
+def ensure_local_sql_available(database, commit=None):
+    """Recover only an explicitly catalogued local cold SQL; preserve legacy inputs."""
+    database = Path(database)
+    if not database.is_file() and (LOCAL_STORAGE_ROOT / '.archives/sql-retention/manifest.jsonl').is_file():
+        from corpus_storage_retention import ensure_sql_available
+        ensure_sql_available(database, project_root=LOCAL_STORAGE_ROOT, commit=commit)
+    return database
+
+
 def confirmed_baseline(spec, queue, repo):
     """Use the writer's confirmed DB/package, never infer it from a directory."""
     base = queue['base']
     if not base.get('verified_corpus_commit'):
         return None  # Legacy/bootstrap restoration remains explicit and compatible.
     d.require(base['verified_corpus_commit'] == spec['public_base_commit'], 'confirmed public baseline moved')
-    database = Path(base['master_database']).resolve()
+    database = ensure_local_sql_available(Path(base['master_database']).resolve(), base['verified_corpus_commit'])
     package = Path(base['package']).resolve()
     d.require(database == Path(spec['master_db']).resolve() and database.is_file() and package.is_dir(),
               'confirmed master/package differs from explicit spec')
@@ -1698,6 +1785,7 @@ def restore_incremental_database(repo, commit, destination, manifest, descriptor
         d.require(len(new) >= len(old) and d.locator_metadata(normalized(new[:len(old)])) == d.locator_metadata(normalized(old)),
                   'incremental history prefix changed: ' + key)
     master = destination / 'corpus.sqlite'
+    ensure_local_sql_available(baseline['database'], baseline.get('verified_corpus_commit'))
     d.migrate_database(baseline['database'], master)
     current = copy.deepcopy(baseline['manifest'])
     existing_ids = {row['problem_id'] for row in current['items']}
