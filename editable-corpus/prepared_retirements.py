@@ -205,6 +205,12 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
                 d.nonempty(source.get("difficulty_assessed_by")) and source.get("difficulty_level") in ("H2", "H3") and
                 d.nonempty(source.get("difficulty_reason"))):
             row.update(difficulty_state="screened_H2_H3", difficulty_assessed_by=source["difficulty_assessed_by"])
+        if source.get("material_update_id"):
+            for key in ("material_update_id", "duplicate_of", "canonical_problem_id", "counting_state", "qualification_state",
+                        "qualification_hold_reason", "eligible", "difficulty_state", "difficulty_assessed_by", "reading_pdf"):
+                if key in source:
+                    row[key] = copy.deepcopy(source[key])
+            row["qualification_status"] = source.get("qualification_state", row["qualification_status"])
         rows.append(row)
     previous.update(schema_version=2, master_manifest="manifest.json", count=len(rows), items=rows,
                     published_difficulty_counts=dict(Counter(row.get("published_H") for row in rows)),
@@ -213,7 +219,8 @@ def write_active_indexes(corpus, manifest, previous_catalog=None):
     previous.setdefault("qualification_scope", "Current materials and recorded difficulty states; historical labels alone do not establish a current review.")
     corpus.mkdir(parents=True, exist_ok=True)
     columns = ("display_index", "problem_id", "title", "H", "qualification_status", "collection_state", "difficulty_state",
-               "difficulty_assessed_by", "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt", "material_format", "origin_class", "native_build_status")
+               "difficulty_assessed_by", "author", "source_id", "source_url", "source_version", "item_path", "current_item_path", "compile_receipt", "material_format", "origin_class", "native_build_status",
+               "duplicate_of", "canonical_problem_id", "counting_state", "qualification_state", "qualification_hold_reason", "eligible", "material_update_id", "reading_pdf")
     with (corpus / "catalog.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()

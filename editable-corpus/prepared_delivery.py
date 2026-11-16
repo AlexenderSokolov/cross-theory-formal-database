@@ -1043,6 +1043,15 @@ def locator(row):
     for key in ("work_ref", "statement_spans", "context_spans", "material_state", "run_state", "materials"):
         if key in row:
             result[key] = copy.deepcopy(row[key])
+    # Historical material revisions recorded their update only in manifest.
+    # New editorial qualification/alias metadata is explicit; do not retroactively
+    # change the SQL locator projection of an unrelated historical revision.
+    if row.get("material_update_id") and ("qualification_state" in row or "duplicate_of" in row):
+        for key in ("proof_spans", "statement_scope", "source_caveats", "difficulty_state", "difficulty_assessed_by",
+                    "material_update_id", "duplicate_of", "canonical_problem_id", "counting_state",
+                    "qualification_state", "qualification_hold_reason", "eligible", "reading_pdf"):
+            if key in row:
+                result[key] = copy.deepcopy(row[key])
     return result
 
 

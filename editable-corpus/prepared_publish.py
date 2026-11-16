@@ -782,6 +782,35 @@ def verify_native_contexts(repo, commit, corpus_prefix, record):
 
 def resolve_material_update(approved, manifest, corpus, folder, spec, *, recover=False):
     assets, replacements = [], []
+    for entry in approved["updates"]:
+        if entry["kind"] != "editorial_correction":
+            continue
+        old = material_updates.checked_row(manifest, entry)
+        for name, source in entry.get("asset_sources", {}).items():
+            target = d.relative_path(corpus, name)
+            if recover:
+                d.require(target.is_file(), "editorial candidate asset missing")
+            else:
+                source = Path(source)
+                d.require(source.is_file() and not source.is_symlink() and not target.exists(),
+                          "editorial new asset missing, symlinked or conflicts")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            assets.append(name)
+        if old.get("item_path", "").endswith(".json"):
+            original = git_json(spec["base_git_dir"], spec["public_base_commit"], "editable-corpus/" + old["item_path"])
+            d.require(original.get("problem_id") == entry["problem_id"] and all(original.get(k) == old.get(k)
+                      for k in ("task_id", "revision", "source_id", "source_version", "claim_key", "difficulty_level", "difficulty_reason")),
+                      "editorial reader differs from fixed baseline")
+            projected = copy.deepcopy(original)
+            projected.update(copy.deepcopy(entry["changes"]))
+            name = projected["item_path"]
+            target = d.relative_path(corpus, name)
+            if recover:
+                d.require(target.is_file() and d.load(target) == projected, "editorial reader candidate differs")
+            else:
+                d.save(target, projected)
+            assets.append(name)
     def replacement(entry):
         original = Path(entry["replacement_job"])
         if recover:
@@ -1227,8 +1256,8 @@ def restore_release(repo, commit, output, *, batch_id=None, baseline=None):
     reports = []
     retained_ids = {str(row["problem_id"]) for row in restored["manifest"]["items"]}
     active = {row["problem_id"]: row for row in restored["manifest"]["items"]}
-    restore_shared_assets(repo, commit, output, restored, batch_id=batch_id, baseline=baseline)
-    releases = restored["descriptor"]["deltas"] + [entry for entry in restored["descriptor"].get("qualification_records", []) if entry.get("job_paths")]
+    shared_reader_paths = restore_shared_assets(repo, commit, output, restored, batch_id=batch_id, baseline=baseline) or set()
+    releases = restored["descriptor"]["deltas"] + [entry for entry in restored["descriptor"].get("qualification_records", []) if entry.get("job_paths") or entry.get("artifact_paths")]
     maintenance_jobs = {}
     for entry in restored["descriptor"].get("qualification_records", []):
         if entry.get("job_paths"):
@@ -1241,10 +1270,17 @@ def restore_release(repo, commit, output, *, batch_id=None, baseline=None):
     for delta in releases:
         if batch_id is not None and delta["batch_id"] != batch_id:
             continue
-        retained_jobs = [job for ident, job in zip(delta["problem_ids"], delta["job_paths"]) if str(ident) in retained_ids and
+        editorial_assets = set()
+        if delta in restored["descriptor"].get("qualification_records", []):
+            correction = d.load(output / "editable-corpus" / delta["path"])
+            if correction.get("record_type") == material_updates.RECORD_TYPE and any(change['kind'] == 'editorial_correction' for change in correction['updates']):
+                editorial_assets.update(delta.get('artifact_paths', []))
+        retained_jobs = [job for ident, job in zip(delta.get("problem_ids", []), delta.get("job_paths", [])) if str(ident) in retained_ids and
                          active[str(ident)].get("prepared_job", job) == job]
         for name in delta["artifact_paths"]:
-            if not any(name.startswith(job + "/") for job in retained_jobs):
+            if name in editorial_assets and name in shared_reader_paths:
+                continue
+            if name not in editorial_assets and not any(name.startswith(job + "/") for job in retained_jobs):
                 continue
             dst = d.relative_path(output, "editable-corpus/" + name)
             git_file(repo, commit, "editable-corpus/" + name, dst)
@@ -1845,7 +1881,7 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
         record = git_json(repo, commit, 'editable-corpus/' + item['path'])
         if record.get('record_type') == material_updates.RECORD_TYPE:
             material_updates.validate_record(record)
-            native_corrections.update(change['problem_id'] for change in record['updates'] if change['kind'] == 'native_metadata')
+            native_corrections.update(change['problem_id'] for change in record['updates'] if change['kind'] in ('native_metadata', 'editorial_correction'))
     if selected_ids is not None:
         selected_ids.update(native_corrections)
     rows = [row for row in restored['manifest']['items'] if row.get('status') == shared.STATUS and
@@ -1917,6 +1953,7 @@ def restore_shared_assets(repo, commit, output, restored, *, batch_id, baseline)
             d.require(all(reader.get(key) == row.get(key) for key in
                           ('problem_id', 'work_ref', 'difficulty_reason', 'contexts', 'context_spans')),
                       'restored native reader differs from final manifest')
+    return {row['item_path'] for row in rows}
 
 
 def stage_shared_migration(spec, output, *, registry=None):

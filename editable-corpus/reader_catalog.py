@@ -96,6 +96,12 @@ def registry_rows(corpus):
 
 def reading_links(row, registry):
     links = []
+    if row.get("duplicate_of"):
+        links.append("同题关联到稳定编号 " + text(row["duplicate_of"]))
+    if row.get("qualification_hold_reason"):
+        links.append("待核：" + text(row["qualification_hold_reason"], 400))
+    if row.get("reading_pdf"):
+        links.append(local_link("修订阅读PDF", row["reading_pdf"]))
     if row.get("item_path"):
         links.append(local_link("题证／条目", row["item_path"]))
     reference = row.get("work_ref") or {}
@@ -198,12 +204,16 @@ def render_reader_files(corpus, manifest, catalog):
 
     def compact_row(row):
         # Full canonical titles and evidence stay at their original locations.
-        return {"problem_id": row["problem_id"], "title": text(row.get("title"), 1000),
+        result = {"problem_id": row["problem_id"], "title": text(row.get("title"), 1000),
                 "material_format": row.get("material_format", "legacy_tex"),
                 "difficulty_label": row.get("difficulty_level"),
                 "difficulty_state": row["difficulty_state"], "collection_state": row["collection_state"],
                 "item_path": row.get("item_path"), "source_url": row.get("source_url"),
                 "source_id": row.get("source_id"), "source_version": row.get("source_version")}
+        for key in ("duplicate_of", "canonical_problem_id", "counting_state", "qualification_state", "qualification_hold_reason", "eligible", "material_update_id", "reading_pdf"):
+            if key in row:
+                result[key] = row[key]
+        return result
 
     for kind in formats:
         chunks = []
