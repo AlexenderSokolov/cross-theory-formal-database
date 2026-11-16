@@ -1,0 +1,1 @@
+Fixed James Maynard Small gaps between primes, arXiv1311.4600v3. NativeTeX/bibliography, official25pagePDF and original ancillary Computations.nb retained unchanged. arXiv non-exclusive distribution grant is not third-party redistribution support; operator publication authorization is separately recorded. No AI-assistance disclosure inferred from silence.
