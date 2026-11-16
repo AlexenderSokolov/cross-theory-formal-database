@@ -221,6 +221,15 @@ def _resolve_pdf(groups, work, root):
     return output, missing
 
 
+def native_tex_structure_rows(path, name):
+    """Yield the original per-line author TeX structure markers."""
+    with Path(path).open(encoding='utf-8-sig', errors='replace') as stream:
+        for number, line in enumerate(stream, 1):
+            match = re.search(r'\\(?:label|section|chapter|begin)\s*\{([^}]+)\}', line)
+            if match:
+                yield {'path': name, 'line': number, 'label': match.group(1)}
+
+
 def register_work(registry, work, *, index_root):
     """Register an explicitly located version once, reusing supplied indexes."""
     records = read_registry(registry)
@@ -272,10 +281,12 @@ def register_work(registry, work, *, index_root):
     else:
         results = [{'path': name, **asset} for name, asset in record.get('author_pdf_assets', {}).items()]
         suffix = '.lean' if record['material_format'] == 'native_lean' else '.tex'
-        pattern = (r'^\s*(?:(?:private|protected|noncomputable|unsafe|public)\s+)*(?:theorem|lemma|def|instance|structure|class)\s+(\S+)' if suffix == '.lean'
-                   else r'\\(?:label|section|chapter|begin)\s*\{([^}]+)\}')
+        pattern = r'^\s*(?:(?:private|protected|noncomputable|unsafe|public)\s+)*(?:theorem|lemma|def|instance|structure|class)\s+(\S+)'
         for name in files:
             if record['material_format'] == PDF_FORMAT or Path(name).suffix != suffix:
+                continue
+            if suffix == '.tex':
+                results.extend(native_tex_structure_rows(inside(root, name), name))
                 continue
             with inside(root, name).open(encoding='utf-8-sig', errors='replace') as stream:
                 for number, line in enumerate(stream, 1):
