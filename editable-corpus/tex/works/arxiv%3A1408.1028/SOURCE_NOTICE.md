@@ -1,0 +1,1 @@
+Fixed Thomas Royen author work arXiv1408.1028v2. NativeTeX, archive, embedded5pagePDF and same-version official7pagePDF retained unchanged. Official arXiv licence grants arXiv non-exclusive distribution; third-party redistribution not established. Explicit operator publication authorization is a separate recorded fact. No AI-assistance disclosure inferred from silence.
