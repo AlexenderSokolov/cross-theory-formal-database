@@ -1,0 +1,6 @@
+Twice-Ramanujan Sparsifiers; Joshua Batson, Daniel A. Spielman, Nikhil Srivastava; 0808.0163v3; https://arxiv.org/abs/0808.0163v3
+arXiv non-exclusive distribution licence; third-party redistribution not established
+Exact fixed-version original native source/archive and complete official authorPDF retained unchanged. Research-paper own concrete H2/H3 gate; no title/prestige or direct-corollary qualification.
+Each selected whole original theorem must retain every hypothesis, parameter, branch, continuation and fresh author support; no repair, assumption supplementation or mathematical reproof. Mature cited inputs are not recursively certified.
+Official source licence and existing explicit operator publication instruction are separate. AI assistance is not inferred from silence.
+Exact0808.0163v3, complete21pageauthorPDF, originaljournal.tex1351lines, defs.tex96lines and physm2.pdf retained. Select whole linear-algebra theorem351-362, not direct graph application. Exact author reald>1 and <=dn support retained; no rounding or boundary repair. All fresh barrier construction/lemmas/proof continuations retained; mature Sherman-Morrison/matrix determinant inputs cited without recursive certification.
