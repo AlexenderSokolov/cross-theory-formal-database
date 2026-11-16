@@ -1,0 +1,6 @@
+The connective constant of the honeycomb lattice equals sqrt(2+sqrt(2)); Hugo Duminil-Copin, Stanislav Smirnov; 1007.0575v2; https://arxiv.org/abs/1007.0575v2
+arXiv distribution licence per exact official version link; third-party redistribution not established
+Exact fixed-version original native source/archive and complete official authorPDF retained unchanged. Research-paper own concrete H2/H3 gate; no title/prestige or direct-corollary qualification.
+Each selected whole original theorem must retain every hypothesis, parameter, branch, continuation and fresh author support; no repair, assumption supplementation or mathematical reproof. Mature cited inputs are not recursively certified.
+Official source licence and existing explicit operator publication instruction are separate. AI assistance is not inferred from silence.
+Exact1007.0575v2, official complete11pagePDF,505lineSAW.tex and all4native vectorPDF figures retained. Actual diagram/caption pages3,4,5,8 read. Preserve original mid-edge length definition, boundary conventions, both critical lower-bound branches, width-zero bridge and full reconstruction continuation328; no added assumptions or generated proof. ConjecturedSLE/scaling discussion remains historical conjecture, not a proved new unit.

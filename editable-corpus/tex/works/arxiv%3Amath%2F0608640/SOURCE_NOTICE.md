@@ -1,0 +1,6 @@
+An extension problem related to the fractional Laplacian; Luis Caffarelli, Luis Silvestre; math/0608640v2; https://arxiv.org/abs/math/0608640v2
+arXiv distribution licence per exact official version link; third-party redistribution not established
+Exact fixed-version original native source/archive and complete official authorPDF retained unchanged. Research-paper own concrete H2/H3 gate; no title/prestige or direct-corollary qualification.
+Each selected whole original theorem must retain every hypothesis, parameter, branch, continuation and fresh author support; no repair, assumption supplementation or mathematical reproof. Mature cited inputs are not recursively certified.
+Official source licence and existing explicit operator publication instruction are separate. AI assistance is not inferred from silence.
+Exact math/0608640v2, official complete15pagePDF and596linecaff-silv.tex plusbbl retained. Actual PDF title dateNovember26,2024 and marginv2February13,2007 both preserved; fixed official version determines identity. Author125 limit factor/sign,255-257 missing Fourier hats,245 hat-phi and291-293 both barriers called supersolutions are retained verbatim, no mathematical repair. Official licence link unusually resolves to assumed1991-2003; preserve observed link separately from2006/2007 submission facts and operator authorization.
